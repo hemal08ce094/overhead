@@ -53,7 +53,7 @@ final class StarCatalog {
 
 enum Celestial {
     /// Sun azimuth (from north) + elevation for the observer at `date`.
-    static func sun(date: Date, lat: Double, lon: Double) -> (az: Double, el: Double) {
+    nonisolated static func sun(date: Date, lat: Double, lon: Double) -> (az: Double, el: Double) {
         let geo = GeographicCoordinates(positivelyWestwardLongitude: Degree(-lon), latitude: Degree(lat))
         let h = Sun(julianDay: JulianDay(date)).makeHorizontalCoordinates(with: geo)
         return (h.northBasedAzimuth.value, h.altitude.value)
@@ -64,7 +64,7 @@ enum Celestial {
     struct PlanetFix { let name: String; let az: Double; let el: Double }
 
     /// The five naked-eye planets at the observer's sky position.
-    static func planets(date: Date, lat: Double, lon: Double) -> [PlanetFix] {
+    nonisolated static func planets(date: Date, lat: Double, lon: Double) -> [PlanetFix] {
         let geo = GeographicCoordinates(positivelyWestwardLongitude: Degree(-lon), latitude: Degree(lat))
         let jd = JulianDay(date)
         func fix(_ name: String, _ h: HorizontalCoordinates) -> PlanetFix {
@@ -79,7 +79,7 @@ enum Celestial {
         return out
     }
 
-    static func moon(date: Date, lat: Double, lon: Double) -> MoonState {
+    nonisolated static func moon(date: Date, lat: Double, lon: Double) -> MoonState {
         let geo = GeographicCoordinates(positivelyWestwardLongitude: Degree(-lon), latitude: Degree(lat))
         let jd = JulianDay(date)
         let h = Moon(julianDay: jd).makeHorizontalCoordinates(with: geo)

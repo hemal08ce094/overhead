@@ -369,6 +369,7 @@ final class ARSkyViewController: UIViewController {
     private var pollTask: Task<Void, Never>?
     private var airportNodes: [String: AirportNode] = [:]
     private var spottedThisSession: Set<String> = []
+    private var poorCompassSince: Date?
     private let flightActivity = FlightActivityController()
     private let skyAudio = SkyAudioEngine()
 
@@ -378,7 +379,7 @@ final class ARSkyViewController: UIViewController {
     private let photos = PlanePhotoFetcher()
     private var trails: [String: [SCNVector3]] = [:]
     private var trailNodes: [String: SCNNode] = [:]
-    private let maxTrail = 30
+    private let maxTrail = 90      // one fix per second → ~90 s of path
 
     /// The most recent geometry for an aircraft, kept so calibration changes can
     /// re-place it instantly and the selection readout can refresh between fixes.
@@ -666,10 +667,17 @@ final class ARSkyViewController: UIViewController {
 
     private func updateAudio() {
         guard engine?.soundOn == true, skyAudio.running else { return }
-        let nearestFirst = lastFix.sorted { $0.value.range < $1.value.range }
-        let sources: [(hex: String, position: SCNVector3)] = nearestFirst.compactMap { hex, _ in
-            guard let node = nodes[hex], !node.isHidden else { return nil }
-            return (hex, node.presentation.worldPosition)
+        // While tracking, the soundscape spotlights only the focused flight;
+        // otherwise it's the ambient hum of the nearest aircraft.
+        let sources: [(hex: String, position: SCNVector3)]
+        if let focusHex = focusedHex {
+            sources = nodes[focusHex].map { [(focusHex, $0.presentation.worldPosition)] } ?? []
+        } else {
+            let nearestFirst = lastFix.sorted { $0.value.range < $1.value.range }
+            sources = nearestFirst.compactMap { hex, _ in
+                guard let node = nodes[hex], !node.isHidden else { return nil }
+                return (hex, node.presentation.worldPosition)
+            }
         }
         let pov = sceneView.pointOfView?.presentation
         let forward = pov?.simdWorldFront ?? simd_float3(0, 0, -1)
@@ -905,7 +913,7 @@ final class ARSkyViewController: UIViewController {
                 at: CGPoint(x: pad, y: size.height - footerHeight * 0.28),
                 withAttributes: [.font: subFont,
                                  .foregroundColor: UIColor.white.withAlphaComponent(0.7)])
-            let brand = "Skylight" as NSString
+            let brand = "Overhead" as NSString
             let brandFont = UIFont.systemFont(ofSize: size.width * 0.032, weight: .semibold)
             let brandSize = brand.size(withAttributes: [.font: brandFont])
             brand.draw(at: CGPoint(x: size.width - pad - brandSize.width,
@@ -925,11 +933,8 @@ final class ARSkyViewController: UIViewController {
         trails[hex] = points
         guard points.count >= 2 else { return }
 
-        var verts: [SCNVector3] = []
-        for i in 1..<points.count { verts.append(points[i - 1]); verts.append(points[i]) }
-        let geometry = SCNGeometry.line(verts)
         let color = AircraftNode.altitudeColor(feet: aircraft.altitudeFeet, onGround: aircraft.onGround)
-        geometry.firstMaterial?.diffuse.contents = color.withAlphaComponent(0.55)
+        let geometry = SCNGeometry.fadingTrail(points, color: color)
 
         if let trailNode = trailNodes[hex] {
             trailNode.geometry = geometry
@@ -1186,6 +1191,8 @@ extension ARSkyViewController: CLLocationManagerDelegate {
             // Siri's "what's flying over me" answers from the last known spot.
             UserDefaults.standard.set(loc.coordinate.latitude, forKey: SkyDefaults.lastLat)
             UserDefaults.standard.set(loc.coordinate.longitude, forKey: SkyDefaults.lastLon)
+            engine?.loadEventsIfNeeded(lat: loc.coordinate.latitude,
+                                       lon: loc.coordinate.longitude)
         }
     }
 
@@ -1194,6 +1201,18 @@ extension ARSkyViewController: CLLocationManagerDelegate {
         alignNorth(with: newHeading)
         // Keep the find-it arrow tracking as the user turns.
         updateFocusGuidance()
+        // iOS often declines to show its own calibration overlay; surface our
+        // quiet hint when the compass stays poor for ten seconds straight.
+        let accuracy = newHeading.headingAccuracy
+        if accuracy < 0 || accuracy > 25 {
+            if poorCompassSince == nil { poorCompassSince = Date() }
+            if let since = poorCompassSince, Date().timeIntervalSince(since) > 10 {
+                engine?.compassHintNeeded = true
+            }
+        } else {
+            poorCompassSince = nil
+            engine?.compassHintNeeded = false
+        }
     }
 
     /// Let iOS put up its figure-8 calibration overlay whenever the compass is
@@ -1321,6 +1340,45 @@ extension SCNGeometry {
         let geometry = SCNGeometry(sources: [source], elements: [element])
         let material = SCNMaterial()
         material.lightingModel = .constant
+        material.isDoubleSided = true
+        geometry.materials = [material]
+        return geometry
+    }
+
+    /// A comet trail: an ordered polyline whose brightness fades toward the
+    /// tail, blended additively so it reads as a streak of light.
+    static func fadingTrail(_ points: [SCNVector3], color: UIColor) -> SCNGeometry {
+        var r: CGFloat = 1, g: CGFloat = 1, b: CGFloat = 1, a: CGFloat = 1
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+
+        var verts: [SCNVector3] = []
+        var colors: [simd_float4] = []
+        let n = points.count
+        for i in 1..<n {
+            // Newest segments (end of the array) glow; the tail melts away.
+            let fade0 = pow(Float(i - 1) / Float(max(n - 1, 1)), 1.6) * 0.8
+            let fade1 = pow(Float(i) / Float(max(n - 1, 1)), 1.6) * 0.8
+            verts.append(points[i - 1])
+            colors.append(simd_float4(Float(r) * fade0, Float(g) * fade0, Float(b) * fade0, 1))
+            verts.append(points[i])
+            colors.append(simd_float4(Float(r) * fade1, Float(g) * fade1, Float(b) * fade1, 1))
+        }
+
+        let vertexSource = SCNGeometrySource(vertices: verts)
+        let colorData = colors.withUnsafeBufferPointer { Data(buffer: $0) }
+        let colorSource = SCNGeometrySource(
+            data: colorData, semantic: .color, vectorCount: colors.count,
+            usesFloatComponents: true, componentsPerVector: 4,
+            bytesPerComponent: MemoryLayout<Float>.size,
+            dataOffset: 0, dataStride: MemoryLayout<simd_float4>.stride)
+        let element = SCNGeometryElement(indices: Array(Int32(0)..<Int32(verts.count)),
+                                         primitiveType: .line)
+        let geometry = SCNGeometry(sources: [vertexSource, colorSource], elements: [element])
+        let material = SCNMaterial()
+        material.lightingModel = .constant
+        material.diffuse.contents = UIColor.white      // vertex colors carry the hue
+        material.blendMode = .add
+        material.writesToDepthBuffer = false
         material.isDoubleSided = true
         geometry.materials = [material]
         return geometry

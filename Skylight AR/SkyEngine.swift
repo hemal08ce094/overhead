@@ -106,6 +106,20 @@ final class SkyEngine {
     /// Upcoming plane-crosses-Moon/Sun moment, when one is predicted.
     var transitPrediction: TransitPrediction?
 
+    /// The sky calendar — eclipses (local), meteor showers, full moons.
+    var events: [SkyEvent] = []
+    private var eventsLoaded = false
+
+    /// Heavy scan (thousands of ephemerides); runs once, off the main actor.
+    func loadEventsIfNeeded(lat: Double, lon: Double) {
+        guard !eventsLoaded else { return }
+        eventsLoaded = true
+        Task.detached(priority: .utility) {
+            let events = EventsCalendar.upcoming(lat: lat, lon: lon)
+            await MainActor.run { self.events = events }
+        }
+    }
+
     func isFavorite(_ callsign: String) -> Bool { favorites.contains(callsign) }
     func toggleFavorite(_ callsign: String) {
         if favorites.contains(callsign) { favorites.remove(callsign) }
@@ -134,6 +148,9 @@ final class SkyEngine {
     var zoomFactor: Double = 1
     /// Compass heading accuracy in degrees; < 0 means unknown.
     var headingAccuracyDeg: Double = -1
+    /// True once the compass has stayed poor long enough to deserve a nudge.
+    var compassHintNeeded: Bool = false
+    var compassHintDismissed: Bool = false
     /// Moon illuminated fraction (0…1) and waxing flag, for the UI.
     var moonIllumination: Double = 0
     var moonWaxing: Bool = true

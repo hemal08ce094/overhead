@@ -59,7 +59,7 @@ struct OnboardingView: View {
         VStack(spacing: 22) {
             MoonMark().frame(width: 116, height: 116)
             VStack(spacing: 10) {
-                Text("Skylight")
+                Text("Overhead")
                     .font(Theme.display(46, .bold))
                     .foregroundStyle(Theme.textPrimary)
                 Text("Hold up your phone and see the planes,\nsun, moon and stars where they truly are.")
@@ -79,7 +79,7 @@ struct OnboardingView: View {
         PrimingCard(
             icon: "location.fill",
             title: "Your place under the sky",
-            message: "Skylight uses your location to compute exactly where each aircraft and celestial object sits above you.",
+            message: "Overhead uses your location to compute exactly where each aircraft and celestial object sits above you.",
             primary: "Enable Location",
             action: { permissions.requestLocation() },
             skipTitle: permissions.locationDenied ? "Open Settings" : "Not now",
@@ -90,7 +90,7 @@ struct OnboardingView: View {
         PrimingCard(
             icon: "camera.fill",
             title: "See through to the real sky",
-            message: "The camera lets Skylight overlay aircraft and stars onto the live sky in augmented reality. You can also use a low-power dark-sky mode.",
+            message: "The camera lets Overhead place aircraft and stars onto the live sky in augmented reality. You can also use a low-power dark-sky mode.",
             primary: "Enable Camera",
             action: { Task { await permissions.requestCamera() } },
             skipTitle: "Skip — use dark sky",

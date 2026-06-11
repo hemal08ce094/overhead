@@ -18,7 +18,7 @@ struct WhatsFlyingIntent: AppIntent {
         let lat = defaults.double(forKey: SkyDefaults.lastLat)
         let lon = defaults.double(forKey: SkyDefaults.lastLon)
         guard lat != 0 || lon != 0 else {
-            return .result(dialog: "Open Skylight once so I can learn where your sky is.")
+            return .result(dialog: "Open Overhead once so I can learn where your sky is.")
         }
         let traffic = (try? await ADSBClient().aircraft(lat: lat, lon: lon, radiusNm: 40)) ?? []
         let airborne = traffic.filter { !$0.onGround }

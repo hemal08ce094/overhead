@@ -30,6 +30,7 @@ struct ARSkyScreen: View {
     @State private var engine = SkyEngine()
     @State private var showSky = false
     @State private var showProfile = false
+    @State private var showEvents = false
     @State private var showAircraftDetail = false
 
     var body: some View {
@@ -49,6 +50,12 @@ struct ARSkyScreen: View {
                     Spacer()
                     if engine.zoomFactor > 1.05 { zoomPill }
                     if engine.skyTimeOffsetMin != 0 { timeOffsetPill }
+                    eventsBell
+                }
+                if engine.compassHintNeeded && !engine.compassHintDismissed {
+                    compassHint
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 if let focus = engine.focusInfo {
                     focusPill(focus)
@@ -81,6 +88,16 @@ struct ARSkyScreen: View {
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showSky) {
             SkySheet(engine: engine)
+        }
+        .sheet(isPresented: $showEvents) {
+            NavigationStack { EventsView(engine: engine) }
+                .presentationDetents([.medium, .large])
+                .presentationBackground {
+                    Color.clear
+                        .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
+                                     in: .rect(cornerRadius: 38))
+                }
+                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showProfile) {
             NavigationStack { ProfileView(engine: engine) }
@@ -180,6 +197,39 @@ struct ARSkyScreen: View {
                                  in: .circle)
             }
             Spacer()
+        }
+    }
+
+    /// A quiet nudge when the magnetometer has been struggling for a while.
+    private var compassHint: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "location.north.line.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.orange)
+            Text("Wave your phone in a figure-8 to fix the compass")
+                .font(Theme.display(13, .medium))
+                .foregroundStyle(Theme.textPrimary)
+            Button { engine.compassHintDismissed = true } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 26, height: 26)
+                    .contentShape(Circle())
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .glassEffect(.regular.tint(.orange.opacity(0.15)), in: .capsule)
+    }
+
+    /// Top-right bell — the sky calendar, one tap from anywhere.
+    private var eventsBell: some View {
+        Button { showEvents = true } label: {
+            Image(systemName: "bell")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Theme.textPrimary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .glassEffect(.regular, in: .circle)
         }
     }
 
@@ -600,6 +650,95 @@ struct ProfileView: View {
     }
 }
 
+// MARK: - Sky events (pushed inside the Sky sheet)
+
+struct EventsView: View {
+    @Bindable var engine: SkyEngine
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if engine.events.isEmpty {
+                    HStack(spacing: 10) {
+                        ProgressView().tint(Theme.textTertiary)
+                        Text("Reading the year ahead…")
+                            .font(Theme.display(14, .regular))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    .padding(.vertical, 30)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    ForEach(engine.events) { event in
+                        NavigationLink {
+                            EventDetailView(event: event)
+                        } label: {
+                            eventCard(event)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text("Eclipse circumstances are computed for your exact location.")
+                        .font(Theme.display(11, .regular))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            }
+            .padding(24)
+        }
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Sky events")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
+    }
+
+    private let gold = Color(red: 1.0, green: 0.82, blue: 0.45)
+
+    private func eventCard(_ event: SkyEvent) -> some View {
+        let isEclipse = event.kind == .eclipse
+        return HStack(alignment: .top, spacing: 14) {
+            EventGlyph(kind: event.kind)
+                .frame(width: 26, height: 26)
+                .frame(width: 32)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(event.title)
+                        .font(Theme.display(isEclipse ? 18 : 16, .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Text(countdown(to: event.date))
+                        .font(Theme.display(13, .bold).monospacedDigit())
+                        .foregroundStyle(isEclipse ? gold : Theme.accent)
+                }
+                Text(event.subtitle)
+                    .font(Theme.display(13, .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                Text(event.date.formatted(date: .long, time: .shortened))
+                    .font(Theme.display(12, .regular))
+                    .foregroundStyle(Theme.textTertiary)
+                Text(event.detail)
+                    .font(Theme.display(12, .regular))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .padding(16)
+        .background(
+            (isEclipse ? gold.opacity(0.07) : Color.white.opacity(0.04)),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            if isEclipse {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(gold.opacity(0.35), lineWidth: 1)
+            }
+        }
+    }
+
+    private func countdown(to date: Date) -> String {
+        let days = date.timeIntervalSinceNow / 86_400
+        if days < 1 { return "today" }
+        if days < 60 { return "\(Int(days))d" }
+        return "\(Int(days / 30.44))mo"
+    }
+}
+
 // MARK: - Calibration (pushed inside the Sky sheet)
 
 struct CalibrationView: View {
@@ -832,6 +971,40 @@ struct SkySheet: View {
                          in: .capsule)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: active)
+    }
+
+    /// Push into the sky calendar.
+    private var eventsLink: some View {
+        NavigationLink {
+            EventsView(engine: engine)
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Sky events")
+                        .font(Theme.display(16, .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(nextEventSubtitle)
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 13)
+            .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+
+    private var nextEventSubtitle: String {
+        guard let next = engine.events.first else { return "Eclipses, meteor showers, full moons" }
+        let days = max(0, Int(next.date.timeIntervalSinceNow / 86_400))
+        return days == 0 ? "\(next.title) — today" : "\(next.title) in \(days) days"
     }
 
     /// Push into the full calibration controls.

@@ -29,6 +29,7 @@ struct SkylightWidgetsBundle: WidgetBundle {
     var body: some Widget {
         FlightLiveActivity()
         OpenSkyControl()
+        MoonClockWidget()
     }
 }
 
@@ -36,7 +37,7 @@ struct SkylightWidgetsBundle: WidgetBundle {
 
 struct OpenSkyIntent: AppIntent {
     static let title: LocalizedStringResource = "Open the Sky"
-    static let description = IntentDescription("Open Skylight and start scanning the sky.")
+    static let description = IntentDescription("Open Overhead and start scanning the sky.")
     static let opensAppWhenRun: Bool = true
     func perform() async throws -> some IntentResult { .result() }
 }
@@ -50,7 +51,7 @@ struct OpenSkyControl: ControlWidget {
             }
         }
         .displayName("Open the Sky")
-        .description("Open Skylight and start scanning the sky.")
+        .description("Open Overhead and start scanning the sky.")
     }
 }
 

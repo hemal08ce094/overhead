@@ -380,6 +380,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Skylight AR/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Overhead;
 				INFOPLIST_KEY_NSCameraUsageDescription = "See aircraft and sky objects in AR.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Place aircraft and sky at your true position.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -416,6 +417,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Skylight AR/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Overhead;
 				INFOPLIST_KEY_NSCameraUsageDescription = "See aircraft and sky objects in AR.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Place aircraft and sky at your true position.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

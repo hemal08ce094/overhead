@@ -22,7 +22,7 @@ struct TransitPrediction: Equatable {
 enum TransitPredictor {
 
     /// Angular separation between two sky positions, degrees.
-    static func separation(az1: Double, el1: Double, az2: Double, el2: Double) -> Double {
+    nonisolated static func separation(az1: Double, el1: Double, az2: Double, el2: Double) -> Double {
         let e1 = el1 * .pi / 180, e2 = el2 * .pi / 180
         let dAz = (az1 - az2) * .pi / 180
         let cosSep = sin(e1) * sin(e2) + cos(e1) * cos(e2) * cos(dAz)
@@ -33,7 +33,7 @@ enum TransitPredictor {
     /// within the next `horizon` seconds. Dead-reckons each track at its
     /// current ground speed; bodies are treated as fixed over the horizon
     /// (the moon moves ~0.03° in 3 minutes — far below the disc radius).
-    static func predict(aircraft: [Aircraft],
+    nonisolated static func predict(aircraft: [Aircraft],
                         observerLat: Double, observerLon: Double, observerAltM: Double,
                         moon: (az: Double, el: Double)?,
                         sun: (az: Double, el: Double)?,
