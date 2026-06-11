@@ -1,0 +1,24 @@
+{
+  "originHash" : "bf72ded57afa32b5e8fcb8503b161de62ac12e349ca6a79dc111161918519683",
+  "pins" : [
+    {
+      "identity" : "satellitekit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gavineadie/SatelliteKit.git",
+      "state" : {
+        "revision" : "9a87cdb80344f26e81bc5fc82fdf9a3350478603",
+        "version" : "2.1.2"
+      }
+    },
+    {
+      "identity" : "swiftaa",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/onekiloparsec/SwiftAA.git",
+      "state" : {
+        "revision" : "050867bd8e9411100d3073047ce95942e2b0aa0d",
+        "version" : "3.0.1"
+      }
+    }
+  ],
+  "version" : 3
+}

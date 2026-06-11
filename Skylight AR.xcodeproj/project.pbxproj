@@ -6,20 +6,88 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CCCC000000000000000000C1 /* SwiftAA in Frameworks */ = {isa = PBXBuildFile; productRef = BBBB000000000000000000B1 /* SwiftAA */; };
+		CCCC000000000000000000C2 /* SatelliteKit in Frameworks */ = {isa = PBXBuildFile; productRef = BBBB000000000000000000B2 /* SatelliteKit */; };
+		DDDD0000000000000000W00F /* SkylightWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DDDD0000000000000000W001 /* SkylightWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DDDD0000000000000000W00D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 072F836A2FD13F0E0005054C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DDDD0000000000000000W003;
+			remoteInfo = SkylightWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		DDDD0000000000000000W00E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				DDDD0000000000000000W00F /* SkylightWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		072F83722FD13F0E0005054C /* Skylight AR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Skylight AR.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDDD0000000000000000W001 /* SkylightWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SkylightWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		072F83802FD13F100005054C /* Exceptions for "Skylight AR" folder in "Skylight AR" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 072F83712FD13F0E0005054C /* Skylight AR */;
+		};
+		DDDD0000000000000000W008 /* Exceptions for "SkylightWidgets" folder in "SkylightWidgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DDDD0000000000000000W003 /* SkylightWidgets */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		072F83742FD13F0E0005054C /* Skylight AR */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				072F83802FD13F100005054C /* Exceptions for "Skylight AR" folder in "Skylight AR" target */,
+			);
 			path = "Skylight AR";
+			sourceTree = "<group>";
+		};
+		DDDD0000000000000000W002 /* SkylightWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DDDD0000000000000000W008 /* Exceptions for "SkylightWidgets" folder in "SkylightWidgets" target */,
+			);
+			path = SkylightWidgets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		072F836F2FD13F0E0005054C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCCC000000000000000000C1 /* SwiftAA in Frameworks */,
+				CCCC000000000000000000C2 /* SatelliteKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDDD0000000000000000W005 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +101,7 @@
 			isa = PBXGroup;
 			children = (
 				072F83742FD13F0E0005054C /* Skylight AR */,
+				DDDD0000000000000000W002 /* SkylightWidgets */,
 				072F83732FD13F0E0005054C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				072F83722FD13F0E0005054C /* Skylight AR.app */,
+				DDDD0000000000000000W001 /* SkylightWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,20 +125,46 @@
 				072F836E2FD13F0E0005054C /* Sources */,
 				072F836F2FD13F0E0005054C /* Frameworks */,
 				072F83702FD13F0E0005054C /* Resources */,
+				DDDD0000000000000000W00E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				DDDD0000000000000000W00C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				072F83742FD13F0E0005054C /* Skylight AR */,
 			);
 			name = "Skylight AR";
 			packageProductDependencies = (
+				BBBB000000000000000000B1 /* SwiftAA */,
+				BBBB000000000000000000B2 /* SatelliteKit */,
 			);
 			productName = "Skylight AR";
 			productReference = 072F83722FD13F0E0005054C /* Skylight AR.app */;
 			productType = "com.apple.product-type.application";
+		};
+		DDDD0000000000000000W003 /* SkylightWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDDD0000000000000000W007 /* Build configuration list for PBXNativeTarget "SkylightWidgets" */;
+			buildPhases = (
+				DDDD0000000000000000W004 /* Sources */,
+				DDDD0000000000000000W005 /* Frameworks */,
+				DDDD0000000000000000W006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				DDDD0000000000000000W002 /* SkylightWidgets */,
+			);
+			name = SkylightWidgets;
+			packageProductDependencies = (
+			);
+			productName = SkylightWidgets;
+			productReference = DDDD0000000000000000W001 /* SkylightWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -94,18 +190,30 @@
 			);
 			mainGroup = 072F83692FD13F0E0005054C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AAAA000000000000000000A1 /* XCRemoteSwiftPackageReference "SwiftAA" */,
+				AAAA000000000000000000A2 /* XCRemoteSwiftPackageReference "SatelliteKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 072F83732FD13F0E0005054C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				072F83712FD13F0E0005054C /* Skylight AR */,
+				DDDD0000000000000000W003 /* SkylightWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		072F83702FD13F0E0005054C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DDDD0000000000000000W006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +230,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DDDD0000000000000000W004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DDDD0000000000000000W00C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DDDD0000000000000000W003 /* SkylightWidgets */;
+			targetProxy = DDDD0000000000000000W00D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		072F837B2FD13F0F0005054C /* Debug */ = {
@@ -256,9 +379,13 @@
 				DEVELOPMENT_TEAM = 542W8Z2VM3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Skylight AR/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "See aircraft and sky objects in AR.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Place aircraft and sky at your true position.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -288,9 +415,13 @@
 				DEVELOPMENT_TEAM = 542W8Z2VM3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Skylight AR/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "See aircraft and sky objects in AR.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Place aircraft and sky at your true position.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -305,6 +436,58 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		DDDD0000000000000000W00A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 542W8Z2VM3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SkylightWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Skylight Widgets";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "hemal.Skylight-AR.SkylightWidgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DDDD0000000000000000W00B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 542W8Z2VM3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SkylightWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Skylight Widgets";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "hemal.Skylight-AR.SkylightWidgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -331,7 +514,48 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		DDDD0000000000000000W007 /* Build configuration list for PBXNativeTarget "SkylightWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DDDD0000000000000000W00A /* Debug */,
+				DDDD0000000000000000W00B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AAAA000000000000000000A1 /* XCRemoteSwiftPackageReference "SwiftAA" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onekiloparsec/SwiftAA.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.1;
+			};
+		};
+		AAAA000000000000000000A2 /* XCRemoteSwiftPackageReference "SatelliteKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gavineadie/SatelliteKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.1.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BBBB000000000000000000B1 /* SwiftAA */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AAAA000000000000000000A1 /* XCRemoteSwiftPackageReference "SwiftAA" */;
+			productName = SwiftAA;
+		};
+		BBBB000000000000000000B2 /* SatelliteKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AAAA000000000000000000A2 /* XCRemoteSwiftPackageReference "SatelliteKit" */;
+			productName = SatelliteKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 072F836A2FD13F0E0005054C /* Project object */;
 }

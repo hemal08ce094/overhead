@@ -1,0 +1,117 @@
+//
+//  SkyAudio.swift
+//  Skylight AR
+//
+//  Spatial flyover audio: a procedural engine hum, positioned in 3D for the
+//  nearest aircraft and rendered binaurally (HRTF). The listener follows the
+//  AR camera, so the sky is audible — point the phone at the sound to find
+//  the plane. Works eyes-free; the whole sky for low-vision users.
+//
+
+import AVFoundation
+import SceneKit
+
+@MainActor
+final class SkyAudioEngine {
+
+    private let engine = AVAudioEngine()
+    private let environment = AVAudioEnvironmentNode()
+    private var players: [String: AVAudioPlayerNode] = [:]   // hex → source
+    private let humBuffer: AVAudioPCMBuffer?
+    private(set) var running = false
+    private let maxSources = 8
+
+    init() {
+        humBuffer = Self.makeHumBuffer()
+        engine.attach(environment)
+        engine.connect(environment, to: engine.mainMixerNode,
+                       format: engine.mainMixerNode.outputFormat(forBus: 0))
+        environment.distanceAttenuationParameters.distanceAttenuationModel = .inverse
+        environment.distanceAttenuationParameters.referenceDistance = 40
+        environment.distanceAttenuationParameters.maximumDistance = 400
+        environment.outputVolume = 0.7
+    }
+
+    func start() {
+        guard !running else { return }
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.ambient, options: [.mixWithOthers])
+        try? session.setActive(true)
+        do { try engine.start(); running = true } catch { running = false }
+    }
+
+    func stop() {
+        guard running else { return }
+        for (_, player) in players { player.stop(); engine.detach(player) }
+        players.removeAll()
+        engine.stop()
+        running = false
+    }
+
+    /// Re-position the soundscape. `sources` are nearest-first world positions
+    /// (scene meters); the listener sits at the origin facing `forward`/`up`.
+    func update(sources: [(hex: String, position: SCNVector3)],
+                forward: simd_float3, up: simd_float3) {
+        guard running, let humBuffer else { return }
+        environment.listenerPosition = AVAudio3DPoint(x: 0, y: 0, z: 0)
+        environment.listenerVectorOrientation = AVAudio3DVectorOrientation(
+            forward: AVAudio3DVector(x: forward.x, y: forward.y, z: forward.z),
+            up: AVAudio3DVector(x: up.x, y: up.y, z: up.z))
+
+        let wanted = sources.prefix(maxSources)
+        let keep = Set(wanted.map(\.hex))
+        for (hex, player) in players where !keep.contains(hex) {
+            player.stop()
+            engine.detach(player)
+            players[hex] = nil
+        }
+        for source in wanted {
+            let player: AVAudioPlayerNode
+            if let existing = players[source.hex] {
+                player = existing
+            } else {
+                player = AVAudioPlayerNode()
+                engine.attach(player)
+                engine.connect(player, to: environment, format: humBuffer.format)
+                player.renderingAlgorithm = .HRTFHQ
+                // Slight per-plane rate variation so the chorus doesn't phase.
+                player.rate = 1.0
+                player.scheduleBuffer(humBuffer, at: nil, options: [.loops])
+                player.volume = 0.85
+                player.play()
+                players[source.hex] = player
+            }
+            // Scene positions are ~1000 m out; compress into the audio field.
+            player.position = AVAudio3DPoint(x: source.position.x / 8,
+                                             y: source.position.y / 8,
+                                             z: source.position.z / 8)
+        }
+    }
+
+    /// 3-second seamless brown-noise loop — reads as a distant jet rumble.
+    /// Mono, as spatialization requires.
+    private static func makeHumBuffer() -> AVAudioPCMBuffer? {
+        let sampleRate = 44_100.0
+        let frames = AVAudioFrameCount(sampleRate * 3)
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
+              let data = buffer.floatChannelData?[0] else { return nil }
+        buffer.frameLength = frames
+        var seed: UInt64 = 0x5DEECE66D
+        var brown: Float = 0
+        for i in 0..<Int(frames) {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            let white = Float((seed >> 33) & 0xFFFF) / 32768 - 1
+            brown = (brown + 0.02 * white) / 1.02
+            data[i] = brown * 3.0
+        }
+        // Crossfade the seam so the loop never clicks.
+        let fade = 4096
+        for k in 0..<fade {
+            let t = Float(k) / Float(fade)
+            let i = Int(frames) - fade + k
+            data[i] = data[i] * (1 - t) + data[k] * t
+        }
+        return buffer
+    }
+}
