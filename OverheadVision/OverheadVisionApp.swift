@@ -14,11 +14,10 @@ import RealityKit
 struct OverheadVisionApp: App {
     @State private var model = VisionSkyModel()
 
-    var body: some Scene {
+    var body: some SwiftUI.Scene {
         WindowGroup {
             ControlPanelView(model: model)
         }
-        .windowStyle(.plain)
         .defaultSize(width: 420, height: 520)
 
         ImmersiveSpace(id: "sky") {
