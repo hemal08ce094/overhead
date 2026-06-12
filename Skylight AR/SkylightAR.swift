@@ -477,6 +477,7 @@ final class ARSkyViewController: UIViewController {
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
         sceneView.addGestureRecognizer(pinch)
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+        pan.maximumNumberOfTouches = 1     // never fight the pinch
         sceneView.addGestureRecognizer(pan)
     }
 
@@ -532,18 +533,15 @@ final class ARSkyViewController: UIViewController {
 
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
         if engine?.globeMode == true {
+            // In orbit view, pinch only moves you nearer/farther — mode
+            // changes happen through the explicit picker, never by gesture.
             switch gesture.state {
             case .began:
                 pinchStartDistance = globe.cameraDistance
             case .changed:
-                if pinchStartDistance == 0 {
-                    // Entered mid-gesture; rebase so there's no jump.
-                    pinchStartDistance = globe.cameraDistance * Double(gesture.scale)
-                }
-                let distance = max(1.3, min(5.0, pinchStartDistance / Double(gesture.scale)))
+                let distance = max(1.5, min(5.0, pinchStartDistance / Double(gesture.scale)))
                 globe.cameraDistance = distance
                 globe.root.position = SCNVector3(0, 0, -Float(distance))
-                if distance <= 1.35 { pinchStartDistance = 0; exitGlobe() }  // dive home
             default:
                 break
             }
@@ -551,16 +549,7 @@ final class ARSkyViewController: UIViewController {
         }
         switch gesture.state {
         case .began: pinchStartZoom = zoomFactor
-        case .changed:
-            let requested = pinchStartZoom * gesture.scale
-            // Pinching below 1× in the dark sky pulls back into orbit.
-            if requested < 0.82, engine?.cameraPassthrough == false {
-                setZoom(1)
-                pinchStartDistance = 0
-                enterGlobe()
-                return
-            }
-            setZoom(requested)
+        case .changed: setZoom(pinchStartZoom * gesture.scale)
         default: break
         }
     }
