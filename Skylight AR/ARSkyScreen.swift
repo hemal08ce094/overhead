@@ -777,13 +777,6 @@ struct CalibrationView: View {
                             .foregroundStyle(Theme.textSecondary)
                     }
 
-                    Toggle(isOn: $engine.mirrorX) {
-                        Text("Mirror horizontally")
-                            .font(Theme.display(16, .medium))
-                            .foregroundStyle(Theme.textPrimary)
-                    }
-                    .tint(Theme.accentSoft)
-
                     section("Labels", trailing: nil) {
                         Picker("Labels", selection: $engine.labelMode) {
                             ForEach(SkyEngine.LabelMode.allCases) { mode in

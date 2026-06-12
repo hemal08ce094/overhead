@@ -168,7 +168,11 @@ final class SkyEngine {
         // Direct assignment in init does not trigger didSet — safe while
         // `controller` is still nil.
         headingOffsetDeg = d.double(forKey: SkyDefaults.headingOffsetDeg)
-        mirrorX = d.bool(forKey: SkyDefaults.mirrorX)
+        // The mirror toggle is gone — it silently flipped the whole sky
+        // east↔west (sun on the wrong side, mirrored planes and airports)
+        // after one accidental tap. Force any persisted value off.
+        mirrorX = false
+        d.set(false, forKey: SkyDefaults.mirrorX)
         // Camera AR is the default experience; only off if explicitly disabled.
         cameraPassthrough = d.object(forKey: SkyDefaults.cameraPassthrough) as? Bool ?? true
         labelMode = LabelMode(rawValue: d.string(forKey: SkyDefaults.labelMode) ?? "") ?? .nearby
