@@ -1298,23 +1298,38 @@ extension ARSkyViewController: CLLocationManagerDelegate {
         return accuracy < 0 || accuracy > 20
     }
 
-    /// Rotate `worldNode` so content azimuths line up with true north, using a
-    /// simultaneous (camera yaw, compass heading) pair. The scene frame is fixed
-    /// per session run, so this offset is a constant we re-estimate whenever the
-    /// compass reports meaningfully better accuracy than the applied alignment.
+    /// Keep content azimuths lined up with true north. The first plausible
+    /// heading snaps the sky into place; after that, every decent compass
+    /// sample gently steers the alignment toward consensus — noise averages
+    /// out, and constant bias (the sky sitting a few degrees left or right of
+    /// reality) heals itself within seconds of panning. No manual trim needed.
     private func alignNorth(with heading: CLHeading) {
         guard heading.trueHeading >= 0, heading.headingAccuracy >= 0,
-              heading.headingAccuracy < appliedNorthAccuracy - 2,
+              heading.headingAccuracy <= 30,
               let pov = sceneView.pointOfView else { return }
-        let f = pov.simdWorldFront
+        let f = pov.presentation.simdWorldFront
         // Camera's horizontal yaw in the content convention (0 = −Z, 90° = +X).
         let yawCamDeg = atan2(Double(f.x), Double(-f.z)) * 180 / .pi
-        appliedNorthAccuracy = heading.headingAccuracy
-        let offset = (heading.trueHeading - yawCamDeg) * .pi / 180
-        let rotate = SCNAction.rotateTo(x: 0, y: CGFloat(offset), z: 0,
-                                        duration: 0.6, usesShortestUnitArc: true)
-        rotate.timingMode = .easeInEaseOut
-        worldNode.runAction(rotate)
+        let desired = (heading.trueHeading - yawCamDeg) * .pi / 180
+
+        if appliedNorthAccuracy == .infinity {
+            // First lock: one smooth snap.
+            appliedNorthAccuracy = heading.headingAccuracy
+            let rotate = SCNAction.rotateTo(x: 0, y: CGFloat(desired), z: 0,
+                                            duration: 0.6, usesShortestUnitArc: true)
+            rotate.timingMode = .easeInEaseOut
+            worldNode.runAction(rotate)
+            return
+        }
+
+        var error = (desired - Double(worldNode.eulerAngles.y))
+            .truncatingRemainder(dividingBy: 2 * .pi)
+        if error > .pi { error -= 2 * .pi }
+        if error < -.pi { error += 2 * .pi }
+        // Deadband keeps the sky calm; gain scales with compass confidence.
+        guard abs(error) > 1.5 * .pi / 180 else { return }
+        let gain = min(0.05, max(0.01, 0.02 * (25 / max(heading.headingAccuracy, 5))))
+        worldNode.eulerAngles.y += Float(error * gain)
     }
 }
 
