@@ -386,17 +386,6 @@ final class ARSkyViewController: UIViewController {
     private let flightActivity = FlightActivityController()
     private let skyAudio = SkyAudioEngine()
     private let motionManager = CMMotionManager()
-    private let globe = EarthGlobe()
-    private var pinchStartDistance: Double = 0
-    private weak var previousPointOfView: SCNNode?
-    private lazy var globeCamera: SCNNode = {
-        let node = SCNNode()
-        node.camera = SCNCamera()
-        node.camera?.zNear = 0.05
-        node.camera?.zFar = 300
-        node.position = SCNVector3Zero
-        return node
-    }()
 
     // Sky layer + trails
     private var sky: SkyScene?
@@ -420,12 +409,6 @@ final class ARSkyViewController: UIViewController {
         observeAppLifecycle()
         // Focus doesn't survive launches; clear any Live Activity left behind.
         flightActivity.end()
-        #if DEBUG
-        // Simulator can't synthesize pinches; lets CI/tooling reach orbit view.
-        if UserDefaults.standard.bool(forKey: "debugEnterGlobe") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in self?.enterGlobe() }
-        }
-        #endif
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -455,7 +438,6 @@ final class ARSkyViewController: UIViewController {
         sceneView.scene.rootNode.addChildNode(darkDomeNode)
         applyBackground()
         sceneView.scene.rootNode.addChildNode(worldNode)
-        sceneView.scene.rootNode.addChildNode(globe.root)
         sky = SkyScene(root: worldNode, engine: engine, radius: sphereRadius)
         routes.onResolved = { [weak self] callsign in self?.routeResolved(callsign) }
         photos.onResolved = { [weak self] hex in
@@ -476,91 +458,14 @@ final class ARSkyViewController: UIViewController {
         sceneView.addGestureRecognizer(tap)
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
         sceneView.addGestureRecognizer(pinch)
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
-        sceneView.addGestureRecognizer(pan)
-    }
-
-    // MARK: Earth globe (orbit view)
-
-    func enterGlobe() {
-        guard engine?.globeMode != true else { return }
-        engine?.globeMode = true
-        stopMotionPointing()
-        sceneView.session.pause()
-        let lat = observerLocation?.coordinate.latitude ?? 20
-        let lon = observerLocation?.coordinate.longitude ?? 0
-        globe.buildIfNeeded()
-        globe.update(userLat: lat, userLon: lon, iss: sky?.issSatellite, date: Date())
-        globe.orient(toLat: lat, lon: lon)
-        worldNode.isHidden = true
-        darkDomeNode.isHidden = true
-        sceneView.scene.background.contents = UIColor.black
-        globe.cameraDistance = 2.6
-        globe.root.position = SCNVector3(0, 0, -2.6)
-        globe.root.opacity = 0
-        globe.root.isHidden = false
-        globe.root.runAction(.fadeIn(duration: 0.7))
-        // The globe gets its own camera: ARKit (device) and the auto-framing
-        // default camera (simulator) both own pointOfView and fight any reset.
-        if globeCamera.parent == nil {
-            sceneView.scene.rootNode.addChildNode(globeCamera)
-        }
-        previousPointOfView = sceneView.pointOfView
-        sceneView.pointOfView = globeCamera
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-    }
-
-    func exitGlobe() {
-        guard engine?.globeMode == true else { return }
-        engine?.globeMode = false
-        globe.root.isHidden = true
-        worldNode.isHidden = false
-        sceneView.pointOfView = previousPointOfView   // hand the camera back
-        applyBackground()        // restores dome / IMU pointing / AR session
-        applyLayerVisibility()
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-    }
-
-    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
-        guard engine?.globeMode == true else { return }
-        let translation = gesture.translation(in: sceneView)
-        globe.applyDrag(deltaX: Float(translation.x), deltaY: Float(translation.y))
-        gesture.setTranslation(.zero, in: sceneView)
     }
 
     // MARK: Zoom
 
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
-        if engine?.globeMode == true {
-            switch gesture.state {
-            case .began:
-                pinchStartDistance = globe.cameraDistance
-            case .changed:
-                if pinchStartDistance == 0 {
-                    // Entered mid-gesture; rebase so there's no jump.
-                    pinchStartDistance = globe.cameraDistance * Double(gesture.scale)
-                }
-                let distance = max(1.3, min(5.0, pinchStartDistance / Double(gesture.scale)))
-                globe.cameraDistance = distance
-                globe.root.position = SCNVector3(0, 0, -Float(distance))
-                if distance <= 1.35 { pinchStartDistance = 0; exitGlobe() }  // dive home
-            default:
-                break
-            }
-            return
-        }
         switch gesture.state {
         case .began: pinchStartZoom = zoomFactor
-        case .changed:
-            let requested = pinchStartZoom * gesture.scale
-            // Pinching below 1× in the dark sky pulls back into orbit.
-            if requested < 0.82, engine?.cameraPassthrough == false {
-                setZoom(1)
-                pinchStartDistance = 0
-                enterGlobe()
-                return
-            }
-            setZoom(requested)
+        case .changed: setZoom(pinchStartZoom * gesture.scale)
         default: break
         }
     }
@@ -710,13 +615,6 @@ final class ARSkyViewController: UIViewController {
 
     private func pollOnce() async {
         guard let here = observerLocation else { return }
-        if engine?.globeMode == true {
-            // Orbit view: keep the ISS and terminator moving; skip sky work.
-            globe.update(userLat: here.coordinate.latitude,
-                         userLon: here.coordinate.longitude,
-                         iss: sky?.issSatellite, date: Date())
-            return
-        }
         // Sky (sun/moon/stars/ISS) refreshes every tick regardless of the feed.
         updateSky(observer: here, forceStars: false)
         updateAirports(observer: here)
@@ -1174,7 +1072,6 @@ final class ARSkyViewController: UIViewController {
     // MARK: Selection (tap to identify)
 
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
-        guard engine?.globeMode != true else { return }
         let point = gesture.location(in: sceneView)
         let hits = sceneView.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue])
         if let node = hits.lazy.compactMap({ $0.node.aircraftAncestor }).first {

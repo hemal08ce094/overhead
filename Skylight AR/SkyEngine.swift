@@ -153,8 +153,6 @@ final class SkyEngine {
     var compassHintDismissed: Bool = false
     /// The traffic feed has failed several polls in a row (no network?).
     var feedOffline: Bool = false
-    /// Orbit view: pinched out of the sky to see Earth itself.
-    var globeMode: Bool = false
     /// Location was denied; the sky is shown from a stand-in city.
     var usingDemoLocation: Bool = false
     /// Moon illuminated fraction (0…1) and waxing flag, for the UI.
@@ -211,7 +209,6 @@ final class SkyEngine {
     func resetZoom() { controller?.resetZoom() }
     func openFocusedDetail() { controller?.selectFocusedFlight() }
     func captureShareCard() { controller?.captureShareCard() }
-    func leaveGlobe() { controller?.exitGlobe() }
 
     private func persist() {
         let d = UserDefaults.standard
