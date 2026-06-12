@@ -45,27 +45,29 @@ struct ARSkyScreen: View {
                 .allowsHitTesting(false)
 
             VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    profileButton
-                    Spacer()
-                    if engine.zoomFactor > 1.05 { zoomPill }
-                    if engine.skyTimeOffsetMin != 0 { timeOffsetPill }
-                    eventsBell
-                }
-                if engine.compassHintNeeded && !engine.compassHintDismissed {
-                    compassHint
-                        .padding(.top, 10)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-                if let focus = engine.focusInfo {
-                    focusPill(focus)
-                        .padding(.top, 10)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-                if let transit = engine.transitPrediction {
-                    transitBanner(transit)
-                        .padding(.top, 10)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                if !engine.globeMode {
+                    HStack(spacing: 8) {
+                        profileButton
+                        Spacer()
+                        if engine.zoomFactor > 1.05 { zoomPill }
+                        if engine.skyTimeOffsetMin != 0 { timeOffsetPill }
+                        eventsBell
+                    }
+                    if engine.compassHintNeeded && !engine.compassHintDismissed {
+                        compassHint
+                            .padding(.top, 10)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    if let focus = engine.focusInfo {
+                        focusPill(focus)
+                            .padding(.top, 10)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    if let transit = engine.transitPrediction {
+                        transitBanner(transit)
+                            .padding(.top, 10)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
                 }
                 Spacer()
                 // Shutter appears as a transit approaches — catch the crossing.
@@ -311,21 +313,40 @@ struct ARSkyScreen: View {
     }
 
     /// Bottom edge: live status on the left, the celestial orb on the right —
-    /// the top of the sky stays clear.
+    /// the top of the sky stays clear. In orbit view it becomes the way home.
     private var controls: some View {
         HStack(alignment: .center) {
-            statusPill
-            Spacer()
-            Button { showSky = true } label: {
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                    .frame(width: 60, height: 60)
-                    .contentShape(Circle())
-                    .glassEffect(.regular, in: .circle)
+            if engine.globeMode {
+                Text("Drag to spin · pinch in to return")
+                    .font(Theme.display(13, .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .glassEffect(.regular, in: .capsule)
+                Spacer()
+                Button { engine.leaveGlobe() } label: {
+                    Image(systemName: "arrow.down.forward.and.arrow.up.backward")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                        .frame(width: 60, height: 60)
+                        .contentShape(Circle())
+                        .glassEffect(.regular, in: .circle)
+                }
+                .accessibilityLabel("Back to the sky")
+            } else {
+                statusPill
+                Spacer()
+                Button { showSky = true } label: {
+                    Image(systemName: "moon.stars.fill")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                        .frame(width: 60, height: 60)
+                        .contentShape(Circle())
+                        .glassEffect(.regular, in: .circle)
+                }
+                .accessibilityLabel("Sky controls")
             }
-            .accessibilityLabel("Sky controls")
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: engine.globeMode)
     }
 }
 
