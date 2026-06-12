@@ -123,11 +123,11 @@ struct ARSkyScreen: View {
 
     private var statusPill: some View {
         HStack(spacing: 8) {
-            PulsingDot()
-            Text("Scanning the sky")
+            PulsingDot(color: engine.feedOffline ? .orange : Theme.accent)
+            Text(statusText)
                 .font(Theme.display(14, .medium))
                 .foregroundStyle(Theme.textPrimary)
-            if engine.trafficCount > 0 {
+            if !engine.feedOffline, engine.trafficCount > 0 {
                 Text("· \(engine.trafficCount)")
                     .font(Theme.display(14, .semibold).monospacedDigit())
                     .foregroundStyle(Theme.accent)
@@ -135,6 +135,16 @@ struct ARSkyScreen: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
         .glassEffect(.regular, in: .capsule)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(engine.feedOffline
+            ? "No connection. Showing sky only."
+            : "Scanning the sky. \(engine.trafficCount) aircraft overhead.")
+    }
+
+    private var statusText: String {
+        if engine.feedOffline { return "Sky only — no connection" }
+        if engine.usingDemoLocation { return "Demo sky" }
+        return "Scanning the sky"
     }
 
     private var timeOffsetPill: some View {
@@ -149,6 +159,7 @@ struct ARSkyScreen: View {
             .padding(.horizontal, 12).padding(.vertical, 9)
             .glassEffect(.regular.tint(Theme.accent.opacity(0.85)), in: .capsule)
         }
+        .accessibilityLabel("Sky time shifted \(timeOffsetText). Return to now.")
     }
 
     private var timeOffsetText: String { TimeScrub.label(engine.skyTimeOffsetMin) }
@@ -196,6 +207,7 @@ struct ARSkyScreen: View {
                     .glassEffect(.regular.tint(Color(red: 1.0, green: 0.82, blue: 0.45).opacity(0.25)),
                                  in: .circle)
             }
+            .accessibilityLabel("Capture the crossing")
             Spacer()
         }
     }
@@ -216,6 +228,7 @@ struct ARSkyScreen: View {
                     .frame(width: 26, height: 26)
                     .contentShape(Circle())
             }
+            .accessibilityLabel("Dismiss compass hint")
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
         .glassEffect(.regular.tint(.orange.opacity(0.15)), in: .capsule)
@@ -231,6 +244,7 @@ struct ARSkyScreen: View {
                 .contentShape(Circle())
                 .glassEffect(.regular, in: .circle)
         }
+        .accessibilityLabel("Sky events")
     }
 
     /// Top-left entry to the profile sheet.
@@ -243,6 +257,7 @@ struct ARSkyScreen: View {
                 .contentShape(Circle())
                 .glassEffect(.regular, in: .circle)
         }
+        .accessibilityLabel("Profile")
     }
 
     /// Focused-flight guidance: distance plus a find-it arrow when off screen.
@@ -276,6 +291,7 @@ struct ARSkyScreen: View {
                     .frame(width: 26, height: 26)
                     .contentShape(Circle())
             }
+            .accessibilityLabel("Stop tracking")
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
         .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.25)), in: .capsule)
@@ -291,6 +307,7 @@ struct ARSkyScreen: View {
                 .contentShape(Capsule())
                 .glassEffect(.regular, in: .capsule)
         }
+        .accessibilityLabel("Zoomed to \(String(format: "%.1f", engine.zoomFactor)) times. Reset zoom.")
     }
 
     /// Bottom edge: live status on the left, the celestial orb on the right —
@@ -307,6 +324,7 @@ struct ARSkyScreen: View {
                     .contentShape(Circle())
                     .glassEffect(.regular, in: .circle)
             }
+            .accessibilityLabel("Sky controls")
         }
     }
 }
@@ -362,27 +380,30 @@ struct AircraftDetailSheet: View {
             Button {
                 engine.toggleFavorite(ac.callsign)
             } label: {
-                Image(systemName: engine.isFavorite(ac.callsign) ? "heart.fill" : "heart")
+Image(systemName: engine.isFavorite(ac.callsign) ? "heart.fill" : "heart")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(engine.isFavorite(ac.callsign)
                                      ? Color(red: 1.0, green: 0.42, blue: 0.58)
                                      : Theme.textTertiary)
             }
+            .accessibilityLabel(engine.isFavorite(ac.callsign) ? "Remove from favorites" : "Add to favorites")
             Button {
                 engine.focusedCallsign = ac.callsign
                 dismiss()
             } label: {
-                Image(systemName: "scope")
+Image(systemName: "scope")
                     .font(.system(size: 21, weight: .semibold))
                     .foregroundStyle(engine.focusedCallsign == ac.callsign
                                      ? Color(red: 1.0, green: 0.82, blue: 0.45)
                                      : Theme.textTertiary)
             }
+            .accessibilityLabel("Track this flight")
             Button { dismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 26))
                     .foregroundStyle(Theme.textTertiary)
             }
+            .accessibilityLabel("Close")
         }
     }
 
@@ -645,6 +666,7 @@ struct ProfileView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(Theme.textTertiary)
             }
+            .accessibilityLabel("Remove favorite")
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
     }
@@ -936,11 +958,13 @@ struct SkySheet: View {
                     .font(.system(size: 25))
                     .foregroundStyle(Theme.accent)
             }
+            .accessibilityLabel("Profile")
             Button { dismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 26))
                     .foregroundStyle(Theme.textTertiary)
             }
+            .accessibilityLabel("Close")
         }
     }
 
@@ -1129,14 +1153,17 @@ private struct CircleControl: View {
 }
 
 private struct PulsingDot: View {
+    var color: Color = Theme.accent
     @State private var on = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         Circle()
-            .fill(Theme.accent)
+            .fill(color)
             .frame(width: 8, height: 8)
-            .shadow(color: Theme.accent, radius: on ? 5 : 1)
+            .shadow(color: color, radius: on ? 5 : 1)
             .opacity(on ? 1 : 0.5)
             .onAppear {
+                guard !reduceMotion else { on = true; return }
                 withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { on = true }
             }
     }

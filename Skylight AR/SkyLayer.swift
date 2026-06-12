@@ -82,10 +82,17 @@ enum Celestial {
     nonisolated static func moon(date: Date, lat: Double, lon: Double) -> MoonState {
         let geo = GeographicCoordinates(positivelyWestwardLongitude: Degree(-lon), latitude: Degree(lat))
         let jd = JulianDay(date)
-        let h = Moon(julianDay: jd).makeHorizontalCoordinates(with: geo)
-        let f0 = Moon(julianDay: jd).illuminatedFraction()
+        let moon = Moon(julianDay: jd)
+        let h = moon.makeHorizontalCoordinates(with: geo)
+        // SwiftAA's horizontal conversion is geocentric. The moon is close
+        // enough that observer parallax depresses it by up to ~1° — two full
+        // moon-widths — so correct the altitude topocentrically.
+        let elGeo = h.altitude.value
+        let parallax = moon.horizontalParallax.value
+        let elTopo = elGeo - parallax * cos(elGeo * .pi / 180)
+        let f0 = moon.illuminatedFraction()
         let f1 = Moon(julianDay: JulianDay(jd.value + 1.0 / 24.0)).illuminatedFraction()  // +1h
-        return MoonState(az: h.northBasedAzimuth.value, el: h.altitude.value,
+        return MoonState(az: h.northBasedAzimuth.value, el: elTopo,
                          illumination: f0, waxing: f1 >= f0)
     }
 }
@@ -186,6 +193,8 @@ final class SkyScene {
     private var lastStarBuild = Date.distantPast
     private var lastMoonFraction = -1.0
     private var lastMoonWaxing = true
+    private var starNameNodes: [String: SCNNode] = [:]
+    private var starsBuilding = false
 
     init(root: SCNNode, engine: SkyEngine?, radius: Double) {
         self.root = root
@@ -222,6 +231,29 @@ final class SkyScene {
         root.addChildNode(constellationsNode)
         buildPlanetNodes()
         root.addChildNode(planetsNode)
+        buildStarNameNodes()
+    }
+
+    /// Name labels are created once (SCNText is costly) and only repositioned.
+    private func buildStarNameNodes() {
+        for star in StarCatalog.namedStars {
+            let text = SCNText(string: star.name, extrusionDepth: 0)
+            text.font = .systemFont(ofSize: 7, weight: .semibold)
+            text.flatness = 0.3
+            let mat = SCNMaterial(); mat.lightingModel = .constant
+            mat.diffuse.contents = UIColor(red: 0.85, green: 0.89, blue: 1.0, alpha: 0.85)
+            text.materials = [mat]
+            let label = SCNNode(geometry: text)
+            label.scale = SCNVector3(0.7, 0.7, 0.7)
+            let (minB, maxB) = text.boundingBox
+            let holder = SCNNode()
+            holder.constraints = [SCNBillboardConstraint()]
+            label.position = SCNVector3(-(maxB.x - minB.x) * 0.35, 5, 0)
+            holder.addChildNode(label)
+            holder.isHidden = true
+            starNameNodes[star.name] = holder
+            starNamesNode.addChildNode(holder)
+        }
     }
 
     private func buildPlanetNodes() {
@@ -283,12 +315,14 @@ final class SkyScene {
         issNode.addChildNode(glyph)
 
         // Calm breathing pulse — reads as "this one is alive/moving".
-        let pulse = SCNAction.repeatForever(.sequence([
-            .fadeOpacity(to: 0.55, duration: 1.2),
-            .fadeOpacity(to: 1.0, duration: 1.2),
-        ]))
-        pulse.timingMode = .easeInEaseOut
-        glow.runAction(pulse)
+        if !UIAccessibility.isReduceMotionEnabled {
+            let pulse = SCNAction.repeatForever(.sequence([
+                .fadeOpacity(to: 0.55, duration: 1.2),
+                .fadeOpacity(to: 1.0, duration: 1.2),
+            ]))
+            pulse.timingMode = .easeInEaseOut
+            glow.runAction(pulse)
+        }
 
         let text = SCNText(string: "ISS", extrusionDepth: 0)
         text.font = .systemFont(ofSize: 10, weight: .bold)
@@ -396,63 +430,75 @@ final class SkyScene {
         engine?.issVisible = true
     }
 
+    /// The 1,600-star trig sweep runs off the main thread; only the cheap
+    /// geometry swap and label repositioning touch the render thread's frame.
     private func buildStars(date: Date, lat: Double, lon: Double, offset: Double, mirror: Bool) {
-        var bright: [SCNVector3] = [], medium: [SCNVector3] = [], faint: [SCNVector3] = []
-        for s in StarCatalog.shared.stars {
-            let h = SkyMath.equatorialToHorizontal(raDeg: s.ra, decDeg: s.dec, latDeg: lat, lonDeg: lon, date: date)
-            guard h.elevation > 0 else { continue }
-            let p = SkyMath.scenePosition(azimuthDeg: h.azimuth, elevationDeg: h.elevation,
-                                          radius: radius * 0.98, headingOffsetDeg: offset, mirrorX: mirror)
-            if s.mag < 1.5 { bright.append(p) } else if s.mag < 3.0 { medium.append(p) } else { faint.append(p) }
+        guard !starsBuilding else { return }
+        starsBuilding = true
+        let stars = StarCatalog.shared.stars
+        let lines = StarCatalog.shared.lines
+        let named = StarCatalog.namedStars
+        let r = radius
+
+        Task.detached(priority: .userInitiated) {
+            var bright: [SCNVector3] = [], medium: [SCNVector3] = [], faint: [SCNVector3] = []
+            for s in stars {
+                let h = SkyMath.equatorialToHorizontal(raDeg: s.ra, decDeg: s.dec, latDeg: lat, lonDeg: lon, date: date)
+                guard h.elevation > 0 else { continue }
+                let p = SkyMath.scenePosition(azimuthDeg: h.azimuth, elevationDeg: h.elevation,
+                                              radius: r * 0.98, headingOffsetDeg: offset, mirrorX: mirror)
+                if s.mag < 1.5 { bright.append(p) } else if s.mag < 3.0 { medium.append(p) } else { faint.append(p) }
+            }
+            var segs: [SCNVector3] = []
+            for line in lines {
+                var prev: (SCNVector3, Bool)?
+                for pt in line where pt.count == 2 {
+                    let h = SkyMath.equatorialToHorizontal(raDeg: pt[0], decDeg: pt[1], latDeg: lat, lonDeg: lon, date: date)
+                    let above = h.elevation > 0
+                    let v = SkyMath.scenePosition(azimuthDeg: h.azimuth, elevationDeg: max(h.elevation, 0),
+                                                  radius: r * 0.98, headingOffsetDeg: offset, mirrorX: mirror)
+                    if let (pv, pAbove) = prev, pAbove && above { segs.append(pv); segs.append(v) }
+                    prev = (v, above)
+                }
+            }
+            var namePositions: [String: SCNVector3] = [:]
+            for star in named {
+                let h = SkyMath.equatorialToHorizontal(raDeg: star.ra, decDeg: star.dec,
+                                                       latDeg: lat, lonDeg: lon, date: date)
+                guard h.elevation > 2 else { continue }
+                namePositions[star.name] = SkyMath.scenePosition(
+                    azimuthDeg: h.azimuth, elevationDeg: h.elevation,
+                    radius: r * 0.97, headingOffsetDeg: offset, mirrorX: mirror)
+            }
+            await MainActor.run { [weak self] in
+                self?.applyStars(bright: bright, medium: medium, faint: faint,
+                                 segs: segs, namePositions: namePositions)
+            }
         }
+    }
+
+    private func applyStars(bright: [SCNVector3], medium: [SCNVector3], faint: [SCNVector3],
+                            segs: [SCNVector3], namePositions: [String: SCNVector3]) {
         starsRoot.childNodes.forEach { $0.removeFromParentNode() }
         starsRoot.addChildNode(SCNNode(geometry: pointGeometry(bright, size: 9, color: UIColor(white: 1, alpha: 1))))
         starsRoot.addChildNode(SCNNode(geometry: pointGeometry(medium, size: 6, color: UIColor(white: 0.95, alpha: 1))))
         starsRoot.addChildNode(SCNNode(geometry: pointGeometry(faint, size: 3.5, color: UIColor(white: 0.8, alpha: 1))))
 
-        // Constellation line strips.
-        var segs: [SCNVector3] = []
-        for line in StarCatalog.shared.lines {
-            var prev: (SCNVector3, Bool)?
-            for pt in line where pt.count == 2 {
-                let h = SkyMath.equatorialToHorizontal(raDeg: pt[0], decDeg: pt[1], latDeg: lat, lonDeg: lon, date: date)
-                let above = h.elevation > 0
-                let v = SkyMath.scenePosition(azimuthDeg: h.azimuth, elevationDeg: max(h.elevation, 0),
-                                              radius: radius * 0.98, headingOffsetDeg: offset, mirrorX: mirror)
-                if let (pv, pAbove) = prev, pAbove && above { segs.append(pv); segs.append(v) }
-                prev = (v, above)
-            }
-        }
         constellationsNode.childNodes.forEach { $0.removeFromParentNode() }
         if !segs.isEmpty {
             constellationsNode.addChildNode(SCNNode(geometry: lineGeometry(segs,
                 color: UIColor(red: 0.45, green: 0.55, blue: 0.85, alpha: 0.5))))
         }
 
-        // Name the famous stars so the sky is learnable, not just pretty.
-        starNamesNode.childNodes.forEach { $0.removeFromParentNode() }
-        for star in StarCatalog.namedStars {
-            let h = SkyMath.equatorialToHorizontal(raDeg: star.ra, decDeg: star.dec,
-                                                   latDeg: lat, lonDeg: lon, date: date)
-            guard h.elevation > 2 else { continue }
-            let p = SkyMath.scenePosition(azimuthDeg: h.azimuth, elevationDeg: h.elevation,
-                                          radius: radius * 0.97, headingOffsetDeg: offset, mirrorX: mirror)
-            let text = SCNText(string: star.name, extrusionDepth: 0)
-            text.font = .systemFont(ofSize: 7, weight: .semibold)
-            text.flatness = 0.3
-            let mat = SCNMaterial(); mat.lightingModel = .constant
-            mat.diffuse.contents = UIColor(red: 0.85, green: 0.89, blue: 1.0, alpha: 0.85)
-            text.materials = [mat]
-            let label = SCNNode(geometry: text)
-            label.scale = SCNVector3(0.7, 0.7, 0.7)
-            let (minB, maxB) = text.boundingBox
-            let holder = SCNNode()
-            holder.position = p
-            holder.constraints = [SCNBillboardConstraint()]
-            label.position = SCNVector3(-(maxB.x - minB.x) * 0.35, 5, 0)
-            holder.addChildNode(label)
-            starNamesNode.addChildNode(holder)
+        for (name, node) in starNameNodes {
+            if let position = namePositions[name] {
+                node.position = position
+                node.isHidden = false
+            } else {
+                node.isHidden = true
+            }
         }
+        starsBuilding = false
     }
 
     private func pointGeometry(_ verts: [SCNVector3], size: CGFloat, color: UIColor) -> SCNGeometry {

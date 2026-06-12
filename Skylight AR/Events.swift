@@ -44,13 +44,27 @@ enum EventsCalendar {
 
     // MARK: Solar eclipses (local circumstances)
 
-    /// Apparent disc radii, degrees — close enough for obscuration estimates.
-    private static let sunRadius = 0.267
-    private static let moonRadius = 0.262
+    /// Apparent solar and lunar disc radii at `date`, degrees. Distance-
+    /// corrected (the moon's apparent size swings ±6% perigee→apogee — at a
+    /// totality boundary that's the difference between 99% and 100%).
+    nonisolated static func discRadii(at date: Date) -> (sun: Double, moon: Double) {
+        let d = date.timeIntervalSince1970 / 86_400 + 2_440_587.5 - 2_451_545.0  // days since J2000
+        // Sun–Earth distance from orbital eccentricity.
+        let g = (357.529 + 0.98560028 * d) * .pi / 180
+        let rAU = 1.00014 - 0.01671 * cos(g) - 0.00014 * cos(2 * g)
+        let sunR = asin(696_000 / (rAU * 149_597_870.7)) * 180 / .pi
+        // Moon distance, principal Meeus terms (km) — good to ~0.05%.
+        let elong = (297.8502 + 12.19074912 * d) * .pi / 180
+        let anomaly = (134.9634 + 13.06499295 * d) * .pi / 180
+        let dist = 385_000.56 - 20_905.355 * cos(anomaly)
+            - 3_699.111 * cos(2 * elong - anomaly)
+            - 2_955.968 * cos(2 * elong) - 569.925 * cos(2 * anomaly)
+        let moonR = asin(1_737.4 / dist) * 180 / .pi
+        return (sunR, moonR)
+    }
 
     /// Fraction of the solar disc covered by the moon at angular separation `d`.
-    nonisolated static func obscuration(separationDeg d: Double) -> Double {
-        let a = sunRadius, b = moonRadius
+    nonisolated static func obscuration(separationDeg d: Double, sunR a: Double, moonR b: Double) -> Double {
         if d >= a + b { return 0 }
         if d <= abs(a - b) { return min(1, (b * b) / (a * a)) }
         let d2 = d * d
@@ -87,7 +101,8 @@ enum EventsCalendar {
     }
 
     nonisolated private static func refineEclipse(around center: Date, lat: Double, lon: Double) -> SkyEvent? {
-        var best: (date: Date, obscuration: Double)?
+        let radii = discRadii(at: center)   // varies negligibly over the window
+        var best: (date: Date, obscuration: Double, separation: Double)?
         var t = center.addingTimeInterval(-8 * 3600)
         let end = center.addingTimeInterval(8 * 3600)
         while t < end {
@@ -96,16 +111,18 @@ enum EventsCalendar {
                 let moon = Celestial.moon(date: t, lat: lat, lon: lon)
                 let sep = TransitPredictor.separation(az1: sun.az, el1: sun.el,
                                                       az2: moon.az, el2: moon.el)
-                let obs = obscuration(separationDeg: sep)
+                let obs = obscuration(separationDeg: sep, sunR: radii.sun, moonR: radii.moon)
                 if obs > 0, obs > (best?.obscuration ?? 0) {
-                    best = (t, obs)
+                    best = (t, obs, sep)
                 }
             }
             t = t.addingTimeInterval(60)
         }
         guard let best, best.obscuration > 0.005 else { return nil }
         let percent = Int((best.obscuration * 100).rounded())
-        let kindWord = best.obscuration > 0.999 ? "Total solar eclipse"
+        let annular = radii.moon < radii.sun && best.separation <= radii.sun - radii.moon
+        let kindWord = annular ? "Annular solar eclipse"
+                     : best.obscuration > 0.999 ? "Total solar eclipse"
                      : best.obscuration > 0.6 ? "Deep partial solar eclipse"
                      : "Partial solar eclipse"
         return SkyEvent(

@@ -21,19 +21,27 @@ final class SkyAudioEngine {
     private(set) var running = false
     private let maxSources = 8
 
+    private var graphBuilt = false
+
     init() {
+        // Only the buffer (pure math) at init. Touching AVAudioEngine here
+        // spins up CoreAudio at app launch — a crash surface (RPC timeouts)
+        // paid even by users who never enable sound.
         humBuffer = Self.makeHumBuffer()
-        engine.attach(environment)
-        engine.connect(environment, to: engine.mainMixerNode,
-                       format: engine.mainMixerNode.outputFormat(forBus: 0))
-        environment.distanceAttenuationParameters.distanceAttenuationModel = .inverse
-        environment.distanceAttenuationParameters.referenceDistance = 40
-        environment.distanceAttenuationParameters.maximumDistance = 400
-        environment.outputVolume = 0.7
     }
 
     func start() {
         guard !running else { return }
+        if !graphBuilt {
+            engine.attach(environment)
+            engine.connect(environment, to: engine.mainMixerNode,
+                           format: engine.mainMixerNode.outputFormat(forBus: 0))
+            environment.distanceAttenuationParameters.distanceAttenuationModel = .inverse
+            environment.distanceAttenuationParameters.referenceDistance = 40
+            environment.distanceAttenuationParameters.maximumDistance = 400
+            environment.outputVolume = 0.7
+            graphBuilt = true
+        }
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.ambient, options: [.mixWithOthers])
         try? session.setActive(true)

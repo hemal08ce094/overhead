@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 struct RootView: View {
     @State private var permissions = PermissionsModel()
@@ -14,7 +15,9 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            if didOnboard && permissions.locationGranted {
+            // Proceed once location is decided either way — denial lands in
+            // the demo sky instead of a dead end.
+            if didOnboard && permissions.location != .notDetermined {
                 ARSkyScreen()
                     .transition(.opacity)
             } else {
@@ -25,7 +28,7 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.5), value: didOnboard)
-        .animation(.easeInOut(duration: 0.5), value: permissions.locationGranted)
+        .animation(.easeInOut(duration: 0.5), value: permissions.location != .notDetermined)
         .preferredColorScheme(.dark)
     }
 }

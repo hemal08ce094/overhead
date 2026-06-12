@@ -16,6 +16,7 @@ import Foundation
 import SceneKit
 import ARKit
 import CoreLocation
+import CoreMotion
 import AVFoundation
 import SatelliteKit
 import simd
@@ -33,6 +34,7 @@ struct Aircraft: Identifiable, Sendable, Equatable {
     var onGround: Bool
     var track: Double?         // ground track, degrees from north
     var groundSpeedKts: Double?
+    var positionAgeSec: Double?   // feed's "seen_pos": seconds since this fix
     var category: String?      // ADS-B emitter category, e.g. "A3"
     var type: String?          // ICAO type designator ("t"), e.g. "B738"
 
@@ -92,6 +94,7 @@ private struct ADSBAircraft: Decodable {
     let alt_geom: Double?
     let track: Double?
     let gs: Double?
+    let seen_pos: Double?
     let category: String?
     let t: String?
 }
@@ -129,6 +132,7 @@ private extension Aircraft {
         }
         self.track = a.track
         self.groundSpeedKts = a.gs
+        self.positionAgeSec = a.seen_pos
         self.category = a.category
         self.type = a.t
     }
@@ -187,6 +191,15 @@ enum SkyMath {
         return (az, el, range)
     }
 
+    /// Atmospheric refraction (Saemundsson/Bennett): the air lifts the image
+    /// of anything near the horizon by up to ~0.5°. Applied at render time so
+    /// drawn objects match the *visible* sky, not the geometric one.
+    nonisolated static func refractedElevation(_ elevationDeg: Double) -> Double {
+        guard elevationDeg > -1.5, elevationDeg < 89 else { return elevationDeg }
+        let arcmin = 1.02 / tan((elevationDeg + 10.3 / (elevationDeg + 5.11)) * .pi / 180)
+        return elevationDeg + arcmin / 60
+    }
+
     /// Place an object on the sky sphere given its azimuth/elevation.
     /// Convention (matches the brief): position = (R·cosE·sinA, R·sinE, −R·cosE·cosA),
     /// where A is azimuth from north and E is elevation. `headingOffsetDeg` and
@@ -197,7 +210,7 @@ enum SkyMath {
                                           mirrorX: Bool = false) -> SCNVector3 {
         var azDeg = azimuthDeg + headingOffsetDeg
         if mirrorX { azDeg = -azDeg }
-        let a = azDeg * .pi / 180, e = elevationDeg * .pi / 180
+        let a = azDeg * .pi / 180, e = refractedElevation(elevationDeg) * .pi / 180
         let cosE = cos(e)
         let x = radius * cosE * sin(a)
         let y = radius * sin(e)
@@ -372,6 +385,7 @@ final class ARSkyViewController: UIViewController {
     private var poorCompassSince: Date?
     private let flightActivity = FlightActivityController()
     private let skyAudio = SkyAudioEngine()
+    private let motionManager = CMMotionManager()
 
     // Sky layer + trails
     private var sky: SkyScene?
@@ -400,6 +414,7 @@ final class ARSkyViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         startSession(reset: true)
+        applyBackground()      // routes to IMU pointing when in dark-sky mode
         startPolling()
         Task { await fetchISSTLE() }
     }
@@ -476,18 +491,48 @@ final class ARSkyViewController: UIViewController {
     }
 
     /// Live camera (true AR) when enabled and authorized; otherwise the dark
-    /// low-power sky. The session and scene background are deliberately left
-    /// alone — toggling only the dome keeps tracking (and the north alignment)
-    /// rock-steady across mode switches.
+    /// low-power sky — and "low power" is now real: the AR session (camera +
+    /// SLAM) stops entirely and the IMU alone drives where you're pointing.
     func applyBackground() {
         let wantCamera = engine?.cameraPassthrough ?? true
         let cameraOK = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
         let showCamera = wantCamera && cameraOK
         darkDomeNode.isHidden = showCamera
-        if !ARWorldTrackingConfiguration.isSupported {
+        guard ARWorldTrackingConfiguration.isSupported else {
             // Simulator: no session ever runs, so the background is ours to set.
             sceneView.scene.background.contents = UIColor.black
+            return
         }
+        if showCamera {
+            stopMotionPointing()
+            if isViewLoaded, view.window != nil { startSession() }
+            // The pointing frame changed; re-estimate north from the compass.
+            appliedNorthAccuracy = .infinity
+        } else {
+            sceneView.session.pause()
+            startMotionPointing()
+        }
+    }
+
+    // MARK: IMU pointing (dark-sky mode)
+
+    private func startMotionPointing() {
+        guard motionManager.isDeviceMotionAvailable, !motionManager.isDeviceMotionActive else { return }
+        motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
+        // CoreMotion reference: Z up. SceneKit world: Y up.
+        let refToWorld = simd_quatf(angle: -.pi / 2, axis: simd_float3(1, 0, 0))
+        motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: .main) { [weak self] motion, _ in
+            guard let self, let q = motion?.attitude.quaternion,
+                  let pov = self.sceneView.pointOfView else { return }
+            let dq = simd_quatf(ix: Float(q.x), iy: Float(q.y), iz: Float(q.z), r: Float(q.w))
+            pov.simdOrientation = refToWorld * dq
+        }
+        // Fresh arbitrary-yaw frame → realign to north from the next heading.
+        appliedNorthAccuracy = .infinity
+    }
+
+    private func stopMotionPointing() {
+        if motionManager.isDeviceMotionActive { motionManager.stopDeviceMotionUpdates() }
     }
 
     /// Inward-facing black sphere between the camera and the sky content —
@@ -535,6 +580,7 @@ final class ARSkyViewController: UIViewController {
 
     private func pauseEverything() {
         sceneView.session.pause()
+        stopMotionPointing()
         pollTask?.cancel()
         pollTask = nil
     }
@@ -542,7 +588,7 @@ final class ARSkyViewController: UIViewController {
     @objc private func appDidBackground() { pauseEverything() }
     @objc private func appDidBecomeActive() {
         guard viewIfLoaded?.window != nil else { return }
-        startSession()
+        applyBackground()      // resumes AR or IMU pointing per current mode
         startPolling()
     }
 
@@ -558,6 +604,8 @@ final class ARSkyViewController: UIViewController {
         }
     }
 
+    private var feedFailureStreak = 0
+
     private func pollOnce() async {
         guard let here = observerLocation else { return }
         // Sky (sun/moon/stars/ISS) refreshes every tick regardless of the feed.
@@ -568,9 +616,13 @@ final class ARSkyViewController: UIViewController {
                 lat: here.coordinate.latitude,
                 lon: here.coordinate.longitude,
                 radiusNm: searchRadiusNm)
+            feedFailureStreak = 0
+            engine?.feedOffline = false
             update(with: traffic, observer: here)
         } catch {
-            // Transient feed errors are expected at 1 Hz; ignore and retry.
+            // Transient errors are expected at 1 Hz; surface only a streak.
+            feedFailureStreak += 1
+            if feedFailureStreak >= 3 { engine?.feedOffline = true }
         }
     }
 
@@ -597,11 +649,22 @@ final class ARSkyViewController: UIViewController {
         var visible = 0
 
         for ac in traffic {
+            // Render-time dead reckoning: the feed position is seen_pos +
+            // network seconds old; project it forward along the track so the
+            // glyph shows where the plane *is*, not where it was (FR24-style).
+            var lat = ac.lat, lon = ac.lon
+            if let track = ac.track, let gs = ac.groundSpeedKts, gs > 40, !ac.onGround {
+                let age = min((ac.positionAgeSec ?? 1) + 2.0, 15)   // + feed/poll latency
+                let meters = gs * 0.514444 * age
+                let trackRad = track * .pi / 180
+                lat += (meters * cos(trackRad) / 6_371_000) * 180 / .pi
+                lon += (meters * sin(trackRad) / (6_371_000 * cos(ac.lat * .pi / 180))) * 180 / .pi
+            }
             let (az, el, range) = SkyMath.azElRange(
                 observerLat: observer.coordinate.latitude,
                 observerLon: observer.coordinate.longitude,
                 observerAltM: obsAltM,
-                targetLat: ac.lat, targetLon: ac.lon, targetAltM: ac.altitudeMeters)
+                targetLat: lat, targetLon: lon, targetAltM: ac.altitudeMeters)
 
             // Only render objects above the horizon.
             guard el > -2 else { continue }
@@ -1161,7 +1224,7 @@ extension ARSkyViewController: ARSCNViewDelegate {
     /// leave the session "running" but starved of frames — a frozen feed under
     /// live SceneKit content. Re-run as soon as the interruption ends.
     nonisolated func sessionInterruptionEnded(_ session: ARSession) {
-        Task { @MainActor in self.startSession() }
+        Task { @MainActor in self.applyBackground() }
     }
 
     nonisolated func session(_ session: ARSession, didFailWithError error: Error) {
@@ -1178,8 +1241,14 @@ extension ARSkyViewController: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
+            engine?.usingDemoLocation = false
             manager.startUpdatingLocation()
             manager.startUpdatingHeading()
+        case .denied, .restricted:
+            // Demo sky: show a real, busy piece of sky rather than a dead end.
+            observerLocation = CLLocation(latitude: 37.6213, longitude: -122.3790)
+            engine?.usingDemoLocation = true
+            engine?.loadEventsIfNeeded(lat: 37.6213, lon: -122.3790)
         default:
             break
         }
@@ -1462,12 +1531,14 @@ final class AircraftNode: SCNNode {
         focusTorus.materials = [focusMat]
         focusNode.geometry = focusTorus
         focusNode.isHidden = true
-        let breathe = SCNAction.repeatForever(.sequence([
-            .scale(to: 1.15, duration: 1.0),
-            .scale(to: 1.0, duration: 1.0),
-        ]))
-        breathe.timingMode = .easeInEaseOut
-        focusNode.runAction(breathe)
+        if !UIAccessibility.isReduceMotionEnabled {
+            let breathe = SCNAction.repeatForever(.sequence([
+                .scale(to: 1.15, duration: 1.0),
+                .scale(to: 1.0, duration: 1.0),
+            ]))
+            breathe.timingMode = .easeInEaseOut
+            focusNode.runAction(breathe)
+        }
         addChildNode(focusNode)
     }
 

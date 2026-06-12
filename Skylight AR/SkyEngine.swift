@@ -151,6 +151,10 @@ final class SkyEngine {
     /// True once the compass has stayed poor long enough to deserve a nudge.
     var compassHintNeeded: Bool = false
     var compassHintDismissed: Bool = false
+    /// The traffic feed has failed several polls in a row (no network?).
+    var feedOffline: Bool = false
+    /// Location was denied; the sky is shown from a stand-in city.
+    var usingDemoLocation: Bool = false
     /// Moon illuminated fraction (0…1) and waxing flag, for the UI.
     var moonIllumination: Double = 0
     var moonWaxing: Bool = true
