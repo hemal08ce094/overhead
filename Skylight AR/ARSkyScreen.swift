@@ -344,6 +344,7 @@ struct AircraftDetailSheet: View {
                         header(ac)
                         if let photo = engine.selectedPhoto { photoCard(photo) }
                         if ac.airline != nil || ac.destination != nil { routeCard(ac) }
+                        if let arrival = ac.observedArrival { arrivalCard(ac, arrival: arrival) }
                         statsGrid(ac)
                         Text("Live position via airplanes.live · route via adsbdb · photos via planespotters.net")
                             .font(Theme.display(11, .regular))
@@ -428,6 +429,28 @@ Image(systemName: "scope")
                     .padding(8)
             }
         }
+    }
+
+    /// Physics doesn't lie: when the plane is visibly on approach, confirm or
+    /// contradict the filed route (callsign routes are often one leg of a
+    /// multi-stop flight, or outdated).
+    private func arrivalCard(_ ac: SelectedAircraft, arrival: String) -> some View {
+        let city = ac.observedArrivalCity.map { " (\($0))" } ?? ""
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "airplane.arrival")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(ac.routeMismatch ? .orange : Theme.accent)
+                .padding(.top, 1)
+            Text(ac.routeMismatch
+                 ? "Landing now at \(arrival)\(city). The filed route above is likely a different leg of this flight, or out of date."
+                 : "Arriving at \(arrival)\(city) now.")
+                .font(Theme.display(13, .medium))
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background((ac.routeMismatch ? Color.orange.opacity(0.08) : Color.white.opacity(0.04)),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     /// Origin → destination, with city names when the route resolved.

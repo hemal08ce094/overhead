@@ -30,6 +30,11 @@ struct SelectedAircraft: Identifiable, Equatable {
     var originCity: String?
     var destination: String?
     var destinationCity: String?
+    // Reality check: where this plane is *observed* to be landing right now,
+    // when that disagrees with (or confirms) the filed route.
+    var observedArrival: String?       // IATA
+    var observedArrivalCity: String?
+    var routeMismatch: Bool = false
 
     var id: String { hex }
 }

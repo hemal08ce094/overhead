@@ -1141,6 +1141,14 @@ final class ARSkyViewController: UIViewController {
         }
         let ac = fix.aircraft
         let route = routes.cached(ac.callsign)
+        let arrival = observedArrival(of: ac)
+        // adsbdb maps callsigns to *filed* routes — often one leg of a
+        // multi-stop run, or stale. When the plane is visibly on approach to
+        // a different field than the filed destination, say so.
+        var mismatch = false
+        if let arrival, let filed = route?.destinationCode {
+            mismatch = filed != arrival.iata && filed != arrival.icao
+        }
         engine?.selected = SelectedAircraft(
             hex: hex,
             callsign: ac.callsign ?? hex.uppercased(),
@@ -1156,7 +1164,29 @@ final class ARSkyViewController: UIViewController {
             origin: route?.originCode,
             originCity: route?.originCity,
             destination: route?.destinationCode,
-            destinationCity: route?.destinationCity)
+            destinationCity: route?.destinationCity,
+            observedArrival: arrival?.iata,
+            observedArrivalCity: arrival?.city,
+            routeMismatch: mismatch)
+    }
+
+    /// Where this plane is actually landing, judged by physics: low, slow,
+    /// and within a few miles of a known field = on approach there.
+    private func observedArrival(of ac: Aircraft) -> Airport? {
+        guard !ac.onGround,
+              ac.altitudeFeet > 0, ac.altitudeFeet < 4500,
+              (ac.groundSpeedKts ?? 999) < 230 else { return nil }
+        var best: (airport: Airport, rangeNm: Double)?
+        for airport in AirportCatalog.shared.airports {
+            let range = SkyMath.azElRange(observerLat: airport.lat, observerLon: airport.lon,
+                                          observerAltM: 0,
+                                          targetLat: ac.lat, targetLon: ac.lon,
+                                          targetAltM: ac.altitudeMeters).range / 1852
+            if range < 15, range < (best?.rangeNm ?? .infinity) {
+                best = (airport, range)
+            }
+        }
+        return best?.airport
     }
 
     private func routeResolved(_ callsign: String) {
