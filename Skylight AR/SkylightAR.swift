@@ -602,6 +602,13 @@ final class ARSkyViewController: UIViewController {
 
     private func startMotionPointing() {
         guard motionManager.isDeviceMotionAvailable, !motionManager.isDeviceMotionActive else { return }
+        // ARKit hasn't necessarily configured this camera (entering dark mode
+        // directly pauses the session before its first frame) — the default
+        // zFar of 100 clips the whole 1000 m sky dome out of existence.
+        if let camera = sceneView.pointOfView?.camera {
+            camera.zNear = 0.1
+            camera.zFar = 1500
+        }
         motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
         // CoreMotion reference: Z up. SceneKit world: Y up.
         let refToWorld = simd_quatf(angle: -.pi / 2, axis: simd_float3(1, 0, 0))
