@@ -212,7 +212,6 @@ final class SkyEngine {
     func openFocusedDetail() { controller?.selectFocusedFlight() }
     func captureShareCard() { controller?.captureShareCard() }
     func leaveGlobe() { controller?.exitGlobe() }
-    func enterGlobe() { controller?.enterGlobe() }
 
     private func persist() {
         let d = UserDefaults.standard

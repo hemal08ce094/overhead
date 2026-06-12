@@ -580,24 +580,6 @@ struct AirportDetailSheet: View {
     }
 }
 
-/// A hand-drawn little Earth with an orbit ring — no stock globe symbol.
-struct GlobeChipIcon: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(LinearGradient(colors: [Color(red: 0.38, green: 0.58, blue: 0.95),
-                                              Color(red: 0.10, green: 0.24, blue: 0.52)],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 13, height: 13)
-            Ellipse()
-                .strokeBorder(.white.opacity(0.75), lineWidth: 1)
-                .frame(width: 19, height: 7)
-                .rotationEffect(.degrees(-16))
-        }
-        .frame(width: 20, height: 16)
-    }
-}
-
 /// 16-point compass label for an azimuth in degrees.
 func compass(_ degrees: Double) -> String {
     let dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
@@ -1007,37 +989,24 @@ struct SkySheet: View {
         }
     }
 
-    /// How you see the sky: live camera, dark dome, or the Earth from orbit.
+    /// AR sky ↔ dark sky, as a two-chip glass switch.
     private var modeSwitch: some View {
-        HStack(spacing: 8) {
-            modeChip("AR sky", active: !engine.globeMode && engine.cameraPassthrough) {
-                Image(systemName: "camera.fill").font(.system(size: 14, weight: .medium))
-            } action: {
-                engine.leaveGlobe()
+        HStack(spacing: 10) {
+            modeChip("AR sky", "camera.fill", active: engine.cameraPassthrough) {
                 engine.cameraPassthrough = true
             }
-            modeChip("Dark sky", active: !engine.globeMode && !engine.cameraPassthrough) {
-                Image(systemName: "moon.stars.fill").font(.system(size: 14, weight: .medium))
-            } action: {
-                engine.leaveGlobe()
+            modeChip("Dark sky", "moon.stars.fill", active: !engine.cameraPassthrough) {
                 engine.cameraPassthrough = false
-            }
-            modeChip("Globe", active: engine.globeMode) {
-                GlobeChipIcon()
-            } action: {
-                engine.enterGlobe()
-                dismiss()
             }
         }
     }
 
-    private func modeChip<Icon: View>(_ title: String, active: Bool,
-                                      @ViewBuilder icon: () -> Icon,
-                                      action: @escaping () -> Void) -> some View {
+    private func modeChip(_ title: String, _ icon: String, active: Bool,
+                          action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 7) {
-                icon()
-                Text(title).font(Theme.display(14, .semibold))
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 14, weight: .medium))
+                Text(title).font(Theme.display(15, .semibold))
             }
             .foregroundStyle(active ? Theme.textPrimary : Theme.textSecondary)
             .frame(maxWidth: .infinity)
