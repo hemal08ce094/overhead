@@ -298,6 +298,7 @@ enum SkyDefaults {
     static let showStars         = "showStars"          // Bool
     static let showISS           = "showISS"            // Bool
     static let showAircraft      = "showAircraft"       // Bool
+    static let showGroundAircraft = "showGroundAircraft" // Bool
     static let showAirports      = "showAirports"       // Bool
     static let showTrails        = "showTrails"         // Bool
     static let soundOn           = "soundOn"            // Bool
@@ -656,6 +657,8 @@ final class ARSkyViewController: UIViewController {
         var visible = 0
 
         for ac in traffic {
+            // Ground traffic is hidden unless explicitly enabled.
+            if ac.onGround, engine?.showGroundAircraft != true { continue }
             // Render-time dead reckoning: the feed position is seen_pos +
             // network seconds old; project it forward along the track so the
             // glyph shows where the plane *is*, not where it was (FR24-style).
@@ -1203,7 +1206,11 @@ final class ARSkyViewController: UIViewController {
 
     func applyLayerVisibility() {
         let showAircraft = engine?.showAircraft ?? true
-        for node in nodes.values { node.isHidden = !showAircraft }
+        let showGround = engine?.showGroundAircraft ?? false
+        for (hex, node) in nodes {
+            let grounded = lastFix[hex]?.aircraft.onGround == true
+            node.isHidden = !showAircraft || (grounded && !showGround)
+        }
         sky?.setVisibility()
         if let here = observerLocation {
             updateSky(observer: here, forceStars: true)

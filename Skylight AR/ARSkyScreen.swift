@@ -28,7 +28,6 @@ struct ARSkyContainer: UIViewControllerRepresentable {
 
 struct ARSkyScreen: View {
     @State private var engine = SkyEngine()
-    @State private var showSky = false
     @State private var showProfile = false
     @State private var showEvents = false
     @State private var showAircraftDetail = false
@@ -86,9 +85,6 @@ struct ARSkyScreen: View {
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: engine.selected)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: engine.skyTimeOffsetMin != 0)
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showSky) {
-            SkySheet(engine: engine)
-        }
         .sheet(isPresented: $showEvents) {
             NavigationStack { EventsView(engine: engine) }
                 .presentationDetents([.medium, .large])
@@ -310,21 +306,11 @@ struct ARSkyScreen: View {
         .accessibilityLabel("Zoomed to \(String(format: "%.1f", engine.zoomFactor)) times. Reset zoom.")
     }
 
-    /// Bottom edge: live status on the left, the celestial orb on the right —
-    /// the top of the sky stays clear.
+    /// Bottom edge: just the live status — everything else lives in Profile.
     private var controls: some View {
         HStack(alignment: .center) {
             statusPill
             Spacer()
-            Button { showSky = true } label: {
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                    .frame(width: 60, height: 60)
-                    .contentShape(Circle())
-                    .glassEffect(.regular, in: .circle)
-            }
-            .accessibilityLabel("Sky controls")
         }
     }
 }
@@ -638,6 +624,34 @@ struct ProfileView: View {
                     }
                 }
 
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Settings")
+                        .font(Theme.display(16, .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    VStack(spacing: 0) {
+                        settingsLink("View & sky", icon: "moon.stars.fill",
+                                     subtitle: engine.cameraPassthrough ? "AR sky · layers · sky time" : "Dark sky · layers · sky time") {
+                            SkySettingsView(engine: engine)
+                        }
+                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink("Aircraft", icon: "airplane",
+                                     subtitle: "Visibility, trails, labels, sound") {
+                            AircraftSettingsView(engine: engine)
+                        }
+                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink("Airports", icon: "airplane.arrival",
+                                     subtitle: engine.showAirports ? "Shown on the horizon" : "Hidden") {
+                            AirportSettingsView(engine: engine)
+                        }
+                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink("Calibration", icon: "slider.horizontal.3",
+                                     subtitle: "Heading offset and compass") {
+                            CalibrationView(engine: engine)
+                        }
+                    }
+                    .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+
                 Text("Position data airplanes.live · routes adsbdb · photos planespotters.net\nAll stats live on this device only.")
                     .font(Theme.display(11, .regular))
                     .foregroundStyle(Theme.textTertiary)
@@ -663,6 +677,35 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func settingsLink<Destination: View>(_ title: String, icon: String,
+                                                 subtitle: String,
+                                                 @ViewBuilder destination: @escaping () -> Destination) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(Theme.display(16, .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(subtitle)
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
     }
 
     private func favoriteRow(_ callsign: String) -> some View {
@@ -800,15 +843,6 @@ struct CalibrationView: View {
                             .foregroundStyle(Theme.textSecondary)
                     }
 
-                    section("Labels", trailing: nil) {
-                        Picker("Labels", selection: $engine.labelMode) {
-                            ForEach(SkyEngine.LabelMode.allCases) { mode in
-                                Text(mode.title).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
                     compassStatus
                 }
                 .padding(24)
@@ -887,113 +921,90 @@ struct CalibrationView: View {
     }
 }
 
-// MARK: - Sky sheet (mode, layers, time scrub, calibration)
+// MARK: - Settings groups (pushed inside Profile)
 
-struct SkySheet: View {
-    @Bindable var engine: SkyEngine
-    @Environment(\.dismiss) private var dismiss
+/// Shared toggle row for the settings groups.
+private struct SettingRow: View {
+    let title: String
+    let icon: String
+    @Binding var isOn: Bool
+    var subtitle: String?
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-
-                    modeSwitch
-
-                    VStack(spacing: 0) {
-                        row("Aircraft", "airplane", $engine.showAircraft,
-                            subtitle: engine.trafficCount > 0 ? "\(engine.trafficCount) overhead" : nil)
-                        divider
-                        row("Sun", "sun.max.fill", $engine.showSun)
-                        divider
-                        row("Moon", "moon.fill", $engine.showMoon, subtitle: moonSubtitle)
-                        divider
-                        row("Planets", "circle.circle", $engine.showPlanets,
-                            subtitle: "Mercury through Saturn")
-                        divider
-                        row("Stars", "sparkles", $engine.showStars)
-                        divider
-                        row("ISS", "diamond.fill", $engine.showISS,
-                            subtitle: engine.issVisible ? "Overhead now" : nil)
-                        divider
-                        row("Aircraft trails", "wind", $engine.showTrails,
-                            subtitle: "Fading path behind each plane")
-                        divider
-                        row("Airports", "airplane.arrival", $engine.showAirports,
-                            subtitle: "Nearby fields on the horizon")
-                        divider
-                        row("Sky sounds", "speaker.wave.2.fill", $engine.soundOn,
-                            subtitle: "Hear flyovers in 3D — best with AirPods")
-                    }
-                    .padding(.vertical, 4)
-                    .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                    if engine.showISS {
-                        Button { engine.jumpToNextISSPass() } label: {
-                            Label("Jump to next ISS pass", systemImage: "arrow.up.forward.circle.fill")
-                        }
-                        .buttonStyle(PrimaryButtonStyle())
-                    }
-
-                    timeScrub
-
-                    calibrationLink
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(Theme.display(16, .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textSecondary)
                 }
-                .padding(24)
             }
-            .scrollContentBackground(.hidden)
-            .toolbar(.hidden, for: .navigationBar)
-        }
-        .presentationDetents([.medium, .large])
-        .presentationBackground {
-            Color.clear
-                .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
-                             in: .rect(cornerRadius: 38))
-        }
-        .preferredColorScheme(.dark)
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            Text("Sky")
-                .font(Theme.display(26, .semibold))
-                .foregroundStyle(Theme.textPrimary)
             Spacer()
-            if engine.trafficCount > 0 {
-                Text("\(engine.trafficCount) aircraft")
-                    .font(Theme.display(13, .medium))
-                    .foregroundStyle(Theme.textSecondary)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(.white.opacity(0.06), in: Capsule())
-            }
-            NavigationLink {
-                ProfileView(engine: engine)
-            } label: {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: 25))
-                    .foregroundStyle(Theme.accent)
-            }
-            .accessibilityLabel("Profile")
-            Button { dismiss() } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-            .accessibilityLabel("Close")
+            Toggle("", isOn: $isOn).labelsHidden().tint(Theme.accentSoft)
         }
+        .padding(.horizontal, 14).padding(.vertical, 11)
     }
+}
 
-    /// AR sky ↔ dark sky, as a two-chip glass switch.
-    private var modeSwitch: some View {
-        HStack(spacing: 10) {
-            modeChip("AR sky", "camera.fill", active: engine.cameraPassthrough) {
-                engine.cameraPassthrough = true
+private var settingsDivider: some View {
+    Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+}
+
+/// View mode + celestial layers + sky time.
+struct SkySettingsView: View {
+    @Bindable var engine: SkyEngine
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(spacing: 10) {
+                    modeChip("AR sky", "camera.fill", active: engine.cameraPassthrough) {
+                        engine.cameraPassthrough = true
+                    }
+                    modeChip("Dark sky", "moon.stars.fill", active: !engine.cameraPassthrough) {
+                        engine.cameraPassthrough = false
+                    }
+                }
+
+                VStack(spacing: 0) {
+                    SettingRow(title: "Sun", icon: "sun.max.fill", isOn: $engine.showSun)
+                    settingsDivider
+                    SettingRow(title: "Moon", icon: "moon.fill", isOn: $engine.showMoon,
+                               subtitle: moonSubtitle)
+                    settingsDivider
+                    SettingRow(title: "Planets", icon: "circle.circle", isOn: $engine.showPlanets,
+                               subtitle: "Mercury through Saturn")
+                    settingsDivider
+                    SettingRow(title: "Stars", icon: "sparkles", isOn: $engine.showStars)
+                    settingsDivider
+                    SettingRow(title: "ISS", icon: "diamond.fill", isOn: $engine.showISS,
+                               subtitle: engine.issVisible ? "Overhead now" : nil)
+                }
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                if engine.showISS {
+                    Button { engine.jumpToNextISSPass() } label: {
+                        Label("Jump to next ISS pass", systemImage: "arrow.up.forward.circle.fill")
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                }
+
+                timeScrub
             }
-            modeChip("Dark sky", "moon.stars.fill", active: !engine.cameraPassthrough) {
-                engine.cameraPassthrough = false
-            }
+            .padding(24)
         }
+        .scrollContentBackground(.hidden)
+        .navigationTitle("View & sky")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
     }
 
     private func modeChip(_ title: String, _ icon: String, active: Bool,
@@ -1011,101 +1022,6 @@ struct SkySheet: View {
                          in: .capsule)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: active)
-    }
-
-    /// Push into the sky calendar.
-    private var eventsLink: some View {
-        NavigationLink {
-            EventsView(engine: engine)
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Theme.accent)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Sky events")
-                        .font(Theme.display(16, .medium))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(nextEventSubtitle)
-                        .font(Theme.display(12, .regular))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-            .padding(.horizontal, 14).padding(.vertical, 13)
-            .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-    }
-
-    private var nextEventSubtitle: String {
-        guard let next = engine.events.first else { return "Eclipses, meteor showers, full moons" }
-        let days = max(0, Int(next.date.timeIntervalSinceNow / 86_400))
-        return days == 0 ? "\(next.title) — today" : "\(next.title) in \(days) days"
-    }
-
-    /// Push into the full calibration controls.
-    private var calibrationLink: some View {
-        NavigationLink {
-            CalibrationView(engine: engine)
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Theme.accent)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Calibration")
-                        .font(Theme.display(16, .medium))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(compassSubtitle)
-                        .font(Theme.display(12, .regular))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-            .padding(.horizontal, 14).padding(.vertical, 13)
-            .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-    }
-
-    private var compassSubtitle: String {
-        switch engine.compassQuality {
-        case .good: return "Compass: good"
-        case .fair: return "Compass: fair — figure-8 to improve"
-        case .poor: return "Compass: poor — figure-8 to recalibrate"
-        case .unknown: return "Heading offset, mirroring, labels"
-        }
-    }
-
-    private var divider: some View { Divider().overlay(.white.opacity(0.08)).padding(.leading, 56) }
-
-    private func row(_ title: String, _ icon: String, _ binding: Binding<Bool>, subtitle: String? = nil) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(Theme.display(16, .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(Theme.display(12, .regular))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-            }
-            Spacer()
-            Toggle("", isOn: binding).labelsHidden().tint(Theme.accentSoft)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 11)
     }
 
     private var moonSubtitle: String {
@@ -1135,6 +1051,78 @@ struct SkySheet: View {
                 .font(Theme.display(12, .regular))
                 .foregroundStyle(Theme.textSecondary)
         }
+    }
+}
+
+/// Everything aircraft: visibility, ground traffic, trails, labels, sound.
+struct AircraftSettingsView: View {
+    @Bindable var engine: SkyEngine
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(spacing: 0) {
+                    SettingRow(title: "Aircraft", icon: "airplane", isOn: $engine.showAircraft,
+                               subtitle: engine.trafficCount > 0 ? "\(engine.trafficCount) overhead" : nil)
+                    settingsDivider
+                    SettingRow(title: "Aircraft on the ground", icon: "airplane.arrival",
+                               isOn: $engine.showGroundAircraft,
+                               subtitle: "Taxiing and parked planes")
+                    settingsDivider
+                    SettingRow(title: "Aircraft trails", icon: "wind", isOn: $engine.showTrails,
+                               subtitle: "Fading path behind each plane")
+                    settingsDivider
+                    SettingRow(title: "Sky sounds", icon: "speaker.wave.2.fill", isOn: $engine.soundOn,
+                               subtitle: "Hear flyovers in 3D — best with AirPods")
+                }
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Labels")
+                        .font(Theme.display(16, .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    Picker("Labels", selection: $engine.labelMode) {
+                        ForEach(SkyEngine.LabelMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+            .padding(24)
+        }
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Aircraft")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
+    }
+}
+
+/// Airport layer settings.
+struct AirportSettingsView: View {
+    @Bindable var engine: SkyEngine
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(spacing: 0) {
+                    SettingRow(title: "Airports", icon: "airplane.arrival",
+                               isOn: $engine.showAirports,
+                               subtitle: "Nearby fields on the horizon")
+                }
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                Text("Major airports within 150 nautical miles are pinned at their true bearing with their IATA code. Tap one in the sky for details.")
+                    .font(Theme.display(12, .regular))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .padding(24)
+        }
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Airports")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
     }
 }
 

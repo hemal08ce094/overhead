@@ -85,6 +85,8 @@ final class SkyEngine {
     var showStars: Bool    { didSet { persist(); controller?.applyLayerVisibility() } }
     var showISS: Bool      { didSet { persist(); controller?.applyLayerVisibility() } }
     var showAircraft: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
+    /// Planes taxiing/parked are noise for a sky app — hidden by default.
+    var showGroundAircraft: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     var showAirports: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     var showTrails: Bool   { didSet { persist(); controller?.applyTrailVisibility() } }
     var soundOn: Bool      { didSet { persist(); controller?.applySoundMode() } }
@@ -187,6 +189,7 @@ final class SkyEngine {
         showStars = d.object(forKey: SkyDefaults.showStars) as? Bool ?? true
         showISS = d.object(forKey: SkyDefaults.showISS) as? Bool ?? true
         showAircraft = d.object(forKey: SkyDefaults.showAircraft) as? Bool ?? true
+        showGroundAircraft = d.object(forKey: SkyDefaults.showGroundAircraft) as? Bool ?? false
         showAirports = d.object(forKey: SkyDefaults.showAirports) as? Bool ?? true
         showTrails = d.object(forKey: SkyDefaults.showTrails) as? Bool ?? true
         soundOn = d.bool(forKey: SkyDefaults.soundOn)
@@ -231,6 +234,7 @@ final class SkyEngine {
         d.set(showStars, forKey: SkyDefaults.showStars)
         d.set(showISS, forKey: SkyDefaults.showISS)
         d.set(showAircraft, forKey: SkyDefaults.showAircraft)
+        d.set(showGroundAircraft, forKey: SkyDefaults.showGroundAircraft)
         d.set(showAirports, forKey: SkyDefaults.showAirports)
         d.set(showTrails, forKey: SkyDefaults.showTrails)
         d.set(soundOn, forKey: SkyDefaults.soundOn)
