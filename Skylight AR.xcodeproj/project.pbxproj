@@ -10,6 +10,8 @@
 		CCCC000000000000000000C1 /* SwiftAA in Frameworks */ = {isa = PBXBuildFile; productRef = BBBB000000000000000000B1 /* SwiftAA */; };
 		CCCC000000000000000000C2 /* SatelliteKit in Frameworks */ = {isa = PBXBuildFile; productRef = BBBB000000000000000000B2 /* SatelliteKit */; };
 		DDDD0000000000000000W00F /* SkylightWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DDDD0000000000000000W001 /* SkylightWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EEEE000000000000000WA0C5 /* SatelliteKit in Frameworks */ = {isa = PBXBuildFile; productRef = EEEE000000000000000WA0B5 /* SatelliteKit */; };
+		EEEE000000000000000WA0E5 /* OverheadWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = EEEE000000000000000WA015 /* OverheadWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -19,6 +21,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = DDDD0000000000000000W003;
 			remoteInfo = SkylightWidgets;
+		};
+		EEEE000000000000000WA105 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 072F836A2FD13F0E0005054C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EEEE000000000000000WA035;
+			remoteInfo = OverheadWatch;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -34,11 +43,23 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EEEE000000000000000WA0D5 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				EEEE000000000000000WA0E5 /* OverheadWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		072F83722FD13F0E0005054C /* Skylight AR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Skylight AR.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDDD0000000000000000W001 /* SkylightWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SkylightWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EEEE000000000000000WA015 /* OverheadWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OverheadWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -75,6 +96,11 @@
 			path = SkylightWidgets;
 			sourceTree = "<group>";
 		};
+		EEEE000000000000000WA025 /* OverheadWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OverheadWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +120,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EEEE000000000000000WA055 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EEEE000000000000000WA0C5 /* SatelliteKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -102,6 +136,7 @@
 			children = (
 				072F83742FD13F0E0005054C /* Skylight AR */,
 				DDDD0000000000000000W002 /* SkylightWidgets */,
+				EEEE000000000000000WA025 /* OverheadWatch */,
 				072F83732FD13F0E0005054C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -111,6 +146,7 @@
 			children = (
 				072F83722FD13F0E0005054C /* Skylight AR.app */,
 				DDDD0000000000000000W001 /* SkylightWidgets.appex */,
+				EEEE000000000000000WA015 /* OverheadWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -126,11 +162,13 @@
 				072F836F2FD13F0E0005054C /* Frameworks */,
 				072F83702FD13F0E0005054C /* Resources */,
 				DDDD0000000000000000W00E /* Embed Foundation Extensions */,
+				EEEE000000000000000WA0D5 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				DDDD0000000000000000W00C /* PBXTargetDependency */,
+				EEEE000000000000000WA0F5 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				072F83742FD13F0E0005054C /* Skylight AR */,
@@ -165,6 +203,29 @@
 			productName = SkylightWidgets;
 			productReference = DDDD0000000000000000W001 /* SkylightWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		EEEE000000000000000WA035 /* OverheadWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EEEE000000000000000WA075 /* Build configuration list for PBXNativeTarget "OverheadWatch" */;
+			buildPhases = (
+				EEEE000000000000000WA045 /* Sources */,
+				EEEE000000000000000WA055 /* Frameworks */,
+				EEEE000000000000000WA065 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EEEE000000000000000WA025 /* OverheadWatch */,
+			);
+			name = OverheadWatch;
+			packageProductDependencies = (
+				EEEE000000000000000WA0B5 /* SatelliteKit */,
+			);
+			productName = OverheadWatch;
+			productReference = EEEE000000000000000WA015 /* OverheadWatch.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -201,6 +262,7 @@
 			targets = (
 				072F83712FD13F0E0005054C /* Skylight AR */,
 				DDDD0000000000000000W003 /* SkylightWidgets */,
+				EEEE000000000000000WA035 /* OverheadWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -214,6 +276,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		DDDD0000000000000000W006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EEEE000000000000000WA065 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -237,6 +306,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EEEE000000000000000WA045 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -244,6 +320,11 @@
 			isa = PBXTargetDependency;
 			target = DDDD0000000000000000W003 /* SkylightWidgets */;
 			targetProxy = DDDD0000000000000000W00D /* PBXContainerItemProxy */;
+		};
+		EEEE000000000000000WA0F5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EEEE000000000000000WA035 /* OverheadWatch */;
+			targetProxy = EEEE000000000000000WA105 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -497,6 +578,63 @@
 		};
 /* End XCBuildConfiguration section */
 
+	EEEE000000000000000WA085 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 542W8Z2VM3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Overhead;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find the next ISS pass over you.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "hemal.Skylight-AR";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "hemal.Skylight-AR.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		EEEE000000000000000WA095 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 542W8Z2VM3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Overhead;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find the next ISS pass over you.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "hemal.Skylight-AR";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "hemal.Skylight-AR.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+
 /* Begin XCConfigurationList section */
 		072F836D2FD13F0E0005054C /* Build configuration list for PBXProject "Skylight AR" */ = {
 			isa = XCConfigurationList;
@@ -521,6 +659,15 @@
 			buildConfigurations = (
 				DDDD0000000000000000W00A /* Debug */,
 				DDDD0000000000000000W00B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EEEE000000000000000WA075 /* Build configuration list for PBXNativeTarget "OverheadWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EEEE000000000000000WA085 /* Debug */,
+				EEEE000000000000000WA095 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -553,6 +700,11 @@
 			productName = SwiftAA;
 		};
 		BBBB000000000000000000B2 /* SatelliteKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AAAA000000000000000000A2 /* XCRemoteSwiftPackageReference "SatelliteKit" */;
+			productName = SatelliteKit;
+		};
+		EEEE000000000000000WA0B5 /* SatelliteKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AAAA000000000000000000A2 /* XCRemoteSwiftPackageReference "SatelliteKit" */;
 			productName = SatelliteKit;
