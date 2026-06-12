@@ -91,6 +91,16 @@ struct ControlPanelView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(28)
-        .task { model.start() }
+        .task {
+            model.start()
+            #if DEBUG
+            // Simulator harness: mouse/HID injection can't reach in-sim UI,
+            // so `defaults write … debugOpenSky 1` stands in for the button.
+            if UserDefaults.standard.bool(forKey: "debugOpenSky"), !model.skyOpen {
+                await openSpace(id: "sky")
+                model.skyOpen = true
+            }
+            #endif
+        }
     }
 }
