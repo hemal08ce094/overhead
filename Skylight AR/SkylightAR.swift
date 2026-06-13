@@ -37,6 +37,8 @@ struct Aircraft: Identifiable, Sendable, Equatable {
     var positionAgeSec: Double?   // feed's "seen_pos": seconds since this fix
     var category: String?      // ADS-B emitter category, e.g. "A3"
     var type: String?          // ICAO type designator ("t"), e.g. "B738"
+    var registration: String? // tail number ("r"), e.g. "N12345"
+    var squawk: String?        // transponder code, e.g. "7700"
 
     var id: String { hex }
 
@@ -54,6 +56,53 @@ protocol DataSource: Sendable {
     /// Aircraft within `radiusNm` nautical miles of the point. Honor the feed's
     /// ~1 req/sec rate limit at the call site.
     func aircraft(lat: Double, lon: Double, radiusNm: Int) async throws -> [Aircraft]
+
+    /// Global lookup of any aircraft matching `value` on `field`, regardless of
+    /// distance. Default returns nothing so a provider without global search
+    /// stays a drop-in `DataSource`.
+    func search(field: AircraftSearchField, value: String) async throws -> [Aircraft]
+}
+
+extension DataSource {
+    func search(field: AircraftSearchField, value: String) async throws -> [Aircraft] { [] }
+}
+
+/// The parameters a flight can be searched by, mapped to airplanes.live's
+/// global endpoints.
+enum AircraftSearchField: String, CaseIterable, Identifiable, Sendable {
+    case callsign, registration, type, squawk
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .callsign:     return "Flight"
+        case .registration: return "Tail"
+        case .type:         return "Type"
+        case .squawk:       return "Squawk"
+        }
+    }
+    /// Endpoint path segment on the airplanes.live v2 API.
+    var endpoint: String {
+        switch self {
+        case .callsign:     return "callsign"
+        case .registration: return "reg"
+        case .type:         return "type"
+        case .squawk:       return "squawk"
+        }
+    }
+    var placeholder: String {
+        switch self {
+        case .callsign:     return "UAL123, BAW45"
+        case .registration: return "N12345, G-XWBA"
+        case .type:         return "B738, A320"
+        case .squawk:       return "7700, 1200"
+        }
+    }
+    /// How the feed wants the query normalized.
+    func normalized(_ raw: String) -> String {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return t
+    }
 }
 
 /// airplanes.live point endpoint — ADSBExchange v2 response shape.
@@ -68,6 +117,20 @@ struct ADSBClient: DataSource {
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
+        let (data, _) = try await session.data(for: request)
+        let decoded = try JSONDecoder().decode(ADSBResponse.self, from: data)
+        return decoded.records.compactMap(Aircraft.init(adsb:))
+    }
+
+    func search(field: AircraftSearchField, value: String) async throws -> [Aircraft] {
+        let query = field.normalized(value)
+        guard !query.isEmpty,
+              let escaped = query.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(baseURL)/\(field.endpoint)/\(escaped)") else {
+            throw URLError(.badURL)
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
         let (data, _) = try await session.data(for: request)
         let decoded = try JSONDecoder().decode(ADSBResponse.self, from: data)
         return decoded.records.compactMap(Aircraft.init(adsb:))
@@ -97,6 +160,8 @@ private struct ADSBAircraft: Decodable {
     let seen_pos: Double?
     let category: String?
     let t: String?
+    let r: String?
+    let squawk: String?
 }
 
 /// `alt_baro` is either a number (feet) or the string `"ground"`.
@@ -135,6 +200,8 @@ private extension Aircraft {
         self.positionAgeSec = a.seen_pos
         self.category = a.category
         self.type = a.t
+        self.registration = a.r?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+        self.squawk = a.squawk?.trimmingCharacters(in: .whitespaces).nilIfEmpty
     }
 }
 
@@ -1225,6 +1292,78 @@ final class ARSkyViewController: UIViewController {
     /// Open the focused flight's detail (the focus pill is tappable).
     func selectFocusedFlight() {
         if let hex = focusedHex { select(hex: hex) }
+    }
+
+    // MARK: Flight search
+
+    /// Matches among the aircraft currently in our sky — instant, no network.
+    func localMatches(field: AircraftSearchField, query rawQuery: String) -> [SearchResult] {
+        let q = field.normalized(rawQuery)
+        guard !q.isEmpty else { return [] }
+        var out: [SearchResult] = []
+        for (hex, fix) in lastFix {
+            let ac = fix.aircraft
+            let hay: String?
+            switch field {
+            case .callsign:     hay = ac.callsign
+            case .registration: hay = ac.registration
+            case .type:         hay = ac.type
+            case .squawk:       hay = ac.squawk
+            }
+            guard let hay = hay?.uppercased(), hay.contains(q) else { continue }
+            out.append(searchResult(hex: hex, aircraft: ac, az: fix.az, range: fix.range, inView: true))
+        }
+        return out.sorted { ($0.distanceNm ?? .infinity) < ($1.distanceNm ?? .infinity) }
+    }
+
+    /// Global lookup of any matching aircraft via the data source, with
+    /// observer-relative distance filled in when we know where we are.
+    func globalSearch(field: AircraftSearchField, value: String) async -> [SearchResult] {
+        let matches = (try? await dataSource.search(field: field, value: value)) ?? []
+        let inViewHexes = Set(lastFix.keys)
+        let results: [SearchResult] = matches.map { ac in
+            var az: Double?, range: Double?
+            if let here = observerLocation {
+                let g = SkyMath.azElRange(observerLat: here.coordinate.latitude,
+                                          observerLon: here.coordinate.longitude,
+                                          observerAltM: here.altitude,
+                                          targetLat: ac.lat, targetLon: ac.lon,
+                                          targetAltM: ac.altitudeMeters)
+                az = g.azimuth; range = g.range
+            }
+            return searchResult(hex: ac.hex, aircraft: ac, az: az, range: range,
+                                inView: inViewHexes.contains(ac.hex))
+        }
+        // A type/squawk lookup can match thousands; keep the nearest handful.
+        return Array(results.sorted { ($0.distanceNm ?? .infinity) < ($1.distanceNm ?? .infinity) }
+            .prefix(50))
+    }
+
+    private func searchResult(hex: String, aircraft ac: Aircraft,
+                              az: Double?, range: Double?, inView: Bool) -> SearchResult {
+        SearchResult(hex: hex,
+                     callsign: ac.callsign,
+                     type: ac.type,
+                     registration: ac.registration,
+                     airline: routes.cached(ac.callsign)?.airline,
+                     altitudeFeet: ac.altitudeFeet,
+                     onGround: ac.onGround,
+                     distanceNm: range.map { $0 / 1852 },
+                     azimuth: az,
+                     inView: inView)
+    }
+
+    /// Link a search hit to the track system: focus it by callsign so it's
+    /// followed (and auto-locked when it enters range), and open its detail now
+    /// if it's already in our sky.
+    func trackSearchResult(_ result: SearchResult) {
+        if let cs = result.callsign?.trimmingCharacters(in: .whitespaces), !cs.isEmpty {
+            engine?.focusedCallsign = cs
+        }
+        routes.request(result.callsign)
+        if nodes[result.hex] != nil || lastFix[result.hex] != nil {
+            select(hex: result.hex)
+        }
     }
 
     func deselect() {

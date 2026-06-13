@@ -39,6 +39,28 @@ struct SelectedAircraft: Identifiable, Equatable {
     var id: String { hex }
 }
 
+/// One hit from flight search — either a plane in the live feed ("in view") or
+/// a global lookup that may be far away. Tapping it links to the track system.
+struct SearchResult: Identifiable, Equatable {
+    let hex: String
+    var callsign: String?
+    var type: String?
+    var registration: String?
+    var airline: String?
+    var altitudeFeet: Double
+    var onGround: Bool
+    var distanceNm: Double?    // nil when our location or the plane's is unknown
+    var azimuth: Double?
+    var inView: Bool           // currently in the local feed (trackable in AR now)
+
+    var id: String { hex }
+    var title: String {
+        if let c = callsign, !c.isEmpty { return c }
+        if let r = registration, !r.isEmpty { return r }
+        return hex.uppercased()
+    }
+}
+
 /// A tapped airport, with observer-relative geometry for the detail sheet.
 struct SelectedAirport: Identifiable, Equatable {
     let iata: String
@@ -230,6 +252,18 @@ final class SkyEngine {
     func resetZoom() { controller?.resetZoom() }
     func openFocusedDetail() { controller?.selectFocusedFlight() }
     func captureShareCard() { controller?.captureShareCard() }
+
+    /// Flight search. In-view matches come from the live feed instantly; the
+    /// global lookup reaches any aircraft via the data source.
+    func searchInView(field: AircraftSearchField, query: String) -> [SearchResult] {
+        controller?.localMatches(field: field, query: query) ?? []
+    }
+    func searchAnywhere(field: AircraftSearchField, value: String) async -> [SearchResult] {
+        await controller?.globalSearch(field: field, value: value) ?? []
+    }
+    /// Link a search hit to the track (focus) system, and open it if it's
+    /// already in our sky.
+    func track(_ result: SearchResult) { controller?.trackSearchResult(result) }
 
     private func persist() {
         let d = UserDefaults.standard

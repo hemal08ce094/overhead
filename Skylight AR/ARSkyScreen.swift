@@ -30,6 +30,7 @@ struct ARSkyScreen: View {
     @State private var engine = SkyEngine()
     @State private var showProfile = false
     @State private var showEvents = false
+    @State private var showSearch = false
     @State private var showAircraftDetail = false
 
     var body: some View {
@@ -49,6 +50,7 @@ struct ARSkyScreen: View {
                     Spacer()
                     if engine.zoomFactor > 1.05 { zoomPill }
                     if engine.skyTimeOffsetMin != 0 { timeOffsetPill }
+                    searchButton
                     eventsBell
                 }
                 if engine.compassHintNeeded && !engine.compassHintDismissed {
@@ -98,6 +100,16 @@ struct ARSkyScreen: View {
         .sheet(isPresented: $showProfile) {
             NavigationStack { ProfileView(engine: engine) }
                 .presentationDetents([.medium, .large])
+                .presentationBackground {
+                    Color.clear
+                        .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
+                                     in: .rect(cornerRadius: 38))
+                }
+                .preferredColorScheme(.dark)
+        }
+        .sheet(isPresented: $showSearch) {
+            FlightSearchView(engine: engine)
+                .presentationDetents([.large])
                 .presentationBackground {
                     Color.clear
                         .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
@@ -231,6 +243,19 @@ struct ARSkyScreen: View {
     }
 
     /// Top-right bell — the sky calendar, one tap from anywhere.
+    /// Top-right entry to flight search.
+    private var searchButton: some View {
+        Button { showSearch = true } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Theme.textPrimary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .glassEffect(.regular, in: .circle)
+        }
+        .accessibilityLabel("Find a flight")
+    }
+
     private var eventsBell: some View {
         Button { showEvents = true } label: {
             Image(systemName: "bell")
@@ -311,6 +336,212 @@ struct ARSkyScreen: View {
         HStack(alignment: .center) {
             statusPill
             Spacer()
+        }
+    }
+}
+
+// MARK: - Flight search
+
+/// Search the sky by flight, tail, type, or squawk. In-view matches resolve
+/// instantly from the live feed; "Anywhere" reaches any aircraft globally.
+/// Picking a result links it to the track (focus) system.
+struct FlightSearchView: View {
+    @Bindable var engine: SkyEngine
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var field: AircraftSearchField = .callsign
+    @State private var query = ""
+    @State private var inView: [SearchResult] = []
+    @State private var anywhere: [SearchResult] = []
+    @State private var searching = false
+    @State private var searchTask: Task<Void, Never>?
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 14) {
+                Picker("Search by", selection: $field) {
+                    ForEach(AircraftSearchField.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+
+                searchField
+
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        if !inView.isEmpty {
+                            section("In view now", inView)
+                        }
+                        if searching && anywhere.isEmpty {
+                            HStack(spacing: 10) {
+                                ProgressView().tint(Theme.accent)
+                                Text("Searching anywhere…")
+                                    .font(Theme.display(13, .regular))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            .padding(.top, 4)
+                        }
+                        if !anywhere.isEmpty {
+                            section("Anywhere", anywhere)
+                        }
+                        if shouldShowEmpty {
+                            emptyState
+                        }
+                    }
+                    .padding(.bottom, 16)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            }
+            .padding(20)
+            .navigationTitle("Find a flight")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }.tint(Theme.accent)
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .preferredColorScheme(.dark)
+        .onAppear { fieldFocused = true }
+        .onChange(of: query) { _, _ in runSearch() }
+        .onChange(of: field) { _, _ in runSearch() }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Theme.textSecondary)
+            TextField(field.placeholder, text: $query)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .focused($fieldFocused)
+                .foregroundStyle(Theme.textPrimary)
+            if !query.isEmpty {
+                Button { query = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.textTertiary)
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 13)
+        .glassEffect(.regular, in: .capsule)
+    }
+
+    private func section(_ title: String, _ results: [SearchResult]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .font(Theme.display(12, .semibold))
+                .foregroundStyle(Theme.textTertiary)
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                ForEach(Array(results.enumerated()), id: \.element.id) { idx, r in
+                    Button { pick(r) } label: { row(r) }
+                    if idx < results.count - 1 { settingsDivider }
+                }
+            }
+            .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+
+    private func row(_ r: SearchResult) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: r.onGround ? "airplane.arrival" : "airplane")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(r.inView ? Theme.accent : Theme.textSecondary)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.title)
+                    .font(Theme.display(16, .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                if let subtitle = rowSubtitle(r) {
+                    Text(subtitle)
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                if r.inView {
+                    Text("In view")
+                        .font(Theme.display(11, .semibold))
+                        .foregroundStyle(Theme.accent)
+                } else if let d = r.distanceNm {
+                    Text(String(format: "%.0f nm", d))
+                        .font(Theme.display(12, .semibold).monospacedDigit())
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                if r.altitudeFeet > 0, !r.onGround {
+                    Text("FL\(Int((r.altitudeFeet / 100).rounded()))")
+                        .font(Theme.display(11, .regular).monospacedDigit())
+                        .foregroundStyle(Theme.textTertiary)
+                } else if r.onGround {
+                    Text("on ground")
+                        .font(Theme.display(11, .regular))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+
+    private func rowSubtitle(_ r: SearchResult) -> String? {
+        var parts: [String] = []
+        if let airline = r.airline { parts.append(airline) }
+        if let type = r.type { parts.append(type) }
+        if let reg = r.registration, reg != r.title { parts.append(reg) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private var shouldShowEmpty: Bool {
+        query.trimmingCharacters(in: .whitespaces).count >= 2
+            && !searching && inView.isEmpty && anywhere.isEmpty
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "binoculars")
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(Theme.textTertiary)
+            Text("No \(field.title.lowercased()) match for “\(query)”.")
+                .font(Theme.display(14, .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+            if field == .callsign || field == .registration {
+                Text("A global match needs the full \(field == .callsign ? "flight number" : "tail") — e.g. \(field.placeholder.components(separatedBy: ",").first ?? "").")
+                    .font(Theme.display(12, .regular))
+                    .foregroundStyle(Theme.textTertiary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
+        .padding(.horizontal, 24)
+    }
+
+    private func pick(_ r: SearchResult) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        engine.track(r)
+        dismiss()
+    }
+
+    /// In-view filtering is instant on every keystroke; the global lookup is
+    /// debounced so we don't hammer the rate-limited feed.
+    private func runSearch() {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        inView = engine.searchInView(field: field, query: q)
+        searchTask?.cancel()
+        guard q.count >= 2 else { anywhere = []; searching = false; return }
+        searching = true
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            if Task.isCancelled { return }
+            let results = await engine.searchAnywhere(field: field, value: q)
+            if Task.isCancelled { return }
+            let seen = Set(inView.map(\.hex))
+            anywhere = results.filter { !seen.contains($0.hex) }
+            searching = false
         }
     }
 }
