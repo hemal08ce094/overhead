@@ -87,6 +87,11 @@ final class SkyEngine {
     var showAircraft: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     /// Planes taxiing/parked are noise for a sky app — hidden by default.
     var showGroundAircraft: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
+    /// Show only aircraft plausibly visible to the naked eye (near, and well
+    /// above the horizon haze) instead of every distant contact in radio range.
+    var nakedEyeOnly: Bool { didSet { persist(); controller?.applyAircraftVisibilityFilter() } }
+    /// How far (nm) still counts as "visible" while `nakedEyeOnly` is on.
+    var nakedEyeRangeNm: Double { didSet { persist(); controller?.applyAircraftVisibilityFilter() } }
     var showAirports: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     var showTrails: Bool   { didSet { persist(); controller?.applyTrailVisibility() } }
     var soundOn: Bool      { didSet { persist(); controller?.applySoundMode() } }
@@ -190,6 +195,10 @@ final class SkyEngine {
         showISS = d.object(forKey: SkyDefaults.showISS) as? Bool ?? true
         showAircraft = d.object(forKey: SkyDefaults.showAircraft) as? Bool ?? true
         showGroundAircraft = d.object(forKey: SkyDefaults.showGroundAircraft) as? Bool ?? false
+        // On by default: show what you could actually see, not every distant blip.
+        nakedEyeOnly = d.object(forKey: SkyDefaults.nakedEyeOnly) as? Bool ?? true
+        let nakedRange = d.object(forKey: SkyDefaults.nakedEyeRangeNm) as? Double ?? 25
+        nakedEyeRangeNm = (10...40).contains(nakedRange) ? nakedRange : 25
         showAirports = d.object(forKey: SkyDefaults.showAirports) as? Bool ?? true
         showTrails = d.object(forKey: SkyDefaults.showTrails) as? Bool ?? true
         soundOn = d.bool(forKey: SkyDefaults.soundOn)
@@ -235,6 +244,8 @@ final class SkyEngine {
         d.set(showISS, forKey: SkyDefaults.showISS)
         d.set(showAircraft, forKey: SkyDefaults.showAircraft)
         d.set(showGroundAircraft, forKey: SkyDefaults.showGroundAircraft)
+        d.set(nakedEyeOnly, forKey: SkyDefaults.nakedEyeOnly)
+        d.set(nakedEyeRangeNm, forKey: SkyDefaults.nakedEyeRangeNm)
         d.set(showAirports, forKey: SkyDefaults.showAirports)
         d.set(showTrails, forKey: SkyDefaults.showTrails)
         d.set(soundOn, forKey: SkyDefaults.soundOn)

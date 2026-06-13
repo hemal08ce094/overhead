@@ -299,6 +299,8 @@ enum SkyDefaults {
     static let showISS           = "showISS"            // Bool
     static let showAircraft      = "showAircraft"       // Bool
     static let showGroundAircraft = "showGroundAircraft" // Bool
+    static let nakedEyeOnly       = "nakedEyeOnly"       // Bool
+    static let nakedEyeRangeNm    = "nakedEyeRangeNm"    // Double
     static let showAirports      = "showAirports"       // Bool
     static let showTrails        = "showTrails"         // Bool
     static let soundOn           = "soundOn"            // Bool
@@ -349,6 +351,14 @@ final class ARSkyViewController: UIViewController {
     private let pollInterval: Duration = .seconds(1)
     private let staleAfter: TimeInterval = 15   // drop aircraft not seen for this long
     private let searchRadiusNm = 80
+    /// Whole-pipeline lag (feed processing + network) beyond the feed's own
+    /// `seen_pos`, projected forward so the marker rides where the plane *is*.
+    private let feedLatencySec: Double = 1.5
+    /// Cap on how far ahead a stalled fix may be dead-reckoned (s).
+    private let maxExtrapolationSec: Double = 20
+    /// Below this elevation, an aircraft is lost to horizon haze/buildings and
+    /// is treated as not naked-eye visible.
+    private static let nakedEyeMinElevationDeg: Double = 8
 
     // Dependencies
     var dataSource: DataSource = ADSBClient()
@@ -379,6 +389,10 @@ final class ARSkyViewController: UIViewController {
     private var nodes: [String: AircraftNode] = [:]
     private var lastSeen: [String: Date] = [:]
     private var lastFix: [String: Fix] = [:]
+    /// Per-aircraft dead-reckoning baseline, advanced every display frame so the
+    /// marker glides continuously between 1 Hz fixes instead of stepping.
+    private var anchors: [String: Anchor] = [:]
+    private var displayLink: CADisplayLink?
     private var selectedHex: String?
     private var pollTask: Task<Void, Never>?
     private var airportNodes: [String: AirportNode] = [:]
@@ -399,6 +413,14 @@ final class ARSkyViewController: UIViewController {
     /// The most recent geometry for an aircraft, kept so calibration changes can
     /// re-place it instantly and the selection readout can refresh between fixes.
     private struct Fix { var az: Double; var el: Double; var range: Double; var aircraft: Aircraft }
+
+    /// A geodetic baseline plus the wall-clock instant it was actually true,
+    /// so any later frame can project it forward along the ground track.
+    private struct Anchor {
+        var lat: Double; var lon: Double; var altM: Double
+        var track: Double?; var gsKts: Double?
+        var observedAt: Date
+    }
 
     // MARK: Lifecycle
 
@@ -589,6 +611,7 @@ final class ARSkyViewController: UIViewController {
     private func pauseEverything() {
         sceneView.session.pause()
         stopMotionPointing()
+        stopDisplayLink()
         pollTask?.cancel()
         pollTask = nil
     }
@@ -603,6 +626,7 @@ final class ARSkyViewController: UIViewController {
     // MARK: Polling
 
     private func startPolling() {
+        startDisplayLink()
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -651,34 +675,38 @@ final class ARSkyViewController: UIViewController {
 
     private func update(with traffic: [Aircraft], observer: CLLocation) {
         let now = Date()
-        let obsAltM = observer.altitude
         let offset = engine?.headingOffsetDeg ?? 0
         let mirror = engine?.mirrorX ?? false
         var visible = 0
 
         for ac in traffic {
             // Ground traffic is hidden unless explicitly enabled.
-            if ac.onGround, engine?.showGroundAircraft != true { continue }
-            // Render-time dead reckoning: the feed position is seen_pos +
-            // network seconds old; project it forward along the track so the
-            // glyph shows where the plane *is*, not where it was (FR24-style).
-            var lat = ac.lat, lon = ac.lon
-            if let track = ac.track, let gs = ac.groundSpeedKts, gs > 40, !ac.onGround {
-                let age = min((ac.positionAgeSec ?? 1) + 2.0, 15)   // + feed/poll latency
-                let meters = gs * 0.514444 * age
-                let trackRad = track * .pi / 180
-                lat += (meters * cos(trackRad) / 6_371_000) * 180 / .pi
-                lon += (meters * sin(trackRad) / (6_371_000 * cos(ac.lat * .pi / 180))) * 180 / .pi
-            }
-            let (az, el, range) = SkyMath.azElRange(
-                observerLat: observer.coordinate.latitude,
-                observerLon: observer.coordinate.longitude,
-                observerAltM: obsAltM,
-                targetLat: lat, targetLon: lon, targetAltM: ac.altitudeMeters)
+            if ac.onGround, engine?.showGroundAircraft != true { dropAircraft(ac.hex); continue }
+
+            // Anchor the fix to the instant it was actually true (feed `seen_pos`
+            // plus pipeline lag); the display link projects it forward from here
+            // every frame so the glyph rides where the plane *is*, not where it
+            // was — continuous motion instead of a 1 Hz step.
+            let anchor = Anchor(lat: ac.lat, lon: ac.lon, altM: ac.altitudeMeters,
+                                track: ac.track, gsKts: ac.groundSpeedKts,
+                                observedAt: now.addingTimeInterval(-((ac.positionAgeSec ?? 0) + feedLatencySec)))
+            let (az, el, range) = geometry(of: anchor, at: now, observer: observer)
 
             // Only render objects above the horizon.
-            guard el > -2 else { continue }
+            guard el > -2 else { dropAircraft(ac.hex); continue }
+
+            // Naked-eye filter: skip distant/low contacts you couldn't actually
+            // see — but never drop a plane the user is explicitly tracking.
+            let rangeNm = range / 1852
+            let tracked = ac.hex == selectedHex
+                || (engine?.focusedCallsign != nil && ac.callsign == engine?.focusedCallsign)
+            if engine?.nakedEyeOnly == true, !tracked,
+               rangeNm > (engine?.nakedEyeRangeNm ?? 25) || el < Self.nakedEyeMinElevationDeg {
+                dropAircraft(ac.hex); continue
+            }
+
             visible += 1
+            anchors[ac.hex] = anchor
             lastSeen[ac.hex] = now
             lastFix[ac.hex] = Fix(az: az, el: el, range: range, aircraft: ac)
 
@@ -690,11 +718,8 @@ final class ARSkyViewController: UIViewController {
             if let existing = nodes[ac.hex] {
                 node = existing
                 node.apply(aircraft: ac)
+                node.removeAction(forKey: "move")     // motion now driven per-frame
                 orientGlyph(node, target: position, track: ac.track, az: az, el: el)
-                // Smoothly glide between ~1 Hz fixes instead of teleporting.
-                let move = SCNAction.move(to: position, duration: 1.0)
-                move.timingMode = .easeInEaseOut
-                node.runAction(move, forKey: "move")
             } else {
                 node = AircraftNode(aircraft: ac)
                 node.apply(aircraft: ac)
@@ -725,6 +750,92 @@ final class ARSkyViewController: UIViewController {
         applyFocus()
         updateTransitPrediction(traffic: traffic, observer: observer)
         updateAudio()
+    }
+
+    // MARK: Per-frame dead reckoning
+
+    /// Project an anchor forward to `date` along its ground track and return the
+    /// observer-relative geometry. The forward step auto-includes feed latency
+    /// because the anchor is timestamped to when the fix was actually true.
+    private func geometry(of anchor: Anchor, at date: Date, observer: CLLocation)
+        -> (az: Double, el: Double, range: Double) {
+        var lat = anchor.lat, lon = anchor.lon
+        if let track = anchor.track, let gs = anchor.gsKts, gs > 40 {
+            let dt = min(max(date.timeIntervalSince(anchor.observedAt), 0), maxExtrapolationSec)
+            let meters = gs * 0.514444 * dt
+            let tr = track * .pi / 180
+            lat += (meters * cos(tr) / 6_371_000) * 180 / .pi
+            lon += (meters * sin(tr) / (6_371_000 * cos(anchor.lat * .pi / 180))) * 180 / .pi
+        }
+        let r = SkyMath.azElRange(observerLat: observer.coordinate.latitude,
+                                  observerLon: observer.coordinate.longitude,
+                                  observerAltM: observer.altitude,
+                                  targetLat: lat, targetLon: lon, targetAltM: anchor.altM)
+        return (az: r.azimuth, el: r.elevation, range: r.range)
+    }
+
+    private func startDisplayLink() {
+        guard displayLink == nil else { return }
+        let link = CADisplayLink(target: self, selector: #selector(stepAircraft))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    private func stopDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    /// Re-place every aircraft each display frame from its anchor, so markers
+    /// glide continuously with the real planes between 1 Hz fixes. A light
+    /// low-pass absorbs the small correction when a fresh fix lands without
+    /// adding lag (the target is always projected to true-now).
+    @objc private func stepAircraft() {
+        guard let observer = observerLocation, !anchors.isEmpty else { return }
+        let now = Date()
+        let offset = engine?.headingOffsetDeg ?? 0
+        let mirror = engine?.mirrorX ?? false
+        for (hex, anchor) in anchors {
+            guard let node = nodes[hex], !node.isHidden else { continue }
+            let (az, el, range) = geometry(of: anchor, at: now, observer: observer)
+            let target = SkyMath.scenePosition(azimuthDeg: az, elevationDeg: el,
+                                               radius: sphereRadius,
+                                               headingOffsetDeg: offset, mirrorX: mirror)
+            let p = node.position
+            let a: Float = 0.5
+            node.position = SCNVector3(p.x + (target.x - p.x) * a,
+                                       p.y + (target.y - p.y) * a,
+                                       p.z + (target.z - p.z) * a)
+            lastFix[hex]?.az = az
+            lastFix[hex]?.el = el
+            lastFix[hex]?.range = range
+        }
+    }
+
+    /// Remove an aircraft and everything attached to it (node, trail, fix).
+    private func dropAircraft(_ hex: String) {
+        guard nodes[hex] != nil || anchors[hex] != nil else { return }
+        nodes[hex]?.removeFromParentNode(); nodes[hex] = nil
+        trailNodes[hex]?.removeFromParentNode(); trailNodes[hex] = nil
+        trails[hex] = nil
+        lastFix[hex] = nil
+        lastSeen[hex] = nil
+        anchors[hex] = nil
+        if hex == selectedHex { deselect() }
+    }
+
+    /// Drop already-plotted planes that no longer pass the naked-eye filter, so
+    /// turning the setting on clears the distant ones without waiting for a poll.
+    func applyAircraftVisibilityFilter() {
+        guard let engine, engine.nakedEyeOnly else { return }
+        let maxNm = engine.nakedEyeRangeNm
+        for (hex, fix) in lastFix {
+            let tracked = hex == selectedHex
+                || (engine.focusedCallsign != nil && fix.aircraft.callsign == engine.focusedCallsign)
+            if !tracked, fix.range / 1852 > maxNm || fix.el < Self.nakedEyeMinElevationDeg {
+                dropAircraft(hex)
+            }
+        }
     }
 
     // MARK: Spatial flyover audio
@@ -1020,14 +1131,7 @@ final class ARSkyViewController: UIViewController {
 
     private func removeStale(now: Date) {
         for (hex, seen) in lastSeen where now.timeIntervalSince(seen) > staleAfter {
-            nodes[hex]?.removeFromParentNode()
-            nodes[hex] = nil
-            lastSeen[hex] = nil
-            lastFix[hex] = nil
-            trailNodes[hex]?.removeFromParentNode()
-            trailNodes[hex] = nil
-            trails[hex] = nil
-            if hex == selectedHex { deselect() }
+            dropAircraft(hex)
         }
     }
 
@@ -1050,13 +1154,10 @@ final class ARSkyViewController: UIViewController {
         let mirror = engine?.mirrorX ?? false
         for (hex, fix) in lastFix {
             guard let node = nodes[hex] else { continue }
-            let pos = SkyMath.scenePosition(azimuthDeg: fix.az, elevationDeg: fix.el,
-                                            radius: sphereRadius,
-                                            headingOffsetDeg: offset, mirrorX: mirror)
             node.removeAction(forKey: "move")
-            let move = SCNAction.move(to: pos, duration: 0.25)
-            move.timingMode = .easeOut
-            node.runAction(move, forKey: "calibrate")
+            node.position = SkyMath.scenePosition(azimuthDeg: fix.az, elevationDeg: fix.el,
+                                                  radius: sphereRadius,
+                                                  headingOffsetDeg: offset, mirrorX: mirror)
         }
         // Old trail points were plotted with the previous calibration; reset them.
         trailNodes.values.forEach { $0.removeFromParentNode() }

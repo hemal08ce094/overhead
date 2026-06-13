@@ -1065,6 +1065,10 @@ struct AircraftSettingsView: View {
                     SettingRow(title: "Aircraft", icon: "airplane", isOn: $engine.showAircraft,
                                subtitle: engine.trafficCount > 0 ? "\(engine.trafficCount) overhead" : nil)
                     settingsDivider
+                    SettingRow(title: "Naked-eye visible only", icon: "eye.fill",
+                               isOn: $engine.nakedEyeOnly,
+                               subtitle: "Hide distant planes you couldn't actually see")
+                    settingsDivider
                     SettingRow(title: "Aircraft on the ground", icon: "airplane.arrival",
                                isOn: $engine.showGroundAircraft,
                                subtitle: "Taxiing and parked planes")
@@ -1077,6 +1081,24 @@ struct AircraftSettingsView: View {
                 }
                 .padding(.vertical, 4)
                 .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                if engine.nakedEyeOnly {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Visible range")
+                                .font(Theme.display(16, .medium))
+                                .foregroundStyle(Theme.textPrimary)
+                            Spacer()
+                            Text("\(Int(engine.nakedEyeRangeNm)) nm")
+                                .font(Theme.display(15, .semibold).monospacedDigit())
+                                .foregroundStyle(Theme.accent)
+                        }
+                        Slider(value: $engine.nakedEyeRangeNm, in: 10...40, step: 1).tint(Theme.accent)
+                        Text("Show planes within about \(Int(engine.nakedEyeRangeNm)) nm and well above the horizon — roughly what's findable by eye on a clear day.")
+                            .font(Theme.display(12, .regular))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                }
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Labels")
