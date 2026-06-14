@@ -643,15 +643,49 @@ final class ARSkyViewController: UIViewController {
             sceneView.scene.background.contents = UIColor.black
             return
         }
+        // Camera (ARKit) and dark (CoreMotion) pointing use different, arbitrary
+        // yaw frames. On a switch, remember the current view so we can re-anchor
+        // the sky into the new frame — keeping planes put on a still phone
+        // instead of snapping to the (noisy) compass and losing a manual lock.
+        if didInitialBackground, showCamera != cameraActive {
+            preSwitchCameraYaw = cameraYawDeg() ?? 0
+            preSwitchWorldY = worldNode.eulerAngles.y
+            needsReanchor = true
+        }
+        cameraActive = showCamera
+        didInitialBackground = true
+
         if showCamera {
             stopMotionPointing()
             if isViewLoaded, view.window != nil { startSession() }
-            // The pointing frame changed; re-estimate north from the compass.
-            appliedNorthAccuracy = .infinity
         } else {
             sceneView.session.pause()
             startMotionPointing()
         }
+    }
+
+    // Mode-switch re-anchoring: preserve the on-screen sky across the camera↔
+    // dark sensor-frame change.
+    private var cameraActive = true
+    private var didInitialBackground = false
+    private var needsReanchor = false
+    private var preSwitchCameraYaw: Double = 0
+    private var preSwitchWorldY: Float = 0
+
+    /// Once the new driver is producing the camera pose, rotate the world node
+    /// by the yaw the frame jumped, so content stays exactly where it was.
+    private func tryReanchor() {
+        if cameraActive {
+            guard let ts = sceneView.session.currentFrame?.camera.trackingState,
+                  case .normal = ts else { return }
+        } else {
+            guard motionManager.deviceMotion != nil else { return }
+        }
+        guard let newYaw = cameraYawDeg() else { return }
+        var delta = (newYaw - preSwitchCameraYaw).truncatingRemainder(dividingBy: 360)
+        if delta > 180 { delta -= 360 }; if delta < -180 { delta += 360 }
+        worldNode.eulerAngles.y = preSwitchWorldY - Float(delta * .pi / 180)
+        needsReanchor = false
     }
 
     // MARK: IMU pointing (dark-sky mode)
@@ -674,8 +708,8 @@ final class ARSkyViewController: UIViewController {
         // render (the old to-main callback was a second, unsynced 60 Hz loop
         // that made dark mode judder).
         motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
-        // Fresh arbitrary-yaw frame → realign to north from the next heading.
-        appliedNorthAccuracy = .infinity
+        // Note: north is preserved across a mode switch by tryReanchor(), not
+        // re-snapped here — that kept jumping the sky on a still phone.
     }
 
     /// Drive the camera orientation from the latest IMU sample, called once per
@@ -955,6 +989,7 @@ final class ARSkyViewController: UIViewController {
     /// adding lag (the target is always projected to true-now).
     @objc private func stepAircraft() {
         if motionManager.isDeviceMotionActive { updateMotionPointing() }   // dark-sky camera
+        if needsReanchor { tryReanchor() }                                  // keep sky put across a mode switch
         if scanStart != nil { updateScanCoverage() }
         guard let observer = observerLocation, !anchors.isEmpty else { return }
         let now = Date()
