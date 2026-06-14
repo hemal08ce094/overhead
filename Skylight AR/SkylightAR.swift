@@ -425,7 +425,7 @@ final class ARSkyViewController: UIViewController {
     private let maxExtrapolationSec: Double = 20
     /// Below this elevation, an aircraft is lost to horizon haze/buildings and
     /// is treated as not naked-eye visible.
-    private static let nakedEyeMinElevationDeg: Double = 8
+    private static let nakedEyeMinElevationDeg: Double = 3
 
     // Dependencies
     var dataSource: DataSource = ADSBClient()
@@ -503,6 +503,9 @@ final class ARSkyViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        // Hold the screen awake — you're pointing at the sky, not touching the
+        // phone, so the auto-lock dimming/sleep would interrupt tracking.
+        UIApplication.shared.isIdleTimerDisabled = true
         startSession(reset: true)
         applyBackground()      // routes to IMU pointing when in dark-sky mode
         startPolling()
@@ -511,6 +514,7 @@ final class ARSkyViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        UIApplication.shared.isIdleTimerDisabled = false
         pauseEverything()
     }
 
@@ -526,6 +530,7 @@ final class ARSkyViewController: UIViewController {
         sceneView.antialiasingMode = .multisampling4X
         view.addSubview(sceneView)
         sceneView.scene.rootNode.addChildNode(darkDomeNode)
+        sceneView.scene.rootNode.addChildNode(dimDomeNode)
         applyBackground()
         sceneView.scene.rootNode.addChildNode(worldNode)
         sky = SkyScene(root: worldNode, engine: engine, radius: sphereRadius)
@@ -588,6 +593,7 @@ final class ARSkyViewController: UIViewController {
         let cameraOK = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
         let showCamera = wantCamera && cameraOK
         darkDomeNode.isHidden = showCamera
+        dimDomeNode.isHidden = !showCamera     // scrim only over the live camera
         guard ARWorldTrackingConfiguration.isSupported else {
             // Simulator: no session ever runs, so the background is ours to set.
             sceneView.scene.background.contents = UIColor.black
@@ -645,6 +651,25 @@ final class ARSkyViewController: UIViewController {
         sphere.materials = [mat]
         let node = SCNNode(geometry: sphere)
         node.renderingOrder = -100                 // before everything else
+        return node
+    }()
+
+    /// Camera-mode scrim: a *semi-transparent* black dome between the camera
+    /// feed and the sky content. A bright daytime sky overpowers the plotted
+    /// planes; this dims the feed (drawn first) while the glyphs — rendered
+    /// after it — stay full brightness, so the planes pop instead of washing
+    /// out. Only shown in camera mode (the dark dome handles dark-sky mode).
+    private lazy var dimDomeNode: SCNNode = {
+        let sphere = SCNSphere(radius: 49)
+        let mat = SCNMaterial()
+        mat.lightingModel = .constant
+        mat.diffuse.contents = UIColor(white: 0, alpha: 0.50)
+        mat.cullMode = .front
+        mat.writesToDepthBuffer = false
+        mat.readsFromDepthBuffer = false
+        sphere.materials = [mat]
+        let node = SCNNode(geometry: sphere)
+        node.renderingOrder = -90                  // after the feed, before content
         return node
     }()
 
@@ -764,11 +789,15 @@ final class ARSkyViewController: UIViewController {
 
             // Naked-eye filter: skip distant/low contacts you couldn't actually
             // see — but never drop a plane the user is explicitly tracking.
+            // Hysteresis: a plane already on screen stays until it's clearly out,
+            // so boundary jitter doesn't flicker the plane (and its trail) on/off.
             let rangeNm = range / 1852
             let tracked = ac.hex == selectedHex
                 || (engine?.focusedCallsign != nil && ac.callsign == engine?.focusedCallsign)
-            if engine?.nakedEyeOnly == true, !tracked,
-               rangeNm > (engine?.nakedEyeRangeNm ?? 25) || el < Self.nakedEyeMinElevationDeg {
+            let shown = nodes[ac.hex] != nil
+            let maxNm = nakedEyeMaxRangeNm(altitudeFeet: ac.altitudeFeet) * (shown ? 1.18 : 1.0)
+            let minEl = Self.nakedEyeMinElevationDeg - (shown ? 1.5 : 0)
+            if engine?.nakedEyeOnly == true, !tracked, rangeNm > maxNm || el < minEl {
                 dropAircraft(ac.hex); continue
             }
 
@@ -785,15 +814,13 @@ final class ARSkyViewController: UIViewController {
             if let existing = nodes[ac.hex] {
                 node = existing
                 node.apply(aircraft: ac)
-                node.removeAction(forKey: "move")     // motion now driven per-frame
-                orientGlyph(node, target: position, track: ac.track, az: az, el: el)
+                node.removeAction(forKey: "move")     // motion + heading now per-frame
             } else {
                 node = AircraftNode(aircraft: ac)
                 node.apply(aircraft: ac)
                 node.position = position
                 nodes[ac.hex] = node
                 worldNode.addChildNode(node)
-                orientGlyph(node, target: position, track: ac.track, az: az, el: el)
             }
             node.isHidden = !(engine?.showAircraft ?? true)
 
@@ -808,7 +835,13 @@ final class ARSkyViewController: UIViewController {
                 }
             }
 
-            updateTrail(hex: ac.hex, position: position, aircraft: ac)
+            // Trail = where the plane actually *was* (the raw fixes), not the
+            // extrapolated "now" spot — extrapolation jitter made the line jagged.
+            let rawFix = geometry(of: anchor, at: anchor.observedAt, observer: observer)
+            let rawPosition = SkyMath.scenePosition(azimuthDeg: rawFix.az, elevationDeg: rawFix.el,
+                                                    radius: sphereRadius,
+                                                    headingOffsetDeg: offset, mirrorX: mirror)
+            updateTrail(hex: ac.hex, position: rawPosition, aircraft: ac)
         }
 
         removeStale(now: now)
@@ -873,6 +906,14 @@ final class ARSkyViewController: UIViewController {
             node.position = SCNVector3(p.x + (target.x - p.x) * a,
                                        p.y + (target.y - p.y) * a,
                                        p.z + (target.z - p.z) * a)
+            // Point the glyph the way it's actually travelling: project the spot
+            // it'll be a few seconds ahead and aim at that on screen. (The old
+            // present-vs-target compare collapsed once motion went per-frame.)
+            let fwd = geometry(of: anchor, at: now.addingTimeInterval(10), observer: observer)
+            let ahead = SkyMath.scenePosition(azimuthDeg: fwd.az, elevationDeg: fwd.el,
+                                              radius: sphereRadius,
+                                              headingOffsetDeg: offset, mirrorX: mirror)
+            orientGlyph(node, at: target, ahead: ahead)
             lastFix[hex]?.az = az
             lastFix[hex]?.el = el
             lastFix[hex]?.range = range
@@ -895,14 +936,24 @@ final class ARSkyViewController: UIViewController {
     /// turning the setting on clears the distant ones without waiting for a poll.
     func applyAircraftVisibilityFilter() {
         guard let engine, engine.nakedEyeOnly else { return }
-        let maxNm = engine.nakedEyeRangeNm
         for (hex, fix) in lastFix {
             let tracked = hex == selectedHex
                 || (engine.focusedCallsign != nil && fix.aircraft.callsign == engine.focusedCallsign)
-            if !tracked, fix.range / 1852 > maxNm || fix.el < Self.nakedEyeMinElevationDeg {
+            if !tracked, fix.range / 1852 > nakedEyeMaxRangeNm(altitudeFeet: fix.aircraft.altitudeFeet)
+                || fix.el < Self.nakedEyeMinElevationDeg {
                 dropAircraft(hex)
             }
         }
+    }
+
+    /// Max slant range (nm) at which an aircraft is treated as naked-eye visible.
+    /// High jets — and their contrails — stay visible far past low traffic, so
+    /// the user's baseline range is extended with altitude. Horizon haze is
+    /// handled separately by the elevation floor.
+    private func nakedEyeMaxRangeNm(altitudeFeet: Double) -> Double {
+        let base = engine?.nakedEyeRangeNm ?? 35
+        let altBonus = max(0, (altitudeFeet - 20000) / 1000)   // +1 nm per 1000 ft above FL200
+        return base + min(altBonus, 30)
     }
 
     // MARK: Spatial flyover audio
@@ -968,23 +1019,17 @@ final class ARSkyViewController: UIViewController {
     /// Rotate a glyph to its on-screen direction of motion so the nose runs
     /// head-to-tail along the drawn trail. Falls back to a track-based
     /// estimate when there's no usable projected motion yet.
-    private func orientGlyph(_ node: AircraftNode, target: SCNVector3,
-                             track: Double?, az: Double, el: Double) {
-        let fromWorld = node.presentation.worldPosition
-        let toWorld = worldNode.convertPosition(target, to: nil)
-        let p1 = sceneView.projectPoint(fromWorld)
-        let p2 = sceneView.projectPoint(toWorld)
+    /// Aim the glyph along its true direction of travel: project the plane's
+    /// current spot and a spot a little further along its track, and point the
+    /// glyph from one to the other on screen. Works regardless of motion timing
+    /// or where the camera is aimed (so it stays correct while you pan).
+    private func orientGlyph(_ node: AircraftNode, at position: SCNVector3, ahead: SCNVector3) {
+        let p1 = sceneView.projectPoint(worldNode.convertPosition(position, to: nil))
+        let p2 = sceneView.projectPoint(worldNode.convertPosition(ahead, to: nil))
         let dx = p2.x - p1.x
         let dy = p2.y - p1.y                        // view coords: y grows downward
-        if p1.z > 0, p1.z < 1, dx * dx + dy * dy > 9 {
-            node.setGlyphScreenAngle(atan2(dx, -dy))
-        } else if let track {
-            // Screen motion ≈ (sinΔ, −cosΔ·sinE) for a target at elevation E
-            // moving with course Δ relative to its bearing from the observer.
-            let delta = (track - az) * .pi / 180
-            let elRad = max(el, 2) * .pi / 180
-            node.setGlyphScreenAngle(Float(atan2(sin(delta), -cos(delta) * sin(elRad))))
-        }
+        guard p1.z > 0, p1.z < 1, dx * dx + dy * dy > 1 else { return }
+        node.setGlyphScreenAngle(atan2(dx, -dy))
     }
 
     // MARK: Favorites & focus
@@ -1179,6 +1224,12 @@ final class ARSkyViewController: UIViewController {
     private func updateTrail(hex: String, position: SCNVector3, aircraft: Aircraft) {
         guard engine?.showTrails ?? true else { return }
         var points = trails[hex] ?? []
+        // Skip near-duplicate points (a slow/parked plane), which would make the
+        // line geometry degenerate and look broken.
+        if let last = points.last {
+            let dx = last.x - position.x, dy = last.y - position.y, dz = last.z - position.z
+            if dx * dx + dy * dy + dz * dz < 4 { return }   // < 2 m of movement
+        }
         points.append(position)
         if points.count > maxTrail { points.removeFirst(points.count - maxTrail) }
         trails[hex] = points

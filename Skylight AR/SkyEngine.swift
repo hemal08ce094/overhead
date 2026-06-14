@@ -219,8 +219,8 @@ final class SkyEngine {
         showGroundAircraft = d.object(forKey: SkyDefaults.showGroundAircraft) as? Bool ?? false
         // On by default: show what you could actually see, not every distant blip.
         nakedEyeOnly = d.object(forKey: SkyDefaults.nakedEyeOnly) as? Bool ?? true
-        let nakedRange = d.object(forKey: SkyDefaults.nakedEyeRangeNm) as? Double ?? 25
-        nakedEyeRangeNm = (10...40).contains(nakedRange) ? nakedRange : 25
+        let nakedRange = d.object(forKey: SkyDefaults.nakedEyeRangeNm) as? Double ?? 35
+        nakedEyeRangeNm = (15...55).contains(nakedRange) ? nakedRange : 35
         showAirports = d.object(forKey: SkyDefaults.showAirports) as? Bool ?? true
         showTrails = d.object(forKey: SkyDefaults.showTrails) as? Bool ?? true
         soundOn = d.bool(forKey: SkyDefaults.soundOn)

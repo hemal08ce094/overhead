@@ -11,9 +11,9 @@
 		CCCC000000000000000000C2 /* SatelliteKit in Frameworks */ = {isa = PBXBuildFile; productRef = BBBB000000000000000000B2 /* SatelliteKit */; };
 		DDDD0000000000000000W00F /* SkylightWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DDDD0000000000000000W001 /* SkylightWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		EEEE000000000000000WA0C5 /* SatelliteKit in Frameworks */ = {isa = PBXBuildFile; productRef = EEEE000000000000000WA0B5 /* SatelliteKit */; };
+		EEEE000000000000000WA0E5 /* OverheadWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = EEEE000000000000000WA015 /* OverheadWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FFFF000000000000000VP0C5 /* SatelliteKit in Frameworks */ = {isa = PBXBuildFile; productRef = FFFF000000000000000VP0B5 /* SatelliteKit */; };
 		FFFF000000000000000VP0C6 /* SwiftAA in Frameworks */ = {isa = PBXBuildFile; productRef = FFFF000000000000000VP0B6 /* SwiftAA */; };
-		EEEE000000000000000WA0E5 /* OverheadWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = EEEE000000000000000WA015 /* OverheadWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -634,9 +634,7 @@
 			};
 			name = Release;
 		};
-/* End XCBuildConfiguration section */
-
-	EEEE000000000000000WA085 /* Debug */ = {
+		EEEE000000000000000WA085 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -692,8 +690,7 @@
 			};
 			name = Release;
 		};
-
-	FFFF000000000000000VP085 /* Debug */ = {
+		FFFF000000000000000VP085 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -745,6 +742,7 @@
 			};
 			name = Release;
 		};
+/* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
 		072F836D2FD13F0E0005054C /* Build configuration list for PBXProject "Skylight AR" */ = {

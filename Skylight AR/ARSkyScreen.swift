@@ -94,6 +94,7 @@ struct ARSkyScreen: View {
                     Color.clear
                         .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
                                      in: .rect(cornerRadius: 38))
+                        .allowsHitTesting(false)
                 }
                 .preferredColorScheme(.dark)
         }
@@ -104,6 +105,7 @@ struct ARSkyScreen: View {
                     Color.clear
                         .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
                                      in: .rect(cornerRadius: 38))
+                        .allowsHitTesting(false)
                 }
                 .preferredColorScheme(.dark)
         }
@@ -114,6 +116,7 @@ struct ARSkyScreen: View {
                     Color.clear
                         .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
                                      in: .rect(cornerRadius: 38))
+                        .allowsHitTesting(false)
                 }
                 .preferredColorScheme(.dark)
         }
@@ -580,6 +583,7 @@ struct AircraftDetailSheet: View {
             Color.clear
                 .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
                              in: .rect(cornerRadius: 38))
+                .allowsHitTesting(false)
         }
         .preferredColorScheme(.dark)
     }
@@ -776,6 +780,7 @@ struct AirportDetailSheet: View {
             Color.clear
                 .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
                              in: .rect(cornerRadius: 38))
+                .allowsHitTesting(false)
         }
         .preferredColorScheme(.dark)
     }
@@ -935,6 +940,7 @@ struct ProfileView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -1324,8 +1330,8 @@ struct AircraftSettingsView: View {
                                 .font(Theme.display(15, .semibold).monospacedDigit())
                                 .foregroundStyle(Theme.accent)
                         }
-                        Slider(value: $engine.nakedEyeRangeNm, in: 10...40, step: 1).tint(Theme.accent)
-                        Text("Show planes within about \(Int(engine.nakedEyeRangeNm)) nm and well above the horizon — roughly what's findable by eye on a clear day.")
+                        Slider(value: $engine.nakedEyeRangeNm, in: 15...55, step: 1).tint(Theme.accent)
+                        Text("Baseline range — high-altitude jets stay visible farther. Planes near the horizon are kept too. Turn the whole filter off to never hide a plane.")
                             .font(Theme.display(12, .regular))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -1342,6 +1348,8 @@ struct AircraftSettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+
+                PlaneColorLegend()
             }
             .padding(24)
         }
@@ -1349,6 +1357,77 @@ struct AircraftSettingsView: View {
         .navigationTitle("Aircraft")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
+    }
+}
+
+/// Explains what an aircraft's colour and markers mean in the sky. Mirrors
+/// `AircraftNode.altitudeColor` and the favorite/focus styling.
+private struct PlaneColorLegend: View {
+    // Matches AircraftNode.altitudeColor hue ramp (orange low → cyan high).
+    private func altColor(_ t: Double) -> Color {
+        Color(hue: 0.08 + t * (0.55 - 0.08), saturation: 0.85, brightness: 1.0)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("What the colors mean")
+                .font(Theme.display(16, .medium))
+                .foregroundStyle(Theme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 14) {
+                // Altitude ramp.
+                VStack(alignment: .leading, spacing: 6) {
+                    LinearGradient(colors: [altColor(0), altColor(0.4), altColor(0.7), altColor(1)],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(height: 10)
+                        .clipShape(Capsule())
+                    HStack {
+                        Text("Low").font(Theme.display(11, .regular)).foregroundStyle(Theme.textSecondary)
+                        Spacer()
+                        Text("High / cruising").font(Theme.display(11, .regular)).foregroundStyle(Theme.textSecondary)
+                    }
+                    Text("A plane's color is its altitude — warm orange down low, shifting to cyan up at cruise.")
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+
+                legendRow(swatch: .dot(Color(white: 0.6)), title: "Gray plane",
+                          detail: "On the ground — taxiing or parked.")
+                legendRow(swatch: .heart, title: "Pink heart",
+                          detail: "A flight you've favorited.")
+                legendRow(swatch: .ring(Color(red: 1.0, green: 0.82, blue: 0.45)), title: "Gold ring",
+                          detail: "The flight you're tracking right now.")
+            }
+            .padding(16)
+            .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+
+    private enum Swatch {
+        case dot(Color), ring(Color), heart
+    }
+
+    private func legendRow(swatch: Swatch, title: String, detail: String) -> some View {
+        HStack(spacing: 14) {
+            Group {
+                switch swatch {
+                case .dot(let c):
+                    Circle().fill(c).frame(width: 16, height: 16)
+                case .ring(let c):
+                    Circle().stroke(c, lineWidth: 3).frame(width: 16, height: 16)
+                case .heart:
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.58))
+                }
+            }
+            .frame(width: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(Theme.display(15, .medium)).foregroundStyle(Theme.textPrimary)
+                Text(detail).font(Theme.display(12, .regular)).foregroundStyle(Theme.textSecondary)
+            }
+            Spacer(minLength: 0)
+        }
     }
 }
 
