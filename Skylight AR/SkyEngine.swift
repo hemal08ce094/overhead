@@ -265,6 +265,52 @@ final class SkyEngine {
     /// already in our sky.
     func track(_ result: SearchResult) { controller?.trackSearchResult(result) }
 
+    // MARK: Calibration flow (camera mode)
+
+    enum CalibrationStep: Equatable { case idle, scanning, aligning }
+    /// Active step of the guided heading calibration (not persisted).
+    var calibrationStep: CalibrationStep = .idle
+    /// 0…1 coverage of the 360° sweep, for the scan UI.
+    var calibrationScanProgress: Double = 0
+    /// While false, the passive compass auto-align is frozen — a manual lock
+    /// (from calibration) holds instead. Re-enabled on a fresh session.
+    var autoAlignEnabled: Bool = true
+
+    /// Start the guided flow: 360° sweep, then drag-to-line-up. Switches to the
+    /// live camera automatically — the Sun/plane lock needs it.
+    func beginCalibration() {
+        if !cameraPassthrough { cameraPassthrough = true }
+        calibrationScanProgress = 0
+        calibrationStep = .scanning
+        controller?.beginCalibrationScan()
+    }
+    /// Called by the controller once the sweep has covered the circle.
+    func calibrationStartAligning() { calibrationStep = .aligning }
+    /// Keep the manual lock the user just dialled in.
+    func finishCalibration() {
+        calibrationStep = .idle
+        controller?.lockManualAlignment()
+    }
+    func cancelCalibration() {
+        calibrationStep = .idle
+        controller?.cancelCalibrationScan()
+    }
+    /// Skip the sweep and go straight to locking on the Sun/Moon/a plane.
+    func skipCalibrationScan() { controller?.skipScan() }
+    /// Hand heading back to the automatic compass consensus.
+    func resetToAutoAlign() {
+        autoAlignEnabled = true
+        calibrationStep = .idle
+        controller?.resumeAutoAlign()
+    }
+
+    /// Whether the Sun / Moon are above the horizon right now — set when the
+    /// sweep finishes, so the lock step can offer the precise reference.
+    var calibrationSunUp = false
+    var calibrationMoonUp = false
+    func lockToSun()  { controller?.lockToSun();  finishCalibration() }
+    func lockToMoon() { controller?.lockToMoon(); finishCalibration() }
+
     private func persist() {
         let d = UserDefaults.standard
         d.set(headingOffsetDeg, forKey: SkyDefaults.headingOffsetDeg)

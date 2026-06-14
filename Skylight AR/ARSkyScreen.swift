@@ -83,9 +83,14 @@ struct ARSkyScreen: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
+
+            if engine.calibrationStep != .idle {
+                calibrationOverlay
+            }
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: engine.selected)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: engine.skyTimeOffsetMin != 0)
+        .animation(.easeInOut(duration: 0.25), value: engine.calibrationStep)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showEvents) {
             NavigationStack { EventsView(engine: engine) }
@@ -129,6 +134,10 @@ struct ARSkyScreen: View {
         // Tapping a plane opens the full sheet directly — no intermediate card.
         .onChange(of: engine.selected == nil) { _, deselected in
             showAircraftDetail = !deselected
+        }
+        // A calibration started from a settings sheet needs the live sky visible.
+        .onChange(of: engine.calibrationStep) { _, step in
+            if step != .idle { showProfile = false; showEvents = false; showSearch = false }
         }
     }
 
@@ -229,9 +238,19 @@ struct ARSkyScreen: View {
             Image(systemName: "location.north.line.fill")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.orange)
-            Text("Wave your phone in a figure-8 to fix the compass")
+            Text("Compass looks off")
                 .font(Theme.display(13, .medium))
                 .foregroundStyle(Theme.textPrimary)
+            Button {
+                engine.compassHintDismissed = true
+                engine.beginCalibration()
+            } label: {
+                Text("Calibrate")
+                    .font(Theme.display(13, .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .contentShape(Capsule())
+            }
             Button { engine.compassHintDismissed = true } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .bold))
@@ -243,6 +262,100 @@ struct ARSkyScreen: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
         .glassEffect(.regular.tint(.orange.opacity(0.15)), in: .capsule)
+    }
+
+    /// Guided heading calibration: 360° sweep, then a precise lock.
+    private var calibrationOverlay: some View {
+        ZStack {
+            if engine.calibrationStep == .scanning {
+                Color.black.opacity(0.55).ignoresSafeArea()
+            }
+            VStack {
+                Spacer()
+                Group {
+                    if engine.calibrationStep == .scanning { scanCard } else { alignCard }
+                }
+                .padding(22)
+                .frame(maxWidth: .infinity)
+                .glassEffect(.regular, in: .rect(cornerRadius: 30))
+                .padding(.horizontal, 18)
+                .padding(.bottom, 30)
+            }
+        }
+        .transition(.opacity)
+    }
+
+    private var scanCard: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle().stroke(.white.opacity(0.15), lineWidth: 6)
+                Circle().trim(from: 0, to: max(0.02, engine.calibrationScanProgress))
+                    .stroke(Theme.accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+            }
+            .frame(width: 92, height: 92)
+            .animation(.easeOut(duration: 0.3), value: engine.calibrationScanProgress)
+
+            Text("Sweep slowly in a full circle")
+                .font(Theme.display(18, .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Turn your whole body, keeping the phone raised at the sky. This recalibrates the compass and learns true north.")
+                .font(Theme.display(13, .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+            HStack(spacing: 10) {
+                Button("Cancel") { withAnimation { engine.cancelCalibration() } }
+                    .buttonStyle(GhostButtonStyle())
+                Button("Skip to lock") { withAnimation { engine.skipCalibrationScan() } }
+                    .buttonStyle(PrimaryButtonStyle())
+            }
+        }
+    }
+
+    private var alignCard: some View {
+        VStack(spacing: 14) {
+            Image(systemName: engine.calibrationSunUp ? "sun.max.fill"
+                  : (engine.calibrationMoonUp ? "moon.fill" : "hand.draw.fill"))
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(Theme.accent)
+            Text("Lock it in")
+                .font(Theme.display(18, .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            Text(alignInstruction)
+                .font(Theme.display(13, .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+
+            if engine.calibrationSunUp {
+                Button { withAnimation { engine.lockToSun() } } label: {
+                    Label("Pointing at the Sun — Lock", systemImage: "sun.max.fill")
+                }.buttonStyle(PrimaryButtonStyle())
+            } else if engine.calibrationMoonUp {
+                Button { withAnimation { engine.lockToMoon() } } label: {
+                    Label("Pointing at the Moon — Lock", systemImage: "moon.fill")
+                }.buttonStyle(PrimaryButtonStyle())
+            }
+
+            HStack(spacing: 10) {
+                Button("Cancel") { withAnimation { engine.cancelCalibration() } }
+                    .buttonStyle(GhostButtonStyle())
+                Button("Done") { withAnimation { engine.finishCalibration() } }
+                    .buttonStyle(PrimaryButtonStyle())
+            }
+        }
+    }
+
+    private var alignInstruction: String {
+        if engine.calibrationSunUp {
+            return "Aim the center of your screen right at the Sun, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done."
+        }
+        if engine.calibrationMoonUp {
+            return "Aim the center of your screen right at the Moon, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done."
+        }
+        return "Drag the sky left or right until a plane sits exactly where you see it in the air, then tap Done."
     }
 
     /// Top-right bell — the sky calendar, one tap from anywhere.
@@ -880,9 +993,14 @@ struct ProfileView: View {
                             AirportSettingsView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink("Calibration", icon: "slider.horizontal.3",
-                                     subtitle: "Heading offset and compass") {
+                        settingsLink("Calibration", icon: "scope",
+                                     subtitle: "Recalibrate heading · point at the Sun") {
                             CalibrationView(engine: engine)
+                        }
+                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink("About & privacy", icon: "info.circle",
+                                     subtitle: "How it works · privacy · feedback") {
+                            AboutView()
                         }
                     }
                     .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -1072,10 +1190,39 @@ struct CalibrationView: View {
     var body: some View {
         ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    section("Heading offset", trailing: String(format: "%.1f°", engine.headingOffsetDeg)) {
+                    section("Calibrate heading", trailing: nil) {
+                        Text("Sweep a full circle, then lock onto the Sun, Moon, or a plane you can see — the most accurate way to line the sky up with reality.")
+                            .font(Theme.display(13, .regular))
+                            .foregroundStyle(Theme.textSecondary)
+                        Button {
+                            engine.beginCalibration()   // the main view closes this sheet
+                        } label: {
+                            Label("Recalibrate now", systemImage: "scope")
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        if !engine.cameraPassthrough {
+                            Text("This will switch on the camera so you can lock onto the Sun or a plane.")
+                                .font(Theme.display(12, .regular))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                    }
+
+                    section("Auto-align", trailing: engine.autoAlignEnabled ? "On" : "Locked") {
+                        Toggle("Follow the compass automatically", isOn: Binding(
+                            get: { engine.autoAlignEnabled },
+                            set: { on in if on { engine.resetToAutoAlign() } else { engine.autoAlignEnabled = false } }))
+                            .tint(Theme.accentSoft)
+                        Text(engine.autoAlignEnabled
+                             ? "The sky follows the compass and self-corrects as you pan."
+                             : "Holding your manual lock. Turn on to hand heading back to the compass.")
+                            .font(Theme.display(13, .regular))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+
+                    section("Fine trim", trailing: String(format: "%.1f°", engine.headingOffsetDeg)) {
                         Slider(value: $engine.headingOffsetDeg, in: -20...20, step: 0.5)
                             .tint(Theme.accent)
-                        Text("Nudge until a known plane lines up with the real sky. Corrects compass bias — planes move as you drag.")
+                        Text("Manual nudge if it's still a touch off after calibrating.")
                             .font(Theme.display(13, .regular))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -1428,6 +1575,85 @@ private struct PlaneColorLegend: View {
             }
             Spacer(minLength: 0)
         }
+    }
+}
+
+/// About, how-it-works, the reference-only disclaimer, privacy, and feedback.
+struct AboutView: View {
+    @Environment(\.openURL) private var openURL
+    private let feedbackEmail = "hemalmodi3@gmail.com"
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Overhead")
+                        .font(Theme.display(24, .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Sky Above the Horizon")
+                        .font(Theme.display(14, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+
+                aboutCard("What it is", icon: "sparkles") {
+                    Text("Hold your phone up and Overhead labels the sky around you — live aircraft, the Sun, the Moon, the planets, stars, and the ISS, each placed at its real position in augmented reality.")
+                }
+
+                aboutCard("Reference only", icon: "exclamationmark.triangle") {
+                    Text("Overhead is a reference and educational tool. Positions, routes, and identities come from public data that can be delayed, incomplete, or wrong, and many aircraft (parked, military, or not equipped) don't broadcast at all. Do not use Overhead for navigation, safety, or any operational decision. We take no responsibility for the accuracy or completeness of the data shown.")
+                }
+
+                aboutCard("Hold steady", icon: "hand.raised") {
+                    Text("Overhead works best when you stand still and hold the phone steady toward the sky. It relies on your device's compass and motion sensors, which drift while you move — so it may not track accurately while you're walking or in a moving vehicle.")
+                }
+
+                aboutCard("Privacy", icon: "lock.shield") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("No account. No tracking. No ads.")
+                            .font(Theme.display(13, .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Your location is used only on your iPhone to place aircraft and sky objects relative to you. It is never sent to a server, shared, or sold. Favorites and stats live only on this device. Overhead has no analytics and collects nothing about you.\n\nAircraft data comes from public feeds: airplanes.live (positions), adsbdb (routes), planespotters.net (photos), CelesTrak (orbits). Those services have their own terms.")
+                    }
+                }
+
+                Button {
+                    let subject = "Overhead feedback"
+                    if let url = URL(string: "mailto:\(feedbackEmail)?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
+                        openURL(url)
+                    }
+                } label: {
+                    Label("Share feedback", systemImage: "envelope")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+
+                Text("Feedback goes to \(feedbackEmail)")
+                    .font(Theme.display(11, .regular))
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+            .padding(24)
+        }
+        .scrollContentBackground(.hidden)
+        .navigationTitle("About & privacy")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func aboutCard<Content: View>(_ title: String, icon: String,
+                                          @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(Theme.display(16, .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            content()
+                .font(Theme.display(13, .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 

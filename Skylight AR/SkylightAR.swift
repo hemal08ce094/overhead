@@ -92,16 +92,52 @@ enum AircraftSearchField: String, CaseIterable, Identifiable, Sendable {
     }
     var placeholder: String {
         switch self {
-        case .callsign:     return "UAL123, BAW45"
+        case .callsign:     return "EK226, BA45, UAL123"
         case .registration: return "N12345, G-XWBA"
         case .type:         return "B738, A320"
         case .squawk:       return "7700, 1200"
         }
     }
-    /// How the feed wants the query normalized.
+    /// How the feed wants the query normalized. Crucially, aircraft broadcast
+    /// *ICAO* callsigns (Emirates = UAE226), but people type the *IATA* flight
+    /// number (EK226) — so translate the airline code for callsign searches.
     func normalized(_ raw: String) -> String {
         let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        return t
+        switch self {
+        case .callsign:     return AirlineCodes.toICAOCallsign(t)
+        case .registration: return t.replacingOccurrences(of: " ", with: "")
+        default:            return t
+        }
+    }
+}
+
+/// IATA→ICAO airline code translation so "EK226" finds the broadcast "UAE226".
+enum AirlineCodes {
+    /// Two-letter IATA → three-letter ICAO for the busiest carriers worldwide.
+    static let iataToICAO: [String: String] = [
+        "AA":"AAL","AC":"ACA","AF":"AFR","AI":"AIC","AM":"AMX","AS":"ASA","AT":"RAM",
+        "AV":"AVA","AY":"FIN","AZ":"ITY","B6":"JBU","BA":"BAW","BR":"EVA","CA":"CCA",
+        "CI":"CAL","CM":"CMP","CX":"CPA","CZ":"CSN","DL":"DAL","DY":"NAX","EI":"EIN",
+        "EK":"UAE","ET":"ETH","EW":"EWG","EY":"ETD","F9":"FFT","FR":"RYR","FZ":"FDB",
+        "GA":"GIA","GF":"GFA","HA":"HAL","HU":"CHH","IB":"IBE","JL":"JAL","KE":"KAL",
+        "KL":"KLM","KU":"KAC","LA":"LAN","LH":"DLH","LO":"LOT","LX":"SWR","LY":"ELY",
+        "MH":"MAS","MS":"MSR","MU":"CES","NH":"ANA","NK":"NKS","NZ":"ANZ","OS":"AUA",
+        "OZ":"AAR","PR":"PAL","PS":"AUI","QF":"QFA","QR":"QTR","RJ":"RJA","RO":"ROT",
+        "SA":"SAA","SK":"SAS","SN":"BEL","SQ":"SIA","SU":"AFL","SV":"SVA","TG":"THA",
+        "TK":"THY","TP":"TAP","U2":"EZY","UA":"UAL","UX":"AEA","VA":"VOZ","VN":"HVN",
+        "VS":"VIR","VY":"VLG","W6":"WZZ","WN":"SWA","WS":"WJA","WY":"OMA","ME":"MEA",
+        "6E":"IGO","SG":"SEJ","UK":"VTI","A3":"AEE","DE":"CFG","TO":"TVF","HV":"TRA",
+    ]
+
+    /// Translate a typed flight number to the broadcast ICAO callsign.
+    /// "EK 0226" → "UAE226"; a 3-letter prefix is assumed already ICAO.
+    static func toICAOCallsign(_ raw: String) -> String {
+        let s = raw.replacingOccurrences(of: " ", with: "")
+        let letters = String(s.prefix { $0.isLetter })
+        var rest = String(s.dropFirst(letters.count))
+        while rest.first == "0" { rest.removeFirst() }   // ADS-B strips leading zeros
+        if letters.count == 2, let icao = iataToICAO[letters] { return icao + rest }
+        return letters + rest
     }
 }
 
@@ -465,6 +501,10 @@ final class ARSkyViewController: UIViewController {
     private var airportNodes: [String: AirportNode] = [:]
     private var spottedThisSession: Set<String> = []
     private var poorCompassSince: Date?
+    // Guided-calibration sweep state.
+    private var scanStart: Date?
+    private var calibrationSamples: [(offset: Double, weight: Double)] = []
+    private var scanBuckets: Set<Int> = []
     private let flightActivity = FlightActivityController()
     private let skyAudio = SkyAudioEngine()
     private let motionManager = CMMotionManager()
@@ -553,6 +593,9 @@ final class ARSkyViewController: UIViewController {
         sceneView.addGestureRecognizer(tap)
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
         sceneView.addGestureRecognizer(pinch)
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleAlignPan(_:)))
+        pan.maximumNumberOfTouches = 1
+        sceneView.addGestureRecognizer(pan)   // only acts during the aligning step
     }
 
     // MARK: Zoom
@@ -612,6 +655,9 @@ final class ARSkyViewController: UIViewController {
 
     // MARK: IMU pointing (dark-sky mode)
 
+    /// CoreMotion reference (Z up) → SceneKit world (Y up).
+    private let motionRefToWorld = simd_quatf(angle: -.pi / 2, axis: simd_float3(1, 0, 0))
+
     private func startMotionPointing() {
         guard motionManager.isDeviceMotionAvailable, !motionManager.isDeviceMotionActive else { return }
         // ARKit hasn't necessarily configured this camera (entering dark mode
@@ -622,16 +668,25 @@ final class ARSkyViewController: UIViewController {
             camera.zFar = 1500
         }
         motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
-        // CoreMotion reference: Z up. SceneKit world: Y up.
-        let refToWorld = simd_quatf(angle: -.pi / 2, axis: simd_float3(1, 0, 0))
-        motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: .main) { [weak self] motion, _ in
-            guard let self, let q = motion?.attitude.quaternion,
-                  let pov = self.sceneView.pointOfView else { return }
-            let dq = simd_quatf(ix: Float(q.x), iy: Float(q.y), iz: Float(q.z), r: Float(q.w))
-            pov.simdOrientation = refToWorld * dq
-        }
+        // No callback queue: just keep `deviceMotion` fresh and read it from the
+        // display-synced step loop, so the camera moves in lockstep with the
+        // render (the old to-main callback was a second, unsynced 60 Hz loop
+        // that made dark mode judder).
+        motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
         // Fresh arbitrary-yaw frame → realign to north from the next heading.
         appliedNorthAccuracy = .infinity
+    }
+
+    /// Drive the camera orientation from the latest IMU sample, called once per
+    /// display frame (in `stepAircraft`) so it stays synced to the render.
+    private func updateMotionPointing() {
+        guard let q = motionManager.deviceMotion?.attitude.quaternion,
+              let pov = sceneView.pointOfView else { return }
+        let dq = simd_quatf(ix: Float(q.x), iy: Float(q.y), iz: Float(q.z), r: Float(q.w))
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0          // no implicit easing per frame
+        pov.simdOrientation = motionRefToWorld * dq
+        SCNTransaction.commit()
     }
 
     private func stopMotionPointing() {
@@ -784,8 +839,10 @@ final class ARSkyViewController: UIViewController {
                                 observedAt: now.addingTimeInterval(-((ac.positionAgeSec ?? 0) + feedLatencySec)))
             let (az, el, range) = geometry(of: anchor, at: now, observer: observer)
 
-            // Only render objects above the horizon.
-            guard el > -2 else { dropAircraft(ac.hex); continue }
+            // Cull only what's well below the horizon. We allow a wide negative
+            // band because an observer up high (an airport lounge, a tower) looks
+            // *down* at nearby ground traffic, which sits below eye level.
+            guard el > -25 else { dropAircraft(ac.hex); continue }
 
             // Naked-eye filter: skip distant/low contacts you couldn't actually
             // see — but never drop a plane the user is explicitly tracking.
@@ -795,8 +852,13 @@ final class ARSkyViewController: UIViewController {
             let tracked = ac.hex == selectedHex
                 || (engine?.focusedCallsign != nil && ac.callsign == engine?.focusedCallsign)
             let shown = nodes[ac.hex] != nil
-            let maxNm = nakedEyeMaxRangeNm(altitudeFeet: ac.altitudeFeet) * (shown ? 1.18 : 1.0)
-            let minEl = Self.nakedEyeMinElevationDeg - (shown ? 1.5 : 0)
+            // On-ground planes (apron/runway) are visible even below the horizon
+            // when you're up high, so they skip the elevation floor and use a
+            // short range — you can only pick out a plane on the ground nearby.
+            let baseMax = ac.onGround ? min(nakedEyeMaxRangeNm(altitudeFeet: 0), 6)
+                                      : nakedEyeMaxRangeNm(altitudeFeet: ac.altitudeFeet)
+            let maxNm = baseMax * (shown ? 1.18 : 1.0)
+            let minEl = ac.onGround ? -90 : Self.nakedEyeMinElevationDeg - (shown ? 1.5 : 0)
             if engine?.nakedEyeOnly == true, !tracked, rangeNm > maxNm || el < minEl {
                 dropAircraft(ac.hex); continue
             }
@@ -891,10 +953,17 @@ final class ARSkyViewController: UIViewController {
     /// low-pass absorbs the small correction when a fresh fix lands without
     /// adding lag (the target is always projected to true-now).
     @objc private func stepAircraft() {
+        if motionManager.isDeviceMotionActive { updateMotionPointing() }   // dark-sky camera
+        if scanStart != nil { updateScanCoverage() }
         guard let observer = observerLocation, !anchors.isEmpty else { return }
         let now = Date()
         let offset = engine?.headingOffsetDeg ?? 0
         let mirror = engine?.mirrorX ?? false
+        // Heading (glyph direction) changes slowly and needs an expensive screen
+        // projection — only recompute it a few times a second, not every frame.
+        // Position stays per-frame so motion is still smooth.
+        orientTick &+= 1
+        let doOrient = orientTick % 10 == 0
         for (hex, anchor) in anchors {
             guard let node = nodes[hex], !node.isHidden else { continue }
             let (az, el, range) = geometry(of: anchor, at: now, observer: observer)
@@ -906,19 +975,21 @@ final class ARSkyViewController: UIViewController {
             node.position = SCNVector3(p.x + (target.x - p.x) * a,
                                        p.y + (target.y - p.y) * a,
                                        p.z + (target.z - p.z) * a)
-            // Point the glyph the way it's actually travelling: project the spot
-            // it'll be a few seconds ahead and aim at that on screen. (The old
-            // present-vs-target compare collapsed once motion went per-frame.)
-            let fwd = geometry(of: anchor, at: now.addingTimeInterval(10), observer: observer)
-            let ahead = SkyMath.scenePosition(azimuthDeg: fwd.az, elevationDeg: fwd.el,
-                                              radius: sphereRadius,
-                                              headingOffsetDeg: offset, mirrorX: mirror)
-            orientGlyph(node, at: target, ahead: ahead)
+            if doOrient {
+                // Aim the glyph along its track: project the spot it'll be a few
+                // seconds ahead and point at that on screen.
+                let fwd = geometry(of: anchor, at: now.addingTimeInterval(10), observer: observer)
+                let ahead = SkyMath.scenePosition(azimuthDeg: fwd.az, elevationDeg: fwd.el,
+                                                  radius: sphereRadius,
+                                                  headingOffsetDeg: offset, mirrorX: mirror)
+                orientGlyph(node, at: target, ahead: ahead)
+            }
             lastFix[hex]?.az = az
             lastFix[hex]?.el = el
             lastFix[hex]?.range = range
         }
     }
+    private var orientTick = 0
 
     /// Remove an aircraft and everything attached to it (node, trail, fix).
     private func dropAircraft(_ hex: String) {
@@ -1602,6 +1673,8 @@ extension ARSkyViewController: CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         engine?.headingAccuracyDeg = newHeading.headingAccuracy
+        // During a calibration sweep, gather samples instead of live-steering.
+        if scanStart != nil { collectScanSample(newHeading); return }
         alignNorth(with: newHeading)
         // Keep the find-it arrow tracking as the user turns.
         updateFocusGuidance()
@@ -1632,6 +1705,7 @@ extension ARSkyViewController: CLLocationManagerDelegate {
     /// out, and constant bias (the sky sitting a few degrees left or right of
     /// reality) heals itself within seconds of panning. No manual trim needed.
     private func alignNorth(with heading: CLHeading) {
+        guard engine?.autoAlignEnabled ?? true else { return }   // manual lock holds
         guard heading.trueHeading >= 0, heading.headingAccuracy >= 0,
               heading.headingAccuracy <= 30,
               let pov = sceneView.pointOfView else { return }
@@ -1658,6 +1732,130 @@ extension ARSkyViewController: CLLocationManagerDelegate {
         guard abs(error) > 1.5 * .pi / 180 else { return }
         let gain = min(0.05, max(0.01, 0.02 * (25 / max(heading.headingAccuracy, 5))))
         worldNode.eulerAngles.y += Float(error * gain)
+    }
+
+    // MARK: Guided calibration (360° sweep → lock to Sun/Moon or a plane)
+
+    /// Camera yaw in the content convention (0 = −Z, 90° = +X), degrees.
+    private func cameraYawDeg() -> Double? {
+        guard let f = sceneView.pointOfView?.presentation.simdWorldFront else { return nil }
+        return atan2(Double(f.x), Double(-f.z)) * 180 / .pi
+    }
+
+    /// Set the sky so that `trueBearing` (deg from north) lines up with wherever
+    /// the camera is currently pointed — the heart of every lock. Reuses the
+    /// north-alignment relation: worldNode.y = trueBearing − cameraYaw.
+    private func lockBearingToCamera(_ trueBearing: Double, animated: Bool) {
+        guard let yaw = cameraYawDeg() else { return }
+        var d = (trueBearing - yaw).truncatingRemainder(dividingBy: 360)
+        if d > 180 { d -= 360 }; if d < -180 { d += 360 }
+        let desired = CGFloat(d * .pi / 180)
+        engine?.autoAlignEnabled = false
+        if animated {
+            let r = SCNAction.rotateTo(x: 0, y: desired, z: 0, duration: 0.4, usesShortestUnitArc: true)
+            r.timingMode = .easeInEaseOut
+            worldNode.runAction(r)
+        } else {
+            worldNode.eulerAngles.y = Float(desired)
+        }
+    }
+
+    func beginCalibrationScan() {
+        engine?.headingOffsetDeg = 0          // worldNode rotation is the only knob
+        engine?.autoAlignEnabled = false       // freeze passive align during the sweep
+        calibrationSamples.removeAll()
+        scanBuckets.removeAll()
+        scanStart = Date()
+    }
+
+    func cancelCalibrationScan() { scanStart = nil }
+
+    /// Jump straight to the lock step (Sun/Moon/plane) without finishing the sweep.
+    func skipScan() { if scanStart != nil { finishScan() } else { engine?.calibrationStartAligning() } }
+
+    func lockManualAlignment() { engine?.autoAlignEnabled = false; scanStart = nil }
+
+    func resumeAutoAlign() {
+        scanStart = nil
+        appliedNorthAccuracy = .infinity       // re-snap from the next heading
+    }
+
+    /// Compass sample (only when valid) — feeds the best-fit north estimate.
+    /// Coverage/progress is driven separately off ARKit yaw, so the sweep still
+    /// completes when the compass is reporting "invalid" (a glass building).
+    private func collectScanSample(_ heading: CLHeading) {
+        guard heading.trueHeading >= 0, heading.headingAccuracy >= 0,
+              let yaw = cameraYawDeg() else { return }
+        calibrationSamples.append((offset: heading.trueHeading - yaw,
+                                   weight: 1.0 / max(heading.headingAccuracy, 5)))
+    }
+
+    /// Advance the sweep on how far the phone has actually turned (ARKit yaw),
+    /// independent of the compass. Runs every display frame while scanning.
+    private func updateScanCoverage() {
+        guard let yaw = cameraYawDeg() else { return }
+        let bucket = Int(((yaw.truncatingRemainder(dividingBy: 360)) + 360)
+            .truncatingRemainder(dividingBy: 360) / 15)   // 24 sectors of 15°
+        scanBuckets.insert(max(0, min(23, bucket)))
+        engine?.calibrationScanProgress = Double(scanBuckets.count) / 24.0
+        let elapsed = Date().timeIntervalSince(scanStart ?? Date())
+        if scanBuckets.count >= 18 || elapsed > 22 { finishScan() }
+    }
+
+    private func finishScan() {
+        scanStart = nil
+        // Weighted circular mean of the per-sample north offsets.
+        var sx = 0.0, sy = 0.0
+        for s in calibrationSamples {
+            let r = s.offset * .pi / 180
+            sx += cos(r) * s.weight; sy += sin(r) * s.weight
+        }
+        if sx != 0 || sy != 0 {
+            let mean = atan2(sy, sx)
+            let rot = SCNAction.rotateTo(x: 0, y: CGFloat(mean), z: 0,
+                                         duration: 0.5, usesShortestUnitArc: true)
+            rot.timingMode = .easeInEaseOut
+            worldNode.runAction(rot)
+        }
+        engine?.calibrationScanProgress = 1
+        // Tell the UI which precise references are available for the lock step.
+        if let here = observerLocation {
+            let now = effectiveDate()
+            let sun = Celestial.sun(date: now, lat: here.coordinate.latitude, lon: here.coordinate.longitude)
+            let moon = Celestial.moon(date: now, lat: here.coordinate.latitude, lon: here.coordinate.longitude)
+            engine?.calibrationSunUp = sun.el > 3
+            engine?.calibrationMoonUp = moon.el > 3
+        }
+        engine?.calibrationStartAligning()
+    }
+
+    /// Lock north by pinning the Sun (or Moon) — whose azimuth we know to a
+    /// fraction of a degree — to wherever the camera is aimed.
+    func lockToSun() {
+        guard let here = observerLocation else { return }
+        let s = Celestial.sun(date: effectiveDate(), lat: here.coordinate.latitude, lon: here.coordinate.longitude)
+        lockBearingToCamera(s.az, animated: true)
+    }
+    func lockToMoon() {
+        guard let here = observerLocation else { return }
+        let m = Celestial.moon(date: effectiveDate(), lat: here.coordinate.latitude, lon: here.coordinate.longitude)
+        lockBearingToCamera(m.az, animated: true)
+    }
+
+    /// One-finger drag during the aligning step rotates the whole sky so the
+    /// user can slide a plane (or the Sun/Moon) onto its real-world position.
+    @objc private func handleAlignPan(_ g: UIPanGestureRecognizer) {
+        guard engine?.calibrationStep == .aligning else { return }
+        switch g.state {
+        case .began:
+            engine?.autoAlignEnabled = false
+        case .changed:
+            let dx = g.translation(in: sceneView).x
+            g.setTranslation(.zero, in: sceneView)
+            worldNode.eulerAngles.y -= Float(dx) * 0.0045   // ~0.26°/pt
+        default:
+            break
+        }
     }
 }
 
@@ -1924,34 +2122,35 @@ final class AircraftNode: SCNNode {
         }
     }()
 
+    /// Crisp SF Symbol airliner, drawn nose-up, white so the altitude tint can
+    /// multiply it to colour. A soft dark outline keeps it legible on a bright
+    /// daytime sky as well as black.
+    static let planeImage: UIImage = {
+        let size = CGSize(width: 128, height: 128)
+        return UIGraphicsImageRenderer(size: size).image { ctx in
+            let cg = ctx.cgContext
+            let config = UIImage.SymbolConfiguration(pointSize: 78, weight: .semibold)
+            guard let plane = UIImage(systemName: "airplane", withConfiguration: config) else { return }
+            // The symbol's nose points east by default; rotate it to point up.
+            cg.translateBy(x: 64, y: 64)
+            cg.rotate(by: -.pi / 2)
+            let rect = CGRect(x: -plane.size.width / 2, y: -plane.size.height / 2,
+                              width: plane.size.width, height: plane.size.height)
+            // Dark halo for contrast, then the white plane on top.
+            plane.withTintColor(.black.withAlphaComponent(0.55), renderingMode: .alwaysOriginal)
+                .draw(in: rect.insetBy(dx: -1.5, dy: -1.5))
+            plane.withTintColor(.white, renderingMode: .alwaysOriginal).draw(in: rect)
+        }
+    }()
+
     private func buildGlyph(for aircraft: Aircraft) {
-        // Top-view airliner silhouette (nose up): fuselage, swept wings, tailplane.
-        // A vector shape keeps the altitude-graded material colorable and crisp.
-        let k: CGFloat = 0.62
-        let right: [CGPoint] = [
-            CGPoint(x: 0.0, y: 10.0),     // nose tip
-            CGPoint(x: 1.1, y: 8.2),      // nose shoulder
-            CGPoint(x: 1.1, y: 2.2),      // wing root, leading edge
-            CGPoint(x: 8.6, y: -1.6),     // wing tip, leading edge (swept)
-            CGPoint(x: 8.6, y: -2.8),     // wing tip chord
-            CGPoint(x: 1.1, y: -1.0),     // wing root, trailing edge
-            CGPoint(x: 0.9, y: -6.0),     // rear fuselage
-            CGPoint(x: 3.6, y: -7.8),     // tailplane tip, leading edge
-            CGPoint(x: 3.6, y: -8.7),     // tailplane tip chord
-            CGPoint(x: 0.9, y: -8.4),     // tailplane root, trailing edge
-            CGPoint(x: 0.0, y: -9.0),     // tail cone
-        ]
-        let path = UIBezierPath()
-        path.move(to: CGPoint(x: right[0].x * k, y: right[0].y * k))
-        for p in right.dropFirst() { path.addLine(to: CGPoint(x: p.x * k, y: p.y * k)) }
-        for p in right.reversed().dropFirst() { path.addLine(to: CGPoint(x: -p.x * k, y: p.y * k)) }
-        path.close()
-        let shape = SCNShape(path: path, extrusionDepth: 0)
+        let billboard = SCNPlane(width: 18, height: 18)
         let mat = SCNMaterial()
         mat.lightingModel = .constant     // unaffected by scene lighting; reads on bright sky
+        mat.diffuse.contents = AircraftNode.planeImage
         mat.isDoubleSided = true
-        shape.materials = [mat]
-        glyphNode.geometry = shape
+        billboard.materials = [mat]
+        glyphNode.geometry = billboard
         baseScale = Float(GlyphCategory.from(aircraft.category).scale)
         glyphNode.scale = SCNVector3(baseScale, baseScale, baseScale)
         addChildNode(glyphNode)
@@ -2000,7 +2199,9 @@ final class AircraftNode: SCNNode {
     func apply(aircraft: Aircraft) {
         lastAircraft = aircraft
         let color = AircraftNode.altitudeColor(feet: aircraft.altitudeFeet, onGround: aircraft.onGround)
-        glyphNode.geometry?.firstMaterial?.diffuse.contents = color
+        // Tint the white plane symbol by altitude via multiply (keeps the dark
+        // outline and crisp edges from the shared image).
+        glyphNode.geometry?.firstMaterial?.multiply.contents = color
         refreshLabelLayout()
     }
 
