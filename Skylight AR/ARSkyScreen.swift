@@ -998,6 +998,11 @@ struct ProfileView: View {
                             CalibrationView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink("Accessibility", icon: "accessibility",
+                                     subtitle: "Hear & feel the sky") {
+                            AccessibilityView(engine: engine)
+                        }
+                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
                         settingsLink("About & privacy", icon: "info.circle",
                                      subtitle: "How it works · privacy · feedback") {
                             AboutView()
@@ -1575,6 +1580,58 @@ private struct PlaneColorLegend: View {
             }
             Spacer(minLength: 0)
         }
+    }
+}
+
+/// Accessibility: find aircraft eyes-free, by spatial sound and proximity
+/// haptics. A headline feature for low-vision and blind users.
+struct AccessibilityView: View {
+    @Bindable var engine: SkyEngine
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(spacing: 0) {
+                    SettingRow(title: "Hear & feel the sky", icon: "dot.radiowaves.left.and.right",
+                               isOn: $engine.hearFeelSky,
+                               subtitle: "Find planes by sound and touch — eyes-free")
+                }
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                accessibilityCard("Hear it", icon: "airpods") {
+                    Text("Every nearby aircraft becomes a 3D-positioned engine hum — to your left, your right, above. Close your eyes, point toward the sound, and you're facing the plane. Best with AirPods for full spatial audio.")
+                }
+                accessibilityCard("Feel it", icon: "hand.tap") {
+                    Text("As a plane nears the center of where you're pointing, the phone pulses — slow and soft when it's off to the side, fast and firm when you're aimed right at it. Sweep the sky and feel for the plane, no screen needed.")
+                }
+                accessibilityCard("For everyone", icon: "accessibility") {
+                    Text("Built for blind and low-vision skywatchers first — but anyone can find a plane without staring at the screen. Overhead also respects Reduce Motion, Dynamic Type, and works with VoiceOver.")
+                }
+            }
+            .padding(24)
+        }
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Accessibility")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func accessibilityCard<Content: View>(_ title: String, icon: String,
+                                                  @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(Theme.display(16, .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            content()
+                .font(Theme.display(13, .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 

@@ -407,6 +407,7 @@ enum SkyDefaults {
     static let showAirports      = "showAirports"       // Bool
     static let showTrails        = "showTrails"         // Bool
     static let soundOn           = "soundOn"            // Bool
+    static let hearFeelSky       = "hearFeelSky"        // Bool
     static let lastLat           = "lastLat"            // Double (for Siri)
     static let lastLon           = "lastLon"            // Double
     static let favorites         = "favoriteCallsigns"  // [String]
@@ -988,6 +989,7 @@ final class ARSkyViewController: UIViewController {
             lastFix[hex]?.el = el
             lastFix[hex]?.range = range
         }
+        if engine?.hearFeelSky == true, orientTick % 4 == 0 { updateProximityHaptic() }
     }
     private var orientTick = 0
 
@@ -1036,6 +1038,36 @@ final class ARSkyViewController: UIViewController {
         } else {
             skyAudio.stop()
         }
+    }
+
+    // MARK: Accessibility — feel the plane
+
+    private let proxHaptic = UIImpactFeedbackGenerator(style: .medium)
+    private var lastProxHapticAt: Date?
+
+    func applyAccessibility() {
+        if engine?.hearFeelSky == true { proxHaptic.prepare() }
+    }
+
+    /// "Feel" the sky: emit a haptic pulse whose strength and tempo rise as a
+    /// plane nears the center of where you're pointing — a Geiger-counter for
+    /// aircraft, so a plane can be found by touch alone. Throttled by caller.
+    private func updateProximityHaptic() {
+        let center = CGPoint(x: sceneView.bounds.midX, y: sceneView.bounds.midY)
+        var nearest = CGFloat.greatestFiniteMagnitude
+        for (_, node) in nodes where !node.isHidden {
+            let p = sceneView.projectPoint(node.presentation.worldPosition)
+            guard p.z > 0, p.z < 1 else { continue }
+            nearest = min(nearest, hypot(CGFloat(p.x) - center.x, CGFloat(p.y) - center.y))
+        }
+        let reach: CGFloat = 220                       // beyond this you're not on a plane
+        guard nearest < reach else { return }
+        let t = 1 - (nearest / reach)                  // 0 at the edge … 1 dead-centre
+        let interval = 0.55 - 0.42 * Double(t)         // 0.55 s far … 0.13 s centred
+        let now = Date()
+        if let last = lastProxHapticAt, now.timeIntervalSince(last) < interval { return }
+        lastProxHapticAt = now
+        proxHaptic.impactOccurred(intensity: CGFloat(0.35 + 0.65 * t))
     }
 
     private func updateAudio() {

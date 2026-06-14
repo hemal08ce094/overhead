@@ -117,6 +117,10 @@ final class SkyEngine {
     var showAirports: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     var showTrails: Bool   { didSet { persist(); controller?.applyTrailVisibility() } }
     var soundOn: Bool      { didSet { persist(); controller?.applySoundMode() } }
+    /// Accessibility: locate aircraft by 3D spatial sound *and* proximity
+    /// haptics — for blind / low-vision users, or anyone, to find a plane
+    /// eyes-free. Turning it on also switches the spatial soundscape on.
+    var hearFeelSky: Bool  { didSet { persist(); if hearFeelSky { soundOn = true }; controller?.applyAccessibility() } }
 
     /// Minutes added to "now" for the sky clock (time-scrub; not persisted).
     var skyTimeOffsetMin: Double = 0 { didSet { controller?.applySkyTimeNow() } }
@@ -224,6 +228,7 @@ final class SkyEngine {
         showAirports = d.object(forKey: SkyDefaults.showAirports) as? Bool ?? true
         showTrails = d.object(forKey: SkyDefaults.showTrails) as? Bool ?? true
         soundOn = d.bool(forKey: SkyDefaults.soundOn)
+        hearFeelSky = d.bool(forKey: SkyDefaults.hearFeelSky)
         favorites = Set(d.stringArray(forKey: SkyDefaults.favorites) ?? [])
         statFlightsSpotted = d.integer(forKey: SkyDefaults.statSpots)
         statDaysUsed = d.integer(forKey: SkyDefaults.statDays)
@@ -329,5 +334,6 @@ final class SkyEngine {
         d.set(showAirports, forKey: SkyDefaults.showAirports)
         d.set(showTrails, forKey: SkyDefaults.showTrails)
         d.set(soundOn, forKey: SkyDefaults.soundOn)
+        d.set(hearFeelSky, forKey: SkyDefaults.hearFeelSky)
     }
 }
