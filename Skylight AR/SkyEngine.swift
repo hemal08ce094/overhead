@@ -125,6 +125,15 @@ final class SkyEngine {
     /// Minutes added to "now" for the sky clock (time-scrub; not persisted).
     var skyTimeOffsetMin: Double = 0 { didSet { controller?.applySkyTimeNow() } }
 
+    /// Flightradar24 API token. When set, live traffic comes from FR24 (global,
+    /// satellite-backed) instead of the non-commercial airplanes.live feed.
+    var fr24ApiKey: String {
+        didSet {
+            UserDefaults.standard.set(fr24ApiKey, forKey: SkyDefaults.fr24ApiKey)
+            controller?.configureDataSource()
+        }
+    }
+
     // Favorites & focus (callsign-based so they survive across days/sessions).
     var favorites: Set<String> {
         didSet { UserDefaults.standard.set(Array(favorites).sorted(), forKey: SkyDefaults.favorites) }
@@ -229,6 +238,7 @@ final class SkyEngine {
         showTrails = d.object(forKey: SkyDefaults.showTrails) as? Bool ?? true
         soundOn = d.bool(forKey: SkyDefaults.soundOn)
         hearFeelSky = d.bool(forKey: SkyDefaults.hearFeelSky)
+        fr24ApiKey = d.string(forKey: SkyDefaults.fr24ApiKey) ?? ""
         favorites = Set(d.stringArray(forKey: SkyDefaults.favorites) ?? [])
         statFlightsSpotted = d.integer(forKey: SkyDefaults.statSpots)
         statDaysUsed = d.integer(forKey: SkyDefaults.statDays)

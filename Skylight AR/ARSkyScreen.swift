@@ -139,6 +139,16 @@ struct ARSkyScreen: View {
         .onChange(of: engine.calibrationStep) { _, step in
             if step != .idle { showProfile = false; showEvents = false; showSearch = false }
         }
+        #if DEBUG
+        .onAppear {
+            switch ShotScreen.current {
+            case .events: showEvents = true
+            case .profile: showProfile = true
+            case .search: showSearch = true
+            default: break
+            }
+        }
+        #endif
     }
 
     private var statusPill: some View {
@@ -998,6 +1008,11 @@ struct ProfileView: View {
                             CalibrationView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink("Data source", icon: "dot.radiowaves.up.forward",
+                                     subtitle: engine.fr24ApiKey.isEmpty ? "airplanes.live (free)" : "Flightradar24") {
+                            DataSourceSettingsView(engine: engine)
+                        }
+                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
                         settingsLink("Accessibility", icon: "accessibility",
                                      subtitle: "Hear & feel the sky") {
                             AccessibilityView(engine: engine)
@@ -1580,6 +1595,72 @@ private struct PlaneColorLegend: View {
             }
             Spacer(minLength: 0)
         }
+    }
+}
+
+/// Choose the live-traffic provider. The free airplanes.live feed is sparse
+/// over the Gulf/oceans; a Flightradar24 token gives global, satellite coverage.
+struct DataSourceSettingsView: View {
+    @Bindable var engine: SkyEngine
+    @State private var token: String = ""
+
+    private var usingFR24: Bool { !engine.fr24ApiKey.isEmpty }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(usingFR24 ? "Flightradar24" : "airplanes.live (free)",
+                          systemImage: usingFR24 ? "globe" : "dot.radiowaves.left.and.right")
+                        .font(Theme.display(17, .semibold))
+                        .foregroundStyle(usingFR24 ? Theme.accent : Theme.textPrimary)
+                    Text(usingFR24
+                         ? "Satellite-backed global coverage, including the Gulf and oceans. Billed per call, so the app polls gently (about every 8 seconds)."
+                         : "Community ADS-B — excellent over the US and Europe, but sparse over the Gulf, the Middle East, and oceans. Free and non-commercial.")
+                        .font(Theme.display(13, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Flightradar24 API token")
+                        .font(Theme.display(16, .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    TextField("Paste your FR24 token", text: $token, axis: .vertical)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.system(.footnote, design: .monospaced))
+                        .foregroundStyle(Theme.textPrimary)
+                        .padding(12)
+                        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                    HStack(spacing: 10) {
+                        Button("Use this token") {
+                            engine.fr24ApiKey = token.trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .disabled(token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        if usingFR24 {
+                            Button("Use free feed") {
+                                token = ""
+                                engine.fr24ApiKey = ""
+                            }
+                            .buttonStyle(GhostButtonStyle())
+                        }
+                    }
+                    Text("Get a token at fr24api.flightradar24.com — free sandbox, or the $9/mo Explorer plan. Leave empty to use the free airplanes.live feed.")
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            }
+            .padding(24)
+        }
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Data source")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
+        .onAppear { token = engine.fr24ApiKey }
     }
 }
 

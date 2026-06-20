@@ -408,6 +408,7 @@ enum SkyDefaults {
     static let showTrails        = "showTrails"         // Bool
     static let soundOn           = "soundOn"            // Bool
     static let hearFeelSky       = "hearFeelSky"        // Bool
+    static let fr24ApiKey        = "fr24ApiKey"         // String
     static let lastLat           = "lastLat"            // Double (for Siri)
     static let lastLon           = "lastLon"            // Double
     static let favorites         = "favoriteCallsigns"  // [String]
@@ -452,7 +453,7 @@ final class ARSkyViewController: UIViewController {
 
     // Tunables
     private let sphereRadius: Double = 1000     // meters; any large value works
-    private let pollInterval: Duration = .seconds(1)
+    private var pollInterval: Duration = .seconds(1)
     private let staleAfter: TimeInterval = 15   // drop aircraft not seen for this long
     private let searchRadiusNm = 80
     /// Whole-pipeline lag (feed processing + network) beyond the feed's own
@@ -629,9 +630,12 @@ final class ARSkyViewController: UIViewController {
                        name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
-    /// Live camera (true AR) when enabled and authorized; otherwise the dark
-    /// low-power sky — and "low power" is now real: the AR session (camera +
-    /// SLAM) stops entirely and the IMU alone drives where you're pointing.
+    /// Live camera AR, or the dark sky. ARKit world tracking runs in BOTH modes
+    /// — it gives a smooth render loop and stable, drift-free pointing — and
+    /// "dark sky" simply hides the live camera feed behind solid black. (Pausing
+    /// the session for dark mode, as before, left the AR view's render loop
+    /// without a driver: it stuttered and flickered, and the sensor frame jumped
+    /// on every switch.) The camera stays on for tracking; nothing from it shows.
     func applyBackground() {
         let wantCamera = engine?.cameraPassthrough ?? true
         let cameraOK = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
@@ -643,73 +647,22 @@ final class ARSkyViewController: UIViewController {
             sceneView.scene.background.contents = UIColor.black
             return
         }
-        // Camera (ARKit) and dark (CoreMotion) pointing use different, arbitrary
-        // yaw frames. On a switch, remember the current view so we can re-anchor
-        // the sky into the new frame — keeping planes put on a still phone
-        // instead of snapping to the (noisy) compass and losing a manual lock.
-        if didInitialBackground, showCamera != cameraActive {
-            preSwitchCameraYaw = cameraYawDeg() ?? 0
-            preSwitchWorldY = worldNode.eulerAngles.y
-            needsReanchor = true
-        }
-        cameraActive = showCamera
-        didInitialBackground = true
-
-        if showCamera {
-            stopMotionPointing()
-            if isViewLoaded, view.window != nil { startSession() }
-        } else {
-            sceneView.session.pause()
-            startMotionPointing()
-        }
+        // Hide the feed behind black for dark sky; hand it back to ARKit for AR.
+        sceneView.scene.background.contents = showCamera ? nil : UIColor.black
+        // The 1000 m sky dome needs a far clip well past ARKit's default.
+        if let camera = sceneView.pointOfView?.camera { camera.zNear = 0.1; camera.zFar = 1500 }
     }
 
-    // Mode-switch re-anchoring: preserve the on-screen sky across the camera↔
-    // dark sensor-frame change.
-    private var cameraActive = true
-    private var didInitialBackground = false
-    private var needsReanchor = false
-    private var preSwitchCameraYaw: Double = 0
-    private var preSwitchWorldY: Float = 0
-
-    /// Once the new driver is producing the camera pose, rotate the world node
-    /// by the yaw the frame jumped, so content stays exactly where it was.
-    private func tryReanchor() {
-        if cameraActive {
-            guard let ts = sceneView.session.currentFrame?.camera.trackingState,
-                  case .normal = ts else { return }
-        } else {
-            guard motionManager.deviceMotion != nil else { return }
-        }
-        guard let newYaw = cameraYawDeg() else { return }
-        var delta = (newYaw - preSwitchCameraYaw).truncatingRemainder(dividingBy: 360)
-        if delta > 180 { delta -= 360 }; if delta < -180 { delta += 360 }
-        worldNode.eulerAngles.y = preSwitchWorldY - Float(delta * .pi / 180)
-        needsReanchor = false
-    }
-
-    // MARK: IMU pointing (dark-sky mode)
+    // MARK: IMU pointing — fallback only (real devices use ARKit in both modes)
 
     /// CoreMotion reference (Z up) → SceneKit world (Y up).
     private let motionRefToWorld = simd_quatf(angle: -.pi / 2, axis: simd_float3(1, 0, 0))
 
     private func startMotionPointing() {
         guard motionManager.isDeviceMotionAvailable, !motionManager.isDeviceMotionActive else { return }
-        // ARKit hasn't necessarily configured this camera (entering dark mode
-        // directly pauses the session before its first frame) — the default
-        // zFar of 100 clips the whole 1000 m sky dome out of existence.
-        if let camera = sceneView.pointOfView?.camera {
-            camera.zNear = 0.1
-            camera.zFar = 1500
-        }
+        if let camera = sceneView.pointOfView?.camera { camera.zNear = 0.1; camera.zFar = 1500 }
         motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
-        // No callback queue: just keep `deviceMotion` fresh and read it from the
-        // display-synced step loop, so the camera moves in lockstep with the
-        // render (the old to-main callback was a second, unsynced 60 Hz loop
-        // that made dark mode judder).
         motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
-        // Note: north is preserved across a mode switch by tryReanchor(), not
-        // re-snapped here — that kept jumping the sky on a still phone.
     }
 
     /// Drive the camera orientation from the latest IMU sample, called once per
@@ -801,13 +754,28 @@ final class ARSkyViewController: UIViewController {
     @objc private func appDidBackground() { pauseEverything() }
     @objc private func appDidBecomeActive() {
         guard viewIfLoaded?.window != nil else { return }
-        applyBackground()      // resumes AR or IMU pointing per current mode
+        startSession()         // ARKit runs in both modes; resume it
+        applyBackground()      // toggle the camera feed vs. black per mode
         startPolling()
     }
 
     // MARK: Polling
 
+    /// Choose the live-traffic provider: Flightradar24 when a token is set
+    /// (global, satellite coverage — but billed per call, so poll gently),
+    /// otherwise the free non-commercial airplanes.live feed.
+    func configureDataSource() {
+        if let key = engine?.fr24ApiKey, !key.isEmpty {
+            dataSource = FR24Source(apiKey: key)
+            pollInterval = .seconds(8)
+        } else {
+            dataSource = ADSBClient()
+            pollInterval = .seconds(1)
+        }
+    }
+
     private func startPolling() {
+        configureDataSource()
         startDisplayLink()
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
@@ -988,8 +956,7 @@ final class ARSkyViewController: UIViewController {
     /// low-pass absorbs the small correction when a fresh fix lands without
     /// adding lag (the target is always projected to true-now).
     @objc private func stepAircraft() {
-        if motionManager.isDeviceMotionActive { updateMotionPointing() }   // dark-sky camera
-        if needsReanchor { tryReanchor() }                                  // keep sky put across a mode switch
+        if motionManager.isDeviceMotionActive { updateMotionPointing() }   // fallback pointing only
         if scanStart != nil { updateScanCoverage() }
         guard let observer = observerLocation, !anchors.isEmpty else { return }
         let now = Date()

@@ -13,6 +13,12 @@ struct RootView: View {
     @State private var permissions = PermissionsModel()
     @AppStorage("didOnboard") private var didOnboard = false
 
+    init() {
+        #if DEBUG
+        ShotScreen.applyPreconditions()
+        #endif
+    }
+
     var body: some View {
         ZStack {
             // Proceed once location is decided either way — denial lands in

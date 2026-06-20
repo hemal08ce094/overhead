@@ -14,7 +14,12 @@ struct OnboardingView: View {
     var permissions: PermissionsModel
     var onFinished: () -> Void
 
-    @State private var page = 0
+    @State private var page = {
+        #if DEBUG
+        if let p = ShotScreen.current?.onboardingPage { return p }
+        #endif
+        return 0
+    }()
     @State private var appear = false
 
     var body: some View {
