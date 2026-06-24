@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Overhead · Accuracy Improvement Report</title>
+<style>
+  :root{
+    --night-top:#0b1026; --night-mid:#10142e; --night-bot:#04050e;
+    --indigo:#3b407a; --accent:#99bdff; --accent-soft:#7394f2;
+    --ink:#eef1fb; --ink2:rgba(238,241,251,.66); --ink3:rgba(238,241,251,.40);
+    --card:rgba(255,255,255,.045); --line:rgba(255,255,255,.10);
+    --good:#7ee0a6; --warn:#ffcf6b; --bad:#ff8f8f;
+    --p0:#ff8f8f; --p1:#ffcf6b; --p2:#9fb4ff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+    color:var(--ink); line-height:1.6;
+    background:
+      radial-gradient(1200px 700px at 78% -8%, rgba(59,64,122,.55), transparent 60%),
+      linear-gradient(180deg, var(--night-top), var(--night-mid) 32%, var(--night-bot));
+    background-attachment:fixed; min-height:100vh;
+  }
+  .stars{position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.7}
+  .wrap{position:relative; z-index:1; max-width:980px; margin:0 auto; padding:0 24px 100px}
+  header.hero{padding:84px 0 36px; text-align:center}
+  .kicker{letter-spacing:.32em; text-transform:uppercase; font-size:12px; color:var(--accent); font-weight:700}
+  h1{font-size:clamp(34px,6vw,60px); margin:.32em 0 .12em; font-weight:800; letter-spacing:-.02em; line-height:1.05}
+  h1 .b{color:var(--accent)}
+  .sub{color:var(--ink2); font-size:18px; max-width:680px; margin:0 auto}
+  .meta{margin-top:22px; color:var(--ink3); font-size:13px}
+  .moon{width:96px;height:96px;margin:0 auto 6px;border-radius:50%;
+    background:radial-gradient(circle at 32% 30%, #f5f5e8 0%, rgba(245,245,232,.15) 60%, transparent 72%);
+    box-shadow:0 0 60px rgba(153,189,255,.35); position:relative}
+  .moon::after{content:"";position:absolute;inset:0;border-radius:50%;
+    background:var(--night-bot);transform:translate(20px,-10px);}
+
+  section{margin-top:48px}
+  h2{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink2);
+     font-weight:700;border-bottom:1px solid var(--line);padding-bottom:10px;margin:0 0 22px}
+  h3{font-size:21px;margin:0 0 6px;font-weight:700;letter-spacing:-.01em}
+
+  .insight{background:linear-gradient(135deg, rgba(255,143,143,.14), rgba(59,64,122,.18));
+    border:1px solid rgba(255,143,143,.30); border-radius:20px; padding:26px 28px}
+  .insight h3{font-size:24px}
+  .insight p{margin:.5em 0; color:var(--ink)}
+
+  /* error budget bars */
+  .budget{display:grid;gap:14px;margin-top:8px}
+  .bar{display:grid;grid-template-columns:160px 1fr 92px;align-items:center;gap:14px}
+  .bar .lab{font-size:14px;color:var(--ink2)}
+  .bar .track{height:16px;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden}
+  .bar .fill{height:100%;border-radius:10px}
+  .bar .val{font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink2);text-align:right}
+  .fill.heading{background:linear-gradient(90deg,#ff8f8f,#ff6b6b)}
+  .fill.fusion{background:linear-gradient(90deg,#ffcf6b,#ffb23e)}
+  .fill.geo{background:linear-gradient(90deg,#7ee0a6,#5ad08a)}
+
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:6px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 16px;text-align:center}
+  .stat .n{font-size:30px;font-weight:800;color:var(--accent);letter-spacing:-.02em}
+  .stat .l{font-size:12.5px;color:var(--ink2);margin-top:4px}
+
+  .cards{display:grid;gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px 22px}
+  .card .top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .tag{font-size:11px;font-weight:800;letter-spacing:.06em;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .tag.p0{background:rgba(255,143,143,.16);color:#ffb1b1;border:1px solid rgba(255,143,143,.4)}
+  .tag.p1{background:rgba(255,207,107,.16);color:#ffd98a;border:1px solid rgba(255,207,107,.4)}
+  .tag.p2{background:rgba(159,180,255,.16);color:#c0cdff;border:1px solid rgba(159,180,255,.4)}
+  .card p{margin:.4em 0;color:var(--ink2)}
+  .card .gain{display:inline-block;margin-top:8px;font-size:12.5px;color:var(--good);
+    background:rgba(126,224,166,.10);border:1px solid rgba(126,224,166,.28);border-radius:8px;padding:3px 9px}
+  code{background:rgba(255,255,255,.07);padding:1px 6px;border-radius:5px;font-size:.86em;
+    font-family:"SF Mono",ui-monospace,Menlo,monospace;color:#cfe0ff}
+
+  table{width:100%;border-collapse:collapse;font-size:14.5px;margin-top:4px}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--ink2);font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+  td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+
+  .seq{counter-reset:s;display:grid;gap:10px}
+  .seq .step{display:flex;gap:14px;align-items:flex-start;background:var(--card);
+    border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+  .seq .step::before{counter-increment:s;content:counter(s);flex:0 0 30px;height:30px;
+    display:grid;place-items:center;border-radius:50%;background:var(--accent);color:#08122b;
+    font-weight:800;font-size:15px}
+  .seq .step b{color:var(--ink)}
+
+  .refuted{background:rgba(255,143,143,.07);border:1px solid rgba(255,143,143,.22);
+    border-radius:14px;padding:16px 20px;font-size:14px;color:var(--ink2)}
+  .refuted li{margin:4px 0}
+
+  .src{font-size:13px;color:var(--ink2)}
+  .src a{color:var(--accent-soft);text-decoration:none;word-break:break-word}
+  .src a:hover{text-decoration:underline}
+  .src li{margin:6px 0}
+
+  footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
+    color:var(--ink3);font-size:12.5px;text-align:center}
+  .pill{display:inline-block;font-size:11px;color:var(--ink2);border:1px solid var(--line);
+    border-radius:999px;padding:3px 10px;margin:2px}
+</style>
+</head>
+<body>
+<svg class="stars" id="stars" preserveAspectRatio="none"></svg>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="moon"></div>
+    <div class="kicker">Overhead · Skylight AR</div>
+    <h1>Making the Sky<br><span class="b">Line Up</span></h1>
+    <p class="sub">An accuracy-improvement report for the AR sky overlay — where virtual planes,
+      satellites and stars should land exactly on the real ones.</p>
+    <div class="meta">Code audit + adversarially-verified web research · 24 sources, 21 claims confirmed · June 2026</div>
+  </header>
+
+  <section>
+    <h2>The one thing that matters</h2>
+    <div class="insight">
+      <h3>Your math is already excellent. Heading is the bottleneck.</h3>
+      <p>The positional pipeline is rigorous — full WGS84 ECEF→ENU transforms, atmospheric refraction,
+        lunar parallax, sidereal star math. All of it is <b>sub-degree accurate.</b></p>
+      <p>But the entire virtual sky is rotated to true north by <b>one number from the compass</b>,
+        and that number is wrong by 5–25°. A 0.05° geometry error is invisible; a 10° heading error
+        puts every plane a hand's-width from where it really is.</p>
+      <p style="color:var(--accent);font-weight:600">≈ 90% of perceived inaccuracy is device pose, not math.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Error budget — why the compass can never be enough</h2>
+    <div class="budget">
+      <div class="bar"><span class="lab">Compass (field)</span><div class="track"><div class="fill heading" style="width:100%"></div></div><span class="val">5–25°</span></div>
+      <div class="bar"><span class="lab">Mag+gyro fusion</span><div class="track"><div class="fill heading" style="width:70%"></div></div><span class="val">~17.4° RMS</span></div>
+      <div class="bar"><span class="lab">Fusion (ideal)</span><div class="track"><div class="fill fusion" style="width:20%"></div></div><span class="val">~4–5°</span></div>
+      <div class="bar"><span class="lab">Plate-solve (sun/moon)</span><div class="track"><div class="fill geo" style="width:2.5%"></div></div><span class="val">~0.3°</span></div>
+      <div class="bar"><span class="lab">Geometry / ephemeris</span><div class="track"><div class="fill geo" style="width:0.6%"></div></div><span class="val">&lt;0.1°</span></div>
+    </div>
+    <p class="src" style="margin-top:14px">Research finding: smartphone magnetometer+gyro fusion tops out around <b>17.4° RMS in the field</b>
+      and only <b>~4–5° even under ideal, anomaly-free conditions</b> — so <b>sub-degree heading is physically
+      unattainable from the compass.</b> ARKit's <code>.gravityAndHeading</code> won't help either; Apple derives
+      its north from the same <code>CLHeading</code>. Precise apps (PeakFinder) align to a <b>known object</b>
+      (a mountain silhouette) instead. Conclusion: <b>plate-solving against the sun/moon/known aircraft is the
+      only route to the accuracy users expect.</b></p>
+  </section>
+
+  <section>
+    <h2>Snapshot</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="n">17.4°</div><div class="l">best real-world compass fusion (RMS)</div></div>
+      <div class="stat"><div class="n">~0.01°</div><div class="l">known sun/moon azimuth — the truth source</div></div>
+      <div class="stat"><div class="n">9%</div><div class="l">ADS-B baro vs geom altitude disagree &gt;245 ft</div></div>
+      <div class="stat"><div class="n">1–2 km/day</div><div class="l">ISS TLE drift — refresh daily</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Prioritized plan</h2>
+    <div class="cards">
+
+      <div class="card">
+        <div class="top"><span class="tag p0">P0 · POSE</span><h3>Plate-solve heading against known objects</h3></div>
+        <p>Demote the compass to a coarse ±15° bootstrap. Continuously, automatically solve the heading
+          offset from the <b>sun/moon</b> (azimuth known to ~0.01°) whenever one is above ~3° — extend to
+          bright planets/stars. Promote the existing <code>lockToSun()/lockToMoon()</code> from a one-shot
+          manual lock to an always-on correction.</p>
+        <span class="gain">Expected: ~10–20° → &lt;0.5° in clear conditions</span>
+      </div>
+
+      <div class="card">
+        <div class="top"><span class="tag p0">P0 · POSE</span><h3>One-tap "snap to this plane" (all-weather solve)</h3></div>
+        <p>ADS-B identity is exact, so a tapped aircraft's true bearing is known. The cloudy-day analog of
+          PeakFinder's landmark solve — one tap aligns the whole sky. Builds on the existing pan-to-align
+          (<code>SkylightAR.swift:1881</code>).</p>
+        <span class="gain">Expected: instant exact fix, no compass needed</span>
+      </div>
+
+      <div class="card">
+        <div class="top"><span class="tag p0">POSE</span><h3>Fuse ARKit yaw + compass; show the residual</h3></div>
+        <p>1-D complementary/Kalman filter: ARKit yaw (smooth, drifts) + plate-solve (absolute truth) +
+          compass (coarse fallback). Replace the open-loop proportional steerer
+          (<code>alignNorth()</code>, <code>:1741</code>) and always surface the measured error vs. the sun/moon
+          so calibration mistakes are visible, not silent.</p>
+        <span class="gain">Expected: kills SLAM drift + the ~5 s lag to correct bias</span>
+      </div>
+
+      <div class="card">
+        <div class="top"><span class="tag p1">P1 · DATA</span><h3>Fix aircraft altitude datum &amp; extrapolation</h3></div>
+        <p>Prefer <b>geometric (WGS84)</b> altitude; QNH-correct barometric (it assumes 1013 hPa). Use the
+          observer's <code>ellipsoidalAltitude</code> (WGS84) — not <code>.altitude</code> (geoid/MSL) — so both
+          ends of the range vector share a datum. Dead-reckon <b>altitude</b> via vertical rate, not just lat/lon.</p>
+        <span class="gain">Expected: removes tens of metres of geoid + datum error; fixes climb/descent</span>
+      </div>
+
+      <div class="card">
+        <div class="top"><span class="tag p1">P1 · DATA</span><h3>Per-source latency + auto-refresh ISS TLE</h3></div>
+        <p>The fixed <code>feedLatencySec = 1.5</code> is wrong for FR24's 8 s polling — set it per source and
+          prefer the 1 Hz feed. Refresh the ISS TLE <b>daily</b> (today: once per session, never refreshed,
+          <code>:1631</code>); never use one &gt;10 days old.</p>
+        <span class="gain">Expected: less fast-mover lag; ISS error &lt;1 km</span>
+      </div>
+
+      <div class="card">
+        <div class="top"><span class="tag p2">P2 · POLISH</span><h3>Refraction P/T, best-accuracy GPS, time sync</h3></div>
+        <p>Scale Bennett refraction by <code>(P/1010)×(283/(273+T))</code> from METAR. Request
+          <code>kCLLocationAccuracyBest</code> in AR. Add a one-shot <b>SNTP</b> offset at launch — a 1 s clock
+          error ≈ 7.7 km of ISS position.</p>
+        <span class="gain">Expected: sub-0.1° near-horizon + drift insurance</span>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>What the research changed</h2>
+    <table>
+      <tr><th>Topic</th><th>Code audit said</th><th>Research added</th></tr>
+      <tr><td>Heading</td><td>Dominates; fuse &amp; auto-align</td><td>Quantified ceiling (~17° RMS / ~4–5° ideal) → plate-solving is the <i>only</i> sub-degree path</td></tr>
+      <tr><td>gravityAndHeading</td><td>—</td><td>Won't help; built on <code>CLHeading</code></td></tr>
+      <tr><td>Aircraft altitude</td><td>Prefer geom; QNH baro</td><td>Baro = 1013 hPa datum; ~9% disagree &gt;245 ft</td></tr>
+      <tr><td>Observer altitude</td><td>Geoid uncorrected</td><td>Use <code>ellipsoidalAltitude</code> to match ADS-B WGS84</td></tr>
+      <tr><td>Refraction</td><td>Add P/T</td><td>Exact factor <code>(P/1010)×(283/(273+T))</code></td></tr>
+      <tr><td>ISS TLE</td><td>Refresh daily</td><td>Budget: ~1–2 km/day, useless &gt;10 days</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Suggested sequence</h2>
+    <div class="seq">
+      <div class="step"><div><b>Instrument first.</b> Accuracy HUD + a single regression metric (rendered vs. confirmed sun/moon error) — so every change is measurable.</div></div>
+      <div class="step"><div><b>Plate-solving (P0 #1 &amp; #2).</b> Celestial auto-align + tap-to-snap — fastest, most visible accuracy jump.</div></div>
+      <div class="step"><div><b>Sensor fusion (P0 #3).</b> ARKit↔compass complementary filter — the durable structural fix.</div></div>
+      <div class="step"><div><b>Data layer (P1).</b> Altitude datum + extrapolation, per-source latency, daily TLE refresh.</div></div>
+      <div class="step"><div><b>Polish (P2).</b> Refraction P/T, best-accuracy GPS, SNTP time sync.</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Verification — refuted during research (not facts)</h2>
+    <div class="refuted">
+      <ul>
+        <li>Magnetometer EKF fusion reaching sub-degree under ideal conditions — <b>refuted</b> (best ≈ 4–5°).</li>
+        <li>SPA refraction model accurate to ±0.0003° — <b>refuted</b> as overstated.</li>
+        <li>TLE error growing as age<sup>1.5</sup> — <b>not confirmed</b> (treat as ~linear).</li>
+        <li>ARKit <code>eulerAngles.y == 0</code> exactly at true north under gravityAndHeading — <b>refuted</b>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sources</h2>
+    <ul class="src">
+      <li>ION/NAVI 2024 — smartphone magnetometer/gyro heading fusion (~17.4° RMS) · <a href="https://navi.ion.org/content/71/1/navi.632">navi.ion.org/content/71/1/navi.632</a></li>
+      <li>Apple — ARConfiguration.WorldAlignment.gravityAndHeading · <a href="https://developer.apple.com/documentation/arkit/arconfiguration/worldalignment/gravityandheading">developer.apple.com</a></li>
+      <li>PeakFinder — landmark/compass alignment · <a href="https://www.peakfinder.com/mobile/compass/">peakfinder.com/mobile/compass</a></li>
+      <li>Flightradar24 — Understanding altitude (1013 hPa / WGS84) · <a href="https://www.flightradar24.com/blog/inside-flightradar24/understanding-altitude-on-flightradar24/">flightradar24.com</a></li>
+      <li>J. Navigation — geometric vs barometric ADS-B altitude · <a href="https://www.cambridge.org/core/journals/journal-of-navigation/article/abs/study-on-geometric-and-barometric-altitude-data-in-automatic-dependent-surveillance-broadcast-adsb-messages/F44587C944F9C41E7B88A96419EBFAF7">cambridge.org</a></li>
+      <li>Apple — CLLocation.ellipsoidalAltitude · <a href="https://developer.apple.com/documentation/corelocation/cllocation/ellipsoidalaltitude">developer.apple.com</a></li>
+      <li>Atmospheric refraction (Meeus) · <a href="http://www.jgiesen.de/refract/index.html">jgiesen.de/refract</a></li>
+      <li>D. Estévez — TLE variation (~1–2 km/day) · <a href="https://destevez.net/2017/11/a-brief-study-of-tle-variation/">destevez.net</a></li>
+      <li>Oltrogge, AMOS 2014 — TLE/SGP4 accuracy · <a href="https://amostech.com/TechnicalPapers/2014/Poster/OLTROGGE.pdf">amostech.com</a></li>
+      <li>Project Pluto — GPS &amp; time · <a href="https://www.projectpluto.com/gps_expl.htm">projectpluto.com</a></li>
+    </ul>
+  </section>
+
+  <footer>
+    Generated for <b>Skylight&nbsp;AR / "Overhead"</b> · companion to
+    <span class="pill">docs/ACCURACY_PLAN.md</span><span class="pill">docs/ACCURACY_PLAN_RESEARCH.md</span><br>
+    Key code: <code>SkylightAR.swift</code> (pose/coords/calibration) · <code>SkyLayer.swift</code> (celestial/satellite) · <code>FR24Source.swift</code> (feed)
+  </footer>
+
+</div>
+<script>
+  // sprinkle deterministic stars
+  (function(){
+    const svg=document.getElementById('stars');
+    const W=window.innerWidth, H=document.body.scrollHeight||window.innerHeight;
+    svg.setAttribute('viewBox','0 0 '+W+' '+H);
+    svg.setAttribute('width',W); svg.setAttribute('height',H);
+    let seed=42; const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+    let s='';
+    const n=Math.floor(W*H/14000);
+    for(let i=0;i<n;i++){
+      const x=(rnd()*W).toFixed(1), y=(rnd()*H).toFixed(1);
+      const r=(rnd()*1.3+0.3).toFixed(2), o=(rnd()*0.6+0.15).toFixed(2);
+      s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="#dce6ff" opacity="'+o+'"/>';
+    }
+    svg.innerHTML=s;
+  })();
+</script>
+</body>
+</html>

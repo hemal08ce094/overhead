@@ -19,6 +19,10 @@ struct FR24Source: DataSource {
     var baseURL = "https://fr24api.flightradar24.com/api"
     var session: URLSession = .shared
 
+    /// FR24 is polled slowly (cost) and aggregates upstream, so a fix is a touch
+    /// staler than airplanes.live by the time we render it — project a bit further.
+    var feedLatencySec: Double { 2.5 }
+
     func aircraft(lat: Double, lon: Double, radiusNm: Int) async throws -> [Aircraft] {
         // FR24 queries a bounding box (N,S,W,E), not a radius.
         let latD = Double(radiusNm) / 60.0
@@ -78,6 +82,7 @@ private struct FR24Flight: Decodable {
     let track: Double?
     let alt: Double?
     let gspeed: Double?
+    let vspeed: Double?
     let squawk: String?
     let timestamp: String?
     let type: String?
@@ -113,6 +118,7 @@ private extension Aircraft {
         self.altBaro = altFt > 0 ? altFt : nil
         self.track = f.track
         self.groundSpeedKts = f.gspeed
+        self.verticalRateFpm = f.vspeed
         // Age the fix from its timestamp so render-time dead reckoning projects
         // it forward correctly (FR24 fixes can be a few seconds old).
         if let ts = f.timestamp, let when = fr24ISO.date(from: ts) {

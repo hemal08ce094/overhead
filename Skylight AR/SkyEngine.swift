@@ -290,6 +290,9 @@ final class SkyEngine {
     /// While false, the passive compass auto-align is frozen — a manual lock
     /// (from calibration) holds instead. Re-enabled on a fresh session.
     var autoAlignEnabled: Bool = true
+    /// When the sky was last pinned to a known reference (Sun/Moon/plane or a
+    /// drag-align). Drives the alignment-confidence HUD. Not persisted.
+    var lastManualAlignAt: Date?
 
     /// Start the guided flow: 360° sweep, then drag-to-line-up. Switches to the
     /// live camera automatically — the Sun/plane lock needs it.
@@ -325,6 +328,24 @@ final class SkyEngine {
     var calibrationMoonUp = false
     func lockToSun()  { controller?.lockToSun();  finishCalibration() }
     func lockToMoon() { controller?.lockToMoon(); finishCalibration() }
+
+    /// Pin the sky to the selected aircraft's known bearing — the all-weather
+    /// solve when no celestial body is up. Center the real plane, then lock.
+    func lockToSelectedAircraft() { controller?.lockToSelectedAircraft(); finishCalibration() }
+
+    /// Open the drag/tap-to-align step straight from the live screen (no 360°
+    /// sweep) — reuses the same lock primitives as the guided flow. Needs the
+    /// camera so the real Sun/Moon/plane is visible to line up against.
+    func beginQuickAlign() {
+        if !cameraPassthrough { cameraPassthrough = true }
+        controller?.prepareQuickAlign()
+        calibrationStep = .aligning
+    }
+
+    /// Seconds since the last manual alignment, or nil if never aligned this run.
+    var secondsSinceAlign: TimeInterval? {
+        lastManualAlignAt.map { Date().timeIntervalSince($0) }
+    }
 
     private func persist() {
         let d = UserDefaults.standard

@@ -34,6 +34,7 @@ struct Aircraft: Identifiable, Sendable, Equatable {
     var onGround: Bool
     var track: Double?         // ground track, degrees from north
     var groundSpeedKts: Double?
+    var verticalRateFpm: Double?  // climb/descent, ft/min (+ up); for altitude dead-reckoning
     var positionAgeSec: Double?   // feed's "seen_pos": seconds since this fix
     var category: String?      // ADS-B emitter category, e.g. "A3"
     var type: String?          // ICAO type designator ("t"), e.g. "B738"
@@ -65,6 +66,10 @@ protocol DataSource: Sendable {
 
 extension DataSource {
     func search(field: AircraftSearchField, value: String) async throws -> [Aircraft] { [] }
+    /// Residual pipeline lag beyond each fix's own reported age, in seconds —
+    /// how far forward to dead-reckon to land on "now". Tuned per source; the
+    /// near-real-time default fits a ~1 Hz feed like airplanes.live.
+    var feedLatencySec: Double { 1.5 }
 }
 
 /// The parameters a flight can be searched by, mapped to airplanes.live's
@@ -193,6 +198,8 @@ private struct ADSBAircraft: Decodable {
     let alt_geom: Double?
     let track: Double?
     let gs: Double?
+    let geom_rate: Double?
+    let baro_rate: Double?
     let seen_pos: Double?
     let category: String?
     let t: String?
@@ -233,6 +240,7 @@ private extension Aircraft {
         }
         self.track = a.track
         self.groundSpeedKts = a.gs
+        self.verticalRateFpm = a.geom_rate ?? a.baro_rate   // prefer geometric rate
         self.positionAgeSec = a.seen_pos
         self.category = a.category
         self.type = a.t
@@ -415,6 +423,8 @@ enum SkyDefaults {
     static let statSpots         = "statFlightsSpotted" // Int
     static let statDays          = "statDaysUsed"       // Int
     static let lastUsedDay       = "lastUsedDay"        // TimeInterval
+    static let issTLELines       = "issTLELines"        // [String] (3 TLE lines)
+    static let issTLEDate        = "issTLEDate"         // Date (when fetched)
 }
 
 // MARK: - Airport catalog (bundled majors)
@@ -456,9 +466,7 @@ final class ARSkyViewController: UIViewController {
     private var pollInterval: Duration = .seconds(1)
     private let staleAfter: TimeInterval = 15   // drop aircraft not seen for this long
     private let searchRadiusNm = 80
-    /// Whole-pipeline lag (feed processing + network) beyond the feed's own
-    /// `seen_pos`, projected forward so the marker rides where the plane *is*.
-    private let feedLatencySec: Double = 1.5
+    // Pipeline lag is now per-source: see `DataSource.feedLatencySec`.
     /// Cap on how far ahead a stalled fix may be dead-reckoned (s).
     private let maxExtrapolationSec: Double = 20
     /// Below this elevation, an aircraft is lost to horizon haze/buildings and
@@ -528,6 +536,7 @@ final class ARSkyViewController: UIViewController {
     private struct Anchor {
         var lat: Double; var lon: Double; var altM: Double
         var track: Double?; var gsKts: Double?
+        var vsFpm: Double?            // vertical rate, ft/min (+ up), for altitude dead-reckoning
         var observedAt: Date
     }
 
@@ -551,7 +560,7 @@ final class ARSkyViewController: UIViewController {
         startSession(reset: true)
         applyBackground()      // routes to IMU pointing when in dark-sky mode
         startPolling()
-        Task { await fetchISSTLE() }
+        loadOrRefreshISSTLE()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -839,7 +848,8 @@ final class ARSkyViewController: UIViewController {
             // was — continuous motion instead of a 1 Hz step.
             let anchor = Anchor(lat: ac.lat, lon: ac.lon, altM: ac.altitudeMeters,
                                 track: ac.track, gsKts: ac.groundSpeedKts,
-                                observedAt: now.addingTimeInterval(-((ac.positionAgeSec ?? 0) + feedLatencySec)))
+                                vsFpm: ac.verticalRateFpm,
+                                observedAt: now.addingTimeInterval(-((ac.positionAgeSec ?? 0) + dataSource.feedLatencySec)))
             let (az, el, range) = geometry(of: anchor, at: now, observer: observer)
 
             // Cull only what's well below the horizon. We allow a wide negative
@@ -919,23 +929,38 @@ final class ARSkyViewController: UIViewController {
 
     // MARK: Per-frame dead reckoning
 
+    /// Observer height in metres on the WGS84 ellipsoid — the same datum ADS-B
+    /// geometric altitude uses — so the vertical baseline isn't off by the local
+    /// geoid undulation (tens of metres). Falls back to the geoid/MSL altitude
+    /// when the ellipsoidal value isn't available (older fix, no vertical fix).
+    private func observerAltMeters(_ loc: CLLocation) -> Double {
+        let e = loc.ellipsoidalAltitude
+        return (loc.verticalAccuracy > 0 && e.isFinite) ? e : loc.altitude
+    }
+
     /// Project an anchor forward to `date` along its ground track and return the
     /// observer-relative geometry. The forward step auto-includes feed latency
     /// because the anchor is timestamped to when the fix was actually true.
     private func geometry(of anchor: Anchor, at date: Date, observer: CLLocation)
         -> (az: Double, el: Double, range: Double) {
-        var lat = anchor.lat, lon = anchor.lon
+        var lat = anchor.lat, lon = anchor.lon, altM = anchor.altM
+        let dt = min(max(date.timeIntervalSince(anchor.observedAt), 0), maxExtrapolationSec)
         if let track = anchor.track, let gs = anchor.gsKts, gs > 40 {
-            let dt = min(max(date.timeIntervalSince(anchor.observedAt), 0), maxExtrapolationSec)
             let meters = gs * 0.514444 * dt
             let tr = track * .pi / 180
             lat += (meters * cos(tr) / 6_371_000) * 180 / .pi
             lon += (meters * sin(tr) / (6_371_000 * cos(anchor.lat * .pi / 180))) * 180 / .pi
         }
+        // Climb/descent: carry the plane's altitude forward too, so traffic on
+        // approach or departure sits at the height it's actually at now, not its
+        // last-reported one. ft/min → m/s × dt; never below the ground.
+        if let vs = anchor.vsFpm, abs(vs) > 1 {
+            altM = max(0, altM + vs / 60 * 0.3048 * dt)
+        }
         let r = SkyMath.azElRange(observerLat: observer.coordinate.latitude,
                                   observerLon: observer.coordinate.longitude,
-                                  observerAltM: observer.altitude,
-                                  targetLat: lat, targetLon: lon, targetAltM: anchor.altM)
+                                  observerAltM: observerAltMeters(observer),
+                                  targetLat: lat, targetLon: lon, targetAltM: altM)
         return (az: r.azimuth, el: r.elevation, range: r.range)
     }
 
@@ -1626,9 +1651,33 @@ final class ARSkyViewController: UIViewController {
 
     // MARK: ISS (M4)
 
+    private var issTLEFetchedAt: Date?
+    private var issTLEFetching = false
+
+    /// Bring up the ISS orbit from a cached TLE instantly (offline-friendly),
+    /// then refresh from the network only when it's missing or stale. A TLE
+    /// drifts ~1–2 km/day and is unreliable past ~10 days, so a daily refresh
+    /// keeps passes accurate without hammering Celestrak.
+    private func loadOrRefreshISSTLE() {
+        if sky?.issSatellite == nil,
+           let lines = UserDefaults.standard.stringArray(forKey: SkyDefaults.issTLELines),
+           lines.count >= 3, let sat = try? Satellite(lines[0], lines[1], lines[2]) {
+            sky?.issSatellite = sat
+            issTLEFetchedAt = UserDefaults.standard.object(forKey: SkyDefaults.issTLEDate) as? Date
+        }
+        refreshISSTLEIfStale()
+    }
+
+    /// Re-fetch the TLE if we've never fetched one or it's over a day old.
+    private func refreshISSTLEIfStale() {
+        let stale = issTLEFetchedAt.map { Date().timeIntervalSince($0) > 86_400 } ?? true
+        guard stale, !issTLEFetching else { return }
+        issTLEFetching = true
+        Task { await fetchISSTLE(); issTLEFetching = false }
+    }
+
     private func fetchISSTLE() async {
-        guard sky?.issSatellite == nil,
-              let url = URL(string: "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle"),
+        guard let url = URL(string: "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle"),
               let (data, _) = try? await URLSession.shared.data(from: url),
               let text = String(data: data, encoding: .utf8) else { return }
         let lines = text.split(whereSeparator: \.isNewline)
@@ -1636,6 +1685,9 @@ final class ARSkyViewController: UIViewController {
             .filter { !$0.isEmpty }
         guard lines.count >= 3, let sat = try? Satellite(lines[0], lines[1], lines[2]) else { return }
         sky?.issSatellite = sat
+        issTLEFetchedAt = Date()
+        UserDefaults.standard.set(Array(lines.prefix(3)), forKey: SkyDefaults.issTLELines)
+        UserDefaults.standard.set(issTLEFetchedAt, forKey: SkyDefaults.issTLEDate)
     }
 
     /// Scrub the sky clock forward to the ISS's next rise above ~10°.
@@ -1764,7 +1816,16 @@ extension ARSkyViewController: CLLocationManagerDelegate {
         if error < -.pi { error += 2 * .pi }
         // Deadband keeps the sky calm; gain scales with compass confidence.
         guard abs(error) > 1.5 * .pi / 180 else { return }
-        let gain = min(0.05, max(0.01, 0.02 * (25 / max(heading.headingAccuracy, 5))))
+        let errDeg = abs(error) * 180 / .pi
+        // Complementary fusion: trust ARKit's smooth yaw for the frame-to-frame
+        // pose and let the compass correct slow bias — but reject the spikes that
+        // magnetic interference (cars, steel, speakers) throws up. A sample
+        // implying a jump far larger than its own stated accuracy allows is noise,
+        // not truth, so damp it; an outright flip is ignored.
+        let plausible = max(8.0, heading.headingAccuracy * 2.0)
+        if errDeg > plausible + 30 { return }                    // flip/spike → drop
+        let trust = errDeg > plausible ? 0.2 : 1.0               // damp soft outliers
+        let gain = min(0.05, max(0.01, 0.02 * (25 / max(heading.headingAccuracy, 5)))) * trust
         worldNode.eulerAngles.y += Float(error * gain)
     }
 
@@ -1785,6 +1846,7 @@ extension ARSkyViewController: CLLocationManagerDelegate {
         if d > 180 { d -= 360 }; if d < -180 { d += 360 }
         let desired = CGFloat(d * .pi / 180)
         engine?.autoAlignEnabled = false
+        engine?.lastManualAlignAt = Date()       // for the alignment-confidence HUD
         if animated {
             let r = SCNAction.rotateTo(x: 0, y: desired, z: 0, duration: 0.4, usesShortestUnitArc: true)
             r.timingMode = .easeInEaseOut
@@ -1876,6 +1938,27 @@ extension ARSkyViewController: CLLocationManagerDelegate {
         lockBearingToCamera(m.az, animated: true)
     }
 
+    /// Pin the selected plane's known true bearing to the camera centre — the
+    /// all-weather alternative to a Sun/Moon lock. The user centres the real
+    /// aircraft, then locks.
+    func lockToSelectedAircraft() {
+        guard let hex = selectedHex, let fix = lastFix[hex] else { return }
+        lockBearingToCamera(fix.az, animated: true)
+    }
+
+    /// Enter the drag/tap-to-align step directly from the live screen (no sweep).
+    /// Only needs to publish which precise references are currently up; the pan
+    /// and lock primitives are shared with the guided flow. Auto-align is left
+    /// running until the user actually drags or locks, so a cancel is harmless.
+    func prepareQuickAlign() {
+        guard let here = observerLocation else { return }
+        let now = effectiveDate()
+        let sun = Celestial.sun(date: now, lat: here.coordinate.latitude, lon: here.coordinate.longitude)
+        let moon = Celestial.moon(date: now, lat: here.coordinate.latitude, lon: here.coordinate.longitude)
+        engine?.calibrationSunUp = sun.el > 3
+        engine?.calibrationMoonUp = moon.el > 3
+    }
+
     /// One-finger drag during the aligning step rotates the whole sky so the
     /// user can slide a plane (or the Sun/Moon) onto its real-world position.
     @objc private func handleAlignPan(_ g: UIPanGestureRecognizer) {
@@ -1887,6 +1970,8 @@ extension ARSkyViewController: CLLocationManagerDelegate {
             let dx = g.translation(in: sceneView).x
             g.setTranslation(.zero, in: sceneView)
             worldNode.eulerAngles.y -= Float(dx) * 0.0045   // ~0.26°/pt
+        case .ended, .cancelled:
+            engine?.lastManualAlignAt = Date()              // hand-aligned counts
         default:
             break
         }

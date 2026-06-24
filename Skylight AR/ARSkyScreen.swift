@@ -50,6 +50,7 @@ struct ARSkyScreen: View {
                     Spacer()
                     if engine.zoomFactor > 1.05 { zoomPill }
                     if engine.skyTimeOffsetMin != 0 { timeOffsetPill }
+                    alignButton
                     searchButton
                     eventsBell
                 }
@@ -349,6 +350,19 @@ struct ARSkyScreen: View {
                 }.buttonStyle(PrimaryButtonStyle())
             }
 
+            // All-weather solve: pin a selected plane's known bearing. Secondary
+            // when a Sun/Moon lock is already offered, primary otherwise.
+            if let sel = engine.selected {
+                let label = Label("Centre \(sel.callsign) — Lock to plane", systemImage: "airplane")
+                if engine.calibrationSunUp || engine.calibrationMoonUp {
+                    Button { withAnimation { engine.lockToSelectedAircraft() } } label: { label }
+                        .buttonStyle(GhostButtonStyle())
+                } else {
+                    Button { withAnimation { engine.lockToSelectedAircraft() } } label: { label }
+                        .buttonStyle(PrimaryButtonStyle())
+                }
+            }
+
             HStack(spacing: 10) {
                 Button("Cancel") { withAnimation { engine.cancelCalibration() } }
                     .buttonStyle(GhostButtonStyle())
@@ -364,6 +378,9 @@ struct ARSkyScreen: View {
         }
         if engine.calibrationMoonUp {
             return "Aim the center of your screen right at the Moon, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done."
+        }
+        if engine.selected != nil {
+            return "Center the real plane on screen and tap Lock to plane — its exact bearing snaps the sky into place. Or drag the sky until a plane sits where you see it, then tap Done."
         }
         return "Drag the sky left or right until a plane sits exactly where you see it in the air, then tap Done."
     }
@@ -392,6 +409,52 @@ struct ARSkyScreen: View {
                 .glassEffect(.regular, in: .circle)
         }
         .accessibilityLabel("Sky events")
+    }
+
+    /// Alignment-confidence chip: the icon's tint reflects how trustworthy the
+    /// current heading is (green good → orange poor), and a dot marks a held
+    /// manual lock. Tapping opens the tap/drag heading fix on the live screen.
+    private var alignButton: some View {
+        Button { withAnimation { engine.beginQuickAlign() } } label: {
+            Image(systemName: "location.north.line.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(alignTint)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .glassEffect(.regular, in: .circle)
+                .overlay(alignment: .topTrailing) {
+                    if !engine.autoAlignEnabled {            // a manual lock is held
+                        Circle().fill(Theme.accent)
+                            .frame(width: 9, height: 9)
+                            .overlay(Circle().stroke(Theme.nightBottom, lineWidth: 1.5))
+                            .offset(x: -3, y: 5)
+                    }
+                }
+        }
+        .accessibilityLabel(alignAccessibility)
+    }
+
+    private var alignTint: Color {
+        switch engine.compassQuality {
+        case .good:    return Theme.accent
+        case .fair:    return Color(red: 1.0, green: 0.82, blue: 0.45)
+        case .poor:    return .orange
+        case .unknown: return Theme.textSecondary
+        }
+    }
+
+    private var alignAccessibility: String {
+        let base: String
+        switch engine.compassQuality {
+        case .good:    base = "Heading looks good"
+        case .fair:    base = "Heading is approximate"
+        case .poor:    base = "Heading is unreliable"
+        case .unknown: base = "Heading not yet known"
+        }
+        if let s = engine.secondsSinceAlign, !engine.autoAlignEnabled {
+            return "\(base). Aligned \(Int(s)) seconds ago. Fix alignment."
+        }
+        return "\(base). Fix sky alignment."
     }
 
     /// Top-left entry to the profile sheet.
