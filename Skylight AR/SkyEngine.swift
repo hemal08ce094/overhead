@@ -222,6 +222,7 @@ final class SkyEngine {
         d.set(false, forKey: SkyDefaults.mirrorX)
         // Camera AR is the default experience; only off if explicitly disabled.
         cameraPassthrough = d.object(forKey: SkyDefaults.cameraPassthrough) as? Bool ?? true
+        lidarAssist = d.object(forKey: SkyDefaults.lidarAssist) as? Bool ?? true
         labelMode = LabelMode(rawValue: d.string(forKey: SkyDefaults.labelMode) ?? "") ?? .nearby
         showSun = d.object(forKey: SkyDefaults.showSun) as? Bool ?? true
         showMoon = d.object(forKey: SkyDefaults.showMoon) as? Bool ?? true
@@ -294,6 +295,17 @@ final class SkyEngine {
     /// drag-align). Drives the alignment-confidence HUD. Not persisted.
     var lastManualAlignAt: Date?
 
+    /// Suggest a quick re-align after returning from the background (set by the
+    /// controller when a real gap may have left the alignment stale). Not persisted.
+    var realignSuggested = false
+    var realignDismissed = false
+
+    // LiDAR tracking assist (spike). `lidarSupported`/`lidarActive` are set by
+    // the controller; `lidarAssist` is the user toggle.
+    var lidarSupported = false
+    var lidarActive = false
+    var lidarAssist: Bool = true { didSet { persist(); controller?.applyTrackingConfig() } }
+
     /// Start the guided flow: 360° sweep, then drag-to-line-up. Switches to the
     /// live camera automatically — the Sun/plane lock needs it.
     func beginCalibration() {
@@ -352,6 +364,7 @@ final class SkyEngine {
         d.set(headingOffsetDeg, forKey: SkyDefaults.headingOffsetDeg)
         d.set(mirrorX, forKey: SkyDefaults.mirrorX)
         d.set(cameraPassthrough, forKey: SkyDefaults.cameraPassthrough)
+        d.set(lidarAssist, forKey: SkyDefaults.lidarAssist)
         d.set(labelMode.rawValue, forKey: SkyDefaults.labelMode)
         d.set(showSun, forKey: SkyDefaults.showSun)
         d.set(showMoon, forKey: SkyDefaults.showMoon)

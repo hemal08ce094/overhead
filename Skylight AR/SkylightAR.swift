@@ -425,6 +425,7 @@ enum SkyDefaults {
     static let lastUsedDay       = "lastUsedDay"        // TimeInterval
     static let issTLELines       = "issTLELines"        // [String] (3 TLE lines)
     static let issTLEDate        = "issTLEDate"         // Date (when fetched)
+    static let lidarAssist       = "lidarAssist"        // Bool (LiDAR tracking assist)
 }
 
 // MARK: - Airport catalog (bundled majors)
@@ -737,6 +738,20 @@ final class ARSkyViewController: UIViewController {
         }
         let config = ARWorldTrackingConfiguration()
         config.worldAlignment = .gravity
+        // Spike: LiDAR-assisted tracking. On Pro models the depth mesh keeps world
+        // tracking locked when the camera frame is featureless — a blank or night
+        // sky, the worst case for visual-inertial tracking and the most likely time
+        // the overlay would swim. Nothing is rendered from the mesh; it only
+        // stabilises the pose. A no-op on non-LiDAR devices (falls back to today's
+        // behaviour), and switchable for A/B via Settings → heading.
+        let lidarOK = ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh)
+        engine?.lidarSupported = lidarOK
+        if lidarOK, engine?.lidarAssist ?? true {
+            config.sceneReconstruction = .mesh
+            engine?.lidarActive = true
+        } else {
+            engine?.lidarActive = false
+        }
         // Don't trust the default video format: iOS 27.0 ships a 10 fps default
         // ("frame rate set to 10.0 by user defaults") that makes the feed feel
         // frozen. Pin the first ≥30 fps format (Apple lists best-first).
@@ -752,6 +767,10 @@ final class ARSkyViewController: UIViewController {
         }
     }
 
+    /// Re-run the session so a tracking-config change (e.g. the LiDAR assist
+    /// toggle) takes effect immediately.
+    func applyTrackingConfig() { if viewIfLoaded?.window != nil { startSession() } }
+
     private func pauseEverything() {
         sceneView.session.pause()
         stopMotionPointing()
@@ -760,12 +779,33 @@ final class ARSkyViewController: UIViewController {
         pollTask = nil
     }
 
-    @objc private func appDidBackground() { pauseEverything() }
+    /// When the app was backgrounded, so a long absence can prompt a re-align.
+    private var backgroundedAt: Date?
+
+    @objc private func appDidBackground() { backgroundedAt = Date(); pauseEverything() }
     @objc private func appDidBecomeActive() {
         guard viewIfLoaded?.window != nil else { return }
         startSession()         // ARKit runs in both modes; resume it
         applyBackground()      // toggle the camera feed vs. black per mode
         startPolling()
+        refreshISSTLEIfStale() // a multi-day background may have aged the TLE
+        suggestRealignIfNeeded()
+    }
+
+    /// After a real gap away, a precise manual lock or a shaky compass may no
+    /// longer be trustworthy once tracking re-localises — surface a gentle
+    /// "re-align?" prompt rather than silently drifting. Quick app switches
+    /// (under the threshold) are left alone.
+    private func suggestRealignIfNeeded() {
+        defer { backgroundedAt = nil }
+        guard let since = backgroundedAt, Date().timeIntervalSince(since) > 45 else { return }
+        let manualLock = engine?.autoAlignEnabled == false
+        let acc = engine?.headingAccuracyDeg ?? -1
+        let poorCompass = acc < 0 || acc > 20
+        if manualLock || poorCompass {
+            engine?.realignDismissed = false
+            engine?.realignSuggested = true
+        }
     }
 
     // MARK: Polling

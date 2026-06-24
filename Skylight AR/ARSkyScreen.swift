@@ -59,6 +59,11 @@ struct ARSkyScreen: View {
                         .padding(.top, 10)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
+                if engine.realignSuggested && !engine.realignDismissed {
+                    realignHint
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 if let focus = engine.focusInfo {
                     focusPill(focus)
                         .padding(.top, 10)
@@ -273,6 +278,39 @@ struct ARSkyScreen: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
         .glassEffect(.regular.tint(.orange.opacity(0.15)), in: .capsule)
+    }
+
+    /// Offered after returning from the background: tracking may have shifted,
+    /// so nudge a quick re-align rather than letting the sky sit slightly off.
+    private var realignHint: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "location.north.line.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+            Text("Welcome back — re-align the sky?")
+                .font(Theme.display(13, .medium))
+                .foregroundStyle(Theme.textPrimary)
+            Button {
+                engine.realignDismissed = true
+                withAnimation { engine.beginQuickAlign() }
+            } label: {
+                Text("Re-align")
+                    .font(Theme.display(13, .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .contentShape(Capsule())
+            }
+            Button { engine.realignDismissed = true } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 26, height: 26)
+                    .contentShape(Circle())
+            }
+            .accessibilityLabel("Dismiss re-align")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.18)), in: .capsule)
     }
 
     /// Guided heading calibration: 360° sweep, then a precise lock.
@@ -1300,6 +1338,16 @@ struct CalibrationView: View {
                              : "Holding your manual lock. Turn on to hand heading back to the compass.")
                             .font(Theme.display(13, .regular))
                             .foregroundStyle(Theme.textSecondary)
+                    }
+
+                    if engine.lidarSupported {
+                        section("Tracking", trailing: engine.lidarActive ? "LiDAR" : "Off") {
+                            Toggle("LiDAR tracking assist", isOn: $engine.lidarAssist)
+                                .tint(Theme.accentSoft)
+                            Text("Uses the LiDAR scanner to keep the sky steady when the camera can't see much — a blank or night sky. Pro models only; toggle to compare.")
+                                .font(Theme.display(13, .regular))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
                     }
 
                     section("Fine trim", trailing: String(format: "%.1f°", engine.headingOffsetDeg)) {
