@@ -26,18 +26,27 @@ struct FlightActivityAttributes: ActivityAttributes {
 final class FlightActivityController {
     private var activity: Activity<FlightActivityAttributes>?
     private(set) var callsign: String?
+    /// All ActivityKit calls chain through here, so a start / update / end
+    /// can never apply out of order (an unordered end sweep racing a fresh
+    /// request used to kill the new activity; stale updates could land last).
+    private var queue: Task<Void, Never>?
+
+    private func enqueue(_ op: @escaping @MainActor () async -> Void) {
+        queue = Task { [previous = queue] in
+            await previous?.value
+            await op()
+        }
+    }
 
     func start(callsign: String, route: String, state: FlightActivityAttributes.ContentState) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         self.callsign = callsign
-        // End stale activities BEFORE requesting the new one, sequentially —
-        // an async sweep racing the fresh request kills the new activity too.
-        let stale = Activity<FlightActivityAttributes>.activities
-        Task {
-            for orphan in stale {
+        enqueue { [weak self] in
+            // End stale activities BEFORE requesting the new one, sequentially.
+            for orphan in Activity<FlightActivityAttributes>.activities {
                 await orphan.end(nil, dismissalPolicy: .immediate)
             }
-            guard self.callsign == callsign else { return }   // focus moved on
+            guard let self, self.callsign == callsign else { return }   // focus moved on
             self.activity = try? Activity.request(
                 attributes: FlightActivityAttributes(callsign: callsign, route: route),
                 content: .init(state: state, staleDate: Date().addingTimeInterval(90)))
@@ -45,9 +54,9 @@ final class FlightActivityController {
     }
 
     func update(_ state: FlightActivityAttributes.ContentState) {
-        guard let activity else { return }
-        Task {
-            await activity.update(.init(state: state, staleDate: Date().addingTimeInterval(90)))
+        guard activity != nil else { return }
+        enqueue { [weak self] in
+            await self?.activity?.update(.init(state: state, staleDate: Date().addingTimeInterval(90)))
         }
     }
 
@@ -55,9 +64,13 @@ final class FlightActivityController {
     /// app relaunch the system-side activity outlives our handle and would
     /// otherwise be orphaned on the lock screen forever.
     func end() {
+        // Cheap no-op when there's nothing to end (this is called every poll
+        // tick while unfocused) — don't spawn a task per second for nothing.
+        guard callsign != nil || activity != nil
+                || !Activity<FlightActivityAttributes>.activities.isEmpty else { return }
         callsign = nil
         activity = nil
-        Task {
+        enqueue {
             for orphan in Activity<FlightActivityAttributes>.activities {
                 await orphan.end(nil, dismissalPolicy: .immediate)
             }

@@ -24,11 +24,19 @@ struct FR24Source: DataSource {
     var feedLatencySec: Double { 2.5 }
 
     func aircraft(lat: Double, lon: Double, radiusNm: Int) async throws -> [Aircraft] {
-        // FR24 queries a bounding box (N,S,W,E), not a radius.
+        // FR24 queries a bounding box (N,S,W,E), not a radius. Clamp latitude
+        // and wrap longitude so observers near the poles or the antimeridian
+        // (e.g. Fiji) don't send out-of-range bounds the API rejects.
         let latD = Double(radiusNm) / 60.0
         let lonD = Double(radiusNm) / (60.0 * max(0.2, cos(lat * .pi / 180)))
+        func wrapLon(_ l: Double) -> Double {
+            var l = l.truncatingRemainder(dividingBy: 360)
+            if l > 180 { l -= 360 } else if l < -180 { l += 360 }
+            return l
+        }
         let bounds = String(format: "%.4f,%.4f,%.4f,%.4f",
-                            lat + latD, lat - latD, lon - lonD, lon + lonD)
+                            min(lat + latD, 90), max(lat - latD, -90),
+                            wrapLon(lon - lonD), wrapLon(lon + lonD))
         return try await fetch([URLQueryItem(name: "bounds", value: bounds)])
     }
 
@@ -61,9 +69,17 @@ struct FR24Source: DataSource {
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw URLError(http.statusCode == 401 ? .userAuthenticationRequired : .badServerResponse)
         }
-        let records = (try? JSONDecoder().decode(FR24Envelope.self, from: data).data)
-            ?? (try? JSONDecoder().decode([FR24Flight].self, from: data))
-            ?? []
+        // A body that matches neither shape (schema change, error JSON, proxy
+        // HTML) must throw: silently returning [] would clear the sky and
+        // reset the caller's offline detection as if the poll had succeeded.
+        let records: [FR24Flight]
+        if let envelope = try? JSONDecoder().decode(FR24Envelope.self, from: data) {
+            records = envelope.data
+        } else if let list = try? JSONDecoder().decode([FR24Flight].self, from: data) {
+            records = list
+        } else {
+            throw URLError(.cannotParseResponse)
+        }
         return records.compactMap(Aircraft.init(fr24:))
     }
 }

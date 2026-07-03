@@ -428,6 +428,11 @@ final class SkyScene {
                                                  radius: radius, headingOffsetDeg: offset, mirrorX: mirror)
         issNode.isHidden = false
         engine?.issVisible = true
+        // Star Sailor: the station genuinely overhead, at real time — a
+        // scrubbed sky doesn't count. The store ignores repeats.
+        if let engine, r.elevation > 10, engine.skyTimeOffsetMin == 0 {
+            engine.medals.recordISSOverhead(totalSpots: engine.statFlightsSpotted)
+        }
     }
 
     /// The 1,600-star trig sweep runs off the main thread; only the cheap

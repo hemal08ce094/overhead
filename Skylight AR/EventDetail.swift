@@ -13,7 +13,7 @@ import FoundationModels
 
 // MARK: - Palette
 
-private let gold = Color(red: 1.0, green: 0.82, blue: 0.45)
+private let gold = Theme.gold
 private let moonlight = Color(red: 0.96, green: 0.96, blue: 0.91)
 private let nightDisc = Color(red: 0.07, green: 0.08, blue: 0.12)
 
@@ -233,7 +233,7 @@ struct EventDetailView: View {
                     }
                 }
                 .padding(16)
-                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .nightCard()
 
                 if event.kind == .eclipse {
                     HStack(spacing: 10) {

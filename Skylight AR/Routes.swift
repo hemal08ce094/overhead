@@ -20,6 +20,7 @@ struct PlanePhoto: Sendable, Equatable {
 final class PlanePhotoFetcher {
     private var cache: [String: PlanePhoto?] = [:]
     private var inFlight: Set<String> = []
+    private var failedAt: [String: Date] = [:]
 
     /// Called when a hex resolves (with or without a photo).
     var onResolved: ((String) -> Void)?
@@ -28,24 +29,30 @@ final class PlanePhotoFetcher {
 
     func request(_ hex: String) {
         guard cache.index(forKey: hex) == nil, !inFlight.contains(hex) else { return }
+        if let when = failedAt[hex], Date().timeIntervalSince(when) < 600 { return }   // 10-min backoff
         inFlight.insert(hex)
         Task { await fetch(hex) }
     }
 
     private func fetch(_ hex: String) async {
         defer { inFlight.remove(hex) }
-        var result: PlanePhoto?
         // planespotters.net rejects generic library User-Agents.
         var request = URL(string: "https://api.planespotters.net/pub/photos/hex/\(hex)")
             .map { URLRequest(url: $0) }
         request?.setValue("SkylightAR/1.0 (+mailto:hemal08ce094@gmail.com)",
                           forHTTPHeaderField: "User-Agent")
-        if let request,
-           let (data, resp) = try? await URLSession.shared.data(for: request),
-           (resp as? HTTPURLResponse)?.statusCode == 200,
-           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let photos = obj["photos"] as? [[String: Any]],
-           let first = photos.first {
+        // Only a definitive 200 caches — "no photo exists" is permanent, but a
+        // timeout or 429 must retry later, not blank the airframe all session.
+        guard let request,
+              let (data, resp) = try? await URLSession.shared.data(for: request),
+              (resp as? HTTPURLResponse)?.statusCode == 200,
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let photos = obj["photos"] as? [[String: Any]] else {
+            failedAt[hex] = Date()
+            return
+        }
+        var result: PlanePhoto?
+        if let first = photos.first {
             let thumb = (first["thumbnail_large"] as? [String: Any])
                 ?? (first["thumbnail"] as? [String: Any])
             if let src = thumb?["src"] as? String, let photoURL = URL(string: src) {
@@ -64,8 +71,11 @@ struct FlightRoute: Sendable, Equatable {
     var destinationCode: String?
     var originCity: String?
     var destinationCity: String?
+    var originLat: Double?
+    var originLon: Double?
     var destLat: Double?
     var destLon: Double?
+    var destCountryISO: String?
 }
 
 @MainActor
@@ -122,7 +132,10 @@ final class RouteEnricher {
             destinationCode: (dest?["iata_code"] as? String) ?? (dest?["icao_code"] as? String),
             originCity: origin?["municipality"] as? String,
             destinationCity: dest?["municipality"] as? String,
+            originLat: origin?["latitude"] as? Double,
+            originLon: origin?["longitude"] as? Double,
             destLat: dest?["latitude"] as? Double,
-            destLon: dest?["longitude"] as? Double)
+            destLon: dest?["longitude"] as? Double,
+            destCountryISO: dest?["country_iso_name"] as? String)
     }
 }

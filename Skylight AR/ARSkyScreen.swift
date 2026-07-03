@@ -32,11 +32,24 @@ struct ARSkyScreen: View {
     @State private var showEvents = false
     @State private var showSearch = false
     @State private var showAircraftDetail = false
+    @Namespace private var planeZoom
 
     var body: some View {
         ZStack {
             ARSkyContainer(engine: engine)
                 .ignoresSafeArea()
+                // Invisible anchor riding the selected glyph: the detail sheet
+                // zooms out of the plane's spot in the sky and returns to
+                // wherever it has flown by dismissal.
+                .overlay {
+                    if let point = engine.selectedScreenPoint {
+                        Color.clear
+                            .frame(width: 56, height: 56)
+                            .matchedTransitionSource(id: "selected-plane", in: planeZoom)
+                            .position(point)
+                            .allowsHitTesting(false)
+                    }
+                }
 
             // Subtle vignette keeps overlay chrome legible on a bright sky.
             LinearGradient(colors: [.black.opacity(0.35), .clear, .clear, .black.opacity(0.4)],
@@ -74,6 +87,11 @@ struct ARSkyScreen: View {
                         .padding(.top, 10)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
+                if let medal = engine.medals.pendingReveal {
+                    medalBanner(medal)
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 Spacer()
                 // Shutter appears as a transit approaches — catch the crossing.
                 if let transit = engine.transitPrediction {
@@ -90,11 +108,19 @@ struct ARSkyScreen: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
 
+            // A one-shot confetti blast the instant a medal unlocks, bursting
+            // from behind its banner. Self-stops; silent under Reduce Motion.
+            if let medal = engine.medals.pendingReveal {
+                ConfettiBurst(seed: medal.id, accent: MedalArt.colors(medal.finish).thumbLight)
+                    .allowsHitTesting(false)
+            }
+
             if engine.calibrationStep != .idle {
                 calibrationOverlay
             }
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: engine.selected)
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: engine.medals.pendingReveal)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: engine.skyTimeOffsetMin != 0)
         .animation(.easeInOut(duration: 0.25), value: engine.calibrationStep)
         .preferredColorScheme(.dark)
@@ -109,15 +135,10 @@ struct ARSkyScreen: View {
                 }
                 .preferredColorScheme(.dark)
         }
-        .sheet(isPresented: $showProfile) {
+        // Profile is a full-screen destination, not a half sheet — its header
+        // scene and pinned glass bar own the whole canvas.
+        .fullScreenCover(isPresented: $showProfile) {
             NavigationStack { ProfileView(engine: engine) }
-                .presentationDetents([.medium, .large])
-                .presentationBackground {
-                    Color.clear
-                        .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
-                                     in: .rect(cornerRadius: 38))
-                        .allowsHitTesting(false)
-                }
                 .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showSearch) {
@@ -133,6 +154,7 @@ struct ARSkyScreen: View {
         }
         .sheet(isPresented: $showAircraftDetail, onDismiss: { engine.deselect() }) {
             AircraftDetailSheet(engine: engine)
+                .navigationTransition(.zoom(sourceID: "selected-plane", in: planeZoom))
         }
         .sheet(item: Bindable(engine).selectedAirport) { airport in
             AirportDetailSheet(airport: airport)
@@ -144,6 +166,12 @@ struct ARSkyScreen: View {
         // A calibration started from a settings sheet needs the live sky visible.
         .onChange(of: engine.calibrationStep) { _, step in
             if step != .idle { showProfile = false; showEvents = false; showSearch = false }
+        }
+        // While a full-screen chrome sheet covers the sky, pause the live-sky
+        // simulation, rendering, and feed — no wasted CPU/GPU/network — and
+        // resume the moment it's dismissed.
+        .onChange(of: showProfile || showEvents || showSearch) { _, obscured in
+            engine.controller?.setSkyObscured(obscured)
         }
         #if DEBUG
         .onAppear {
@@ -205,7 +233,7 @@ struct ARSkyScreen: View {
         HStack(spacing: 10) {
             Image(systemName: transit.body == .moon ? "moon.fill" : "sun.max.fill")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.45))
+                .foregroundStyle(Theme.gold)
             VStack(alignment: .leading, spacing: 1) {
                 Text("\(transit.callsign) crosses the \(transit.body.rawValue)")
                     .font(Theme.display(14, .semibold))
@@ -218,16 +246,54 @@ struct ARSkyScreen: View {
             if transit.date > Date() {
                 Text(timerInterval: Date()...transit.date, countsDown: true)
                     .font(Theme.display(16, .bold).monospacedDigit())
-                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.45))
+                    .foregroundStyle(Theme.gold)
             } else {
                 Text("NOW")
                     .font(Theme.display(15, .bold))
-                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.45))
+                    .foregroundStyle(Theme.gold)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
-        .glassEffect(.regular.tint(Color(red: 1.0, green: 0.82, blue: 0.45).opacity(0.18)),
+        .glassEffect(.regular.tint(Theme.gold.opacity(0.18)),
                      in: .rect(cornerRadius: 20))
+    }
+
+    /// A medal just unlocked — quiet gold banner; tap to see it on the shelf.
+    private func medalBanner(_ medal: Medal) -> some View {
+        Button {
+            engine.medals.pendingReveal = nil
+            showProfile = true
+        } label: {
+            HStack(spacing: 12) {
+                MedalThumb(medal: medal, earnedDate: Date(), progress: medal.target, target: medal.target)
+                    .scaleEffect(0.62)
+                    .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Medal earned")
+                        .font(Theme.display(12, .semibold))
+                        .foregroundStyle(Theme.gold)
+                    Text(medal.name)
+                        .font(Theme.display(15, .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                }
+                Spacer(minLength: 8)
+                Button {
+                    engine.medals.pendingReveal = nil
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.textTertiary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Circle())
+                }
+                .accessibilityLabel("Dismiss medal banner")
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .glassEffect(.regular.tint(Theme.gold.opacity(0.16)), in: .rect(cornerRadius: 20))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Medal earned: \(medal.name). Opens your medals.")
     }
 
     /// Big gold shutter for the crossing moment.
@@ -237,10 +303,10 @@ struct ARSkyScreen: View {
             Button { engine.captureShareCard() } label: {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.45))
+                    .foregroundStyle(Theme.gold)
                     .frame(width: 68, height: 68)
                     .contentShape(Circle())
-                    .glassEffect(.regular.tint(Color(red: 1.0, green: 0.82, blue: 0.45).opacity(0.25)),
+                    .glassEffect(.regular.tint(Theme.gold.opacity(0.25)),
                                  in: .circle)
             }
             .accessibilityLabel("Capture the crossing")
@@ -475,7 +541,7 @@ struct ARSkyScreen: View {
     private var alignTint: Color {
         switch engine.compassQuality {
         case .good:    return Theme.accent
-        case .fair:    return Color(red: 1.0, green: 0.82, blue: 0.45)
+        case .fair:    return Theme.gold
         case .poor:    return .orange
         case .unknown: return Theme.textSecondary
         }
@@ -596,6 +662,9 @@ struct FlightSearchView: View {
 
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 18) {
+                        if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                            idleState
+                        }
                         if !inView.isEmpty {
                             section("In view now", inView)
                         }
@@ -656,9 +725,7 @@ struct FlightSearchView: View {
 
     private func section(_ title: String, _ results: [SearchResult]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(Theme.display(12, .semibold))
-                .foregroundStyle(Theme.textTertiary)
+            Eyebrow(title)
                 .padding(.leading, 4)
             VStack(spacing: 0) {
                 ForEach(Array(results.enumerated()), id: \.element.id) { idx, r in
@@ -666,7 +733,7 @@ struct FlightSearchView: View {
                     if idx < results.count - 1 { settingsDivider }
                 }
             }
-            .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .nightCard()
         }
     }
 
@@ -724,6 +791,65 @@ struct FlightSearchView: View {
     private var shouldShowEmpty: Bool {
         query.trimmingCharacters(in: .whitespaces).count >= 2
             && !searching && inView.isEmpty && anywhere.isEmpty
+    }
+
+    /// Before any typing: favorites within reach and worked examples, so the
+    /// sheet invites a search instead of opening onto a void.
+    private var idleState: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if !engine.favorites.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow("Favorites")
+                    chipRow(Array(engine.favorites).sorted()) { favorite in
+                        field = .callsign
+                        query = favorite
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                Eyebrow("Try")
+                chipRow(field.placeholder.components(separatedBy: ", ")) { example in
+                    query = example
+                }
+            }
+            Text(fieldHint)
+                .font(Theme.display(12, .regular))
+                .foregroundStyle(Theme.textTertiary)
+                .lineSpacing(2)
+        }
+        .padding(.top, 6)
+    }
+
+    private func chipRow(_ items: [String], onTap: @escaping (String) -> Void) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(items, id: \.self) { item in
+                    Button { onTap(item) } label: {
+                        Text(item)
+                            .font(Theme.display(14, .semibold).monospacedDigit())
+                            .foregroundStyle(Theme.textPrimary)
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .contentShape(Capsule())
+                            .glassEffect(.regular, in: .capsule)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .scrollClipDisabled()
+    }
+
+    private var fieldHint: String {
+        switch field {
+        case .callsign:
+            return "A flight number reaches any aircraft in the world — type it as printed on your ticket."
+        case .registration:
+            return "A tail number follows one specific airframe wherever it flies."
+        case .type:
+            return "An aircraft type finds every one aloft nearby — A388 is the A380."
+        case .squawk:
+            return "Squawk codes are what pilots dial for ATC — 7700 is a declared emergency."
+        }
     }
 
     private var emptyState: some View {
@@ -840,7 +966,7 @@ Image(systemName: engine.isFavorite(ac.callsign) ? "heart.fill" : "heart")
 Image(systemName: "scope")
                     .font(.system(size: 21, weight: .semibold))
                     .foregroundStyle(engine.focusedCallsign == ac.callsign
-                                     ? Color(red: 1.0, green: 0.82, blue: 0.45)
+                                     ? Theme.gold
                                      : Theme.textTertiary)
             }
             .accessibilityLabel("Track this flight")
@@ -898,23 +1024,68 @@ Image(systemName: "scope")
                     in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    /// Origin → destination, with city names when the route resolved.
-    private func routeCard(_ ac: SelectedAircraft) -> some View {
-        HStack(spacing: 14) {
-            endpoint(code: ac.origin, city: ac.originCity, alignment: .leading)
-            VStack(spacing: 3) {
-                Image(systemName: "airplane")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Theme.accent)
-                Rectangle()
-                    .fill(Theme.accent.opacity(0.35))
-                    .frame(height: 1)
+    /// Origin → destination. With both endpoints located, the card becomes the
+    /// route arc — the plane riding the curve at its true progress; otherwise
+    /// it falls back to the simple divider layout.
+    @ViewBuilder private func routeCard(_ ac: SelectedAircraft) -> some View {
+        if let oLat = ac.originLat, let oLon = ac.originLon,
+           let dLat = ac.destLat, let dLon = ac.destLon {
+            let fraction = RouteProgress.fraction(planeLat: ac.lat, planeLon: ac.lon,
+                                                  originLat: oLat, originLon: oLon,
+                                                  destLat: dLat, destLon: dLon)
+            VStack(spacing: 4) {
+                RouteArc(progress: fraction)
+                    .frame(height: 64)
+                    .padding(.horizontal, 6)
+                    .padding(.top, 8)
+                HStack(alignment: .top) {
+                    endpoint(code: ac.origin, city: ac.originCity, alignment: .leading)
+                    Spacer(minLength: 12)
+                    endpoint(code: ac.destination, city: ac.destinationCity, alignment: .trailing)
+                }
+                if let footer = routeFooter(ac, destLat: dLat, destLon: dLon) {
+                    Text(footer)
+                        .font(Theme.display(12, .medium).monospacedDigit())
+                        .foregroundStyle(Theme.textTertiary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 6)
+                }
             }
-            .frame(maxWidth: .infinity)
-            endpoint(code: ac.destination, city: ac.destinationCity, alignment: .trailing)
+            .padding(18)
+            .nightCard()
+        } else {
+            HStack(spacing: 14) {
+                endpoint(code: ac.origin, city: ac.originCity, alignment: .leading)
+                VStack(spacing: 3) {
+                    Image(systemName: "airplane")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                    Rectangle()
+                        .fill(Theme.accent.opacity(0.35))
+                        .frame(height: 1)
+                }
+                .frame(maxWidth: .infinity)
+                endpoint(code: ac.destination, city: ac.destinationCity, alignment: .trailing)
+            }
+            .padding(18)
+            .nightCard()
         }
-        .padding(18)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// "1,204 nm to go · about 2 h 40 m" — distance from live position,
+    /// time at current ground speed (omitted when slow or unknown).
+    private func routeFooter(_ ac: SelectedAircraft, destLat: Double, destLon: Double) -> String? {
+        let toGo = RouteProgress.distanceNm(ac.lat, ac.lon, destLat, destLon)
+        guard toGo > 5 else { return nil }
+        var text = "\(Int(toGo.rounded()).formatted()) nm to go"
+        if let gs = ac.groundSpeedKts, gs > 80, !ac.onGround {
+            let hours = toGo / gs
+            let h = Int(hours)
+            let m = Int((hours - Double(h)) * 60)
+            text += h > 0 ? " · about \(h) h \(String(format: "%02d", m)) m"
+                          : " · about \(m) m"
+        }
+        return text
     }
 
     private func endpoint(code: String?, city: String?, alignment: HorizontalAlignment) -> some View {
@@ -953,7 +1124,7 @@ Image(systemName: "scope")
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .nightCard(cornerRadius: 14)
     }
 }
 
@@ -994,7 +1165,7 @@ struct AirportDetailSheet: View {
                     rowDivider
                     infoRow("Coordinates", String(format: "%.4f°, %.4f°", airport.lat, airport.lon))
                 }
-                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .nightCard()
             }
             .padding(24)
         }
@@ -1038,34 +1209,108 @@ func compass(_ degrees: Double) -> String {
 
 // MARK: - Profile (pushed inside the Sky sheet)
 
+/// Close control for the full-screen Profile (no sheet grabber to pull down).
+/// Lives in the navigation bar, which supplies its own glass backing.
+struct ProfileCloseButton: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        Button { dismiss() } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+        }
+        .accessibilityLabel("Close profile")
+    }
+}
+
+/// The Profile header's glass surface: a MoonMark avatar and the observer's
+/// standing, floated over the living voyage scene. This is the Profile screen's
+/// intentional piece of Liquid Glass — it replaces the free-floating lens by
+/// holding real content instead of sitting empty in the middle of the sky.
+struct ProfileIdentityCard: View {
+    @Bindable var engine: SkyEngine
+
+    private var standing: String {
+        let nights = engine.statDaysUsed
+        let flights = engine.statFlightsSpotted
+        let n = "\(nights) night\(nights == 1 ? "" : "s")"
+        let f = "\(flights) flight\(flights == 1 ? "" : "s")"
+        return "\(engine.spotterTier.name) · \(f) · \(n)"
+    }
+
+    /// Highest milestone earned — the medal that *is* your rank.
+    private var featured: Medal? {
+        for id in MedalCatalog.milestoneOrder where engine.medals.earned[id] != nil {
+            return MedalCatalog.medal(id)
+        }
+        return nil
+    }
+
+    var body: some View {
+        // One card carries the whole identity: the tier medal (live 3D — it
+        // flips in and settles as the page opens) is the avatar, name and
+        // standing beside it. Tapping opens the Tiers & Medals journey.
+        NavigationLink {
+            MedalsOverviewView(engine: engine)
+        } label: {
+            HStack(spacing: 12) {
+                Group {
+                    if let featured {
+                        MedalView3D(medal: featured,
+                                    award: engine.medals.earned[featured.id],
+                                    cameraDistance: 2.3,
+                                    hero: false)
+                    } else if let first = MedalCatalog.medal("first") {
+                        MedalThumb(medal: first, earnedDate: nil, progress: 0, target: 1, size: 58)
+                    }
+                }
+                .frame(width: 66, height: 66)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Overhead")
+                        .font(Theme.display(19, .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(standing)
+                        .font(Theme.display(12.5, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                        .contentTransition(.numericText())
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+            // Clear glass, not frosted: the airliner and solar system fly
+            // directly behind this card, and their light should bend through.
+            .glassEffect(.clear, in: .rect(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+            .shadow(color: .black.opacity(0.28), radius: 12, y: 6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Overhead. \(standing). Opens tiers and medals.")
+    }
+}
+
 struct ProfileView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        ScrollView {
+        // One identity card at the top of the header — Overhead, your tier
+        // medal, your standing — with the living sky behind it: the airliner
+        // threads the card's glass, planets drift below. Tap for the journey.
+        SettingsScaffold(theme: .voyage, title: "Overhead",
+                         // Sits clear of the nav bar's floating close button.
+                         headerAccessory: AnyView(ProfileIdentityCard(engine: engine)
+                            .padding(.top, 30)),
+                         headerAccessoryAtTop: true,
+                         headerScene: AnyView(SkyVoyageScene(planeBaseY: 0.42, planeArc: 0.09)),
+                         headerExtraHeight: 30,
+                         compactLeading: AnyView(MoonMark().frame(width: 20, height: 20))) {
             VStack(alignment: .leading, spacing: 22) {
-                HStack(spacing: 16) {
-                    MoonMark().frame(width: 56, height: 56)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sky watcher")
-                            .font(Theme.display(22, .bold))
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("Watching since day one")
-                            .font(Theme.display(13, .regular))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                }
-
-                HStack(spacing: 12) {
-                    statTile("\(engine.statFlightsSpotted)", "Flights spotted")
-                    statTile("\(engine.favorites.count)", "Favorites")
-                    statTile("\(engine.statDaysUsed)", "Days under the sky")
-                }
-
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Favorite flights")
-                        .font(Theme.display(16, .medium))
-                        .foregroundStyle(Theme.textPrimary)
+                    Eyebrow("Favorite flights")
                     if engine.favorites.isEmpty {
                         Text("Tap the heart on any flight to keep it here. Favorites get a pink mark in the sky.")
                             .font(Theme.display(13, .regular))
@@ -1080,14 +1325,12 @@ struct ProfileView: View {
                                 }
                             }
                         }
-                        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .nightCard()
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Settings")
-                        .font(Theme.display(16, .medium))
-                        .foregroundStyle(Theme.textPrimary)
+                    Eyebrow("Settings")
                     VStack(spacing: 0) {
                         settingsLink("View & sky", icon: "moon.stars.fill",
                                      subtitle: engine.cameraPassthrough ? "AR sky · layers · sky time" : "Dark sky · layers · sky time") {
@@ -1124,34 +1367,19 @@ struct ProfileView: View {
                             AboutView()
                         }
                     }
-                    .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .nightCard()
                 }
 
                 Text("Position data airplanes.live · routes adsbdb · photos planespotters.net\nAll stats live on this device only.")
                     .font(Theme.display(11, .regular))
                     .foregroundStyle(Theme.textTertiary)
             }
-            .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("Profile")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
-    }
-
-    private func statTile(_ value: String, _ label: String) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(Theme.display(22, .bold).monospacedDigit())
-                .foregroundStyle(Theme.textPrimary)
-            Text(label)
-                .font(Theme.display(11, .medium))
-                .foregroundStyle(Theme.textTertiary)
-                .multilineTextAlignment(.center)
+        // Close lives in the nav bar — always reachable, over header and
+        // pinned bar alike, with the system's own glass backing.
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { ProfileCloseButton() }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func settingsLink<Destination: View>(_ title: String, icon: String,
@@ -1199,7 +1427,7 @@ struct ProfileView: View {
                 Label("Focus", systemImage: "scope")
                     .font(Theme.display(13, .semibold))
                     .foregroundStyle(engine.focusedCallsign == callsign
-                                     ? Color(red: 1.0, green: 0.82, blue: 0.45) : Theme.accent)
+                                     ? Theme.gold : Theme.accent)
             }
             Button {
                 engine.toggleFavorite(callsign)
@@ -1221,7 +1449,7 @@ struct EventsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 if engine.events.isEmpty {
                     HStack(spacing: 10) {
                         ProgressView().tint(Theme.textTertiary)
@@ -1232,17 +1460,29 @@ struct EventsView: View {
                     .padding(.vertical, 30)
                     .frame(maxWidth: .infinity)
                 } else {
-                    ForEach(engine.events) { event in
-                        NavigationLink {
-                            EventDetailView(event: event)
-                        } label: {
-                            eventCard(event)
+                    if let next = engine.events.first {
+                        Eyebrow("Next in your sky")
+                        NavigationLink { EventDetailView(event: next) } label: {
+                            heroCard(next)
                         }
                         .buttonStyle(.plain)
+                    }
+                    if engine.events.count > 1 {
+                        Eyebrow("The year ahead")
+                            .padding(.top, 12)
+                        VStack(spacing: 10) {
+                            ForEach(engine.events.dropFirst()) { event in
+                                NavigationLink { EventDetailView(event: event) } label: {
+                                    eventRow(event)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                     Text("Eclipse circumstances are computed for your exact location.")
                         .font(Theme.display(11, .regular))
                         .foregroundStyle(Theme.textTertiary)
+                        .padding(.top, 6)
                 }
             }
             .padding(24)
@@ -1253,46 +1493,79 @@ struct EventsView: View {
         .preferredColorScheme(.dark)
     }
 
-    private let gold = Color(red: 1.0, green: 0.82, blue: 0.45)
-
-    private func eventCard(_ event: SkyEvent) -> some View {
-        let isEclipse = event.kind == .eclipse
-        return HStack(alignment: .top, spacing: 14) {
-            EventGlyph(kind: event.kind)
-                .frame(width: 26, height: 26)
-                .frame(width: 32)
-                .padding(.top, 2)
-            VStack(alignment: .leading, spacing: 4) {
+    /// The soonest event, full-bleed: its artwork with the facts resting on a
+    /// scrim along the bottom edge — the sheet opens on a poster, not a list.
+    private func heroCard(_ event: SkyEvent) -> some View {
+        EventHero(kind: event.kind)
+            .overlay(alignment: .bottom) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(event.title)
-                        .font(Theme.display(isEclipse ? 18 : 16, .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Spacer()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(event.title)
+                            .font(Theme.display(19, .bold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(event.date.formatted(date: .abbreviated, time: .shortened))
+                            .font(Theme.display(12, .medium))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer(minLength: 10)
                     Text(countdown(to: event.date))
-                        .font(Theme.display(13, .bold).monospacedDigit())
-                        .foregroundStyle(isEclipse ? gold : Theme.accent)
+                        .font(Theme.display(15, .bold).monospacedDigit())
+                        .foregroundStyle(event.kind == .eclipse ? Theme.gold : Theme.accent)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(colors: [.clear, Theme.nightBottom.opacity(0.85)],
+                                   startPoint: .top, endPoint: .bottom))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func eventRow(_ event: SkyEvent) -> some View {
+        let isEclipse = event.kind == .eclipse
+        let tint = isEclipse ? Theme.gold : Theme.accent
+        return HStack(spacing: 14) {
+            // The ring fills as the event approaches — a glance says "soon".
+            ZStack {
+                Circle().stroke(.white.opacity(0.10), lineWidth: 2)
+                Circle()
+                    .trim(from: 0, to: proximity(of: event.date))
+                    .stroke(tint.opacity(0.8), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                EventGlyph(kind: event.kind)
+                    .frame(width: 22, height: 22)
+            }
+            .frame(width: 42, height: 42)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(event.title)
+                    .font(Theme.display(16, .semibold))
+                    .foregroundStyle(Theme.textPrimary)
                 Text(event.subtitle)
-                    .font(Theme.display(13, .medium))
+                    .font(Theme.display(12, .medium))
                     .foregroundStyle(Theme.textSecondary)
                 Text(event.date.formatted(date: .long, time: .shortened))
                     .font(Theme.display(12, .regular))
                     .foregroundStyle(Theme.textTertiary)
-                Text(event.detail)
-                    .font(Theme.display(12, .regular))
-                    .foregroundStyle(Theme.textTertiary)
             }
+            Spacer(minLength: 8)
+            Text(countdown(to: event.date))
+                .font(Theme.display(13, .bold).monospacedDigit())
+                .foregroundStyle(tint)
         }
-        .padding(16)
-        .background(
-            (isEclipse ? gold.opacity(0.07) : Color.white.opacity(0.04)),
-            in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(14)
+        .nightCard()
         .overlay {
             if isEclipse {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(gold.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1)
             }
         }
+    }
+
+    /// 0 → a year out … 1 → today.
+    private func proximity(of date: Date) -> Double {
+        let days = max(0, date.timeIntervalSinceNow / 86_400)
+        return max(0.03, min(1, 1 - days / 365))
     }
 
     private func countdown(to date: Date) -> String {
@@ -1309,7 +1582,8 @@ struct CalibrationView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        ScrollView {
+        SettingsScaffold(theme: .calibration, title: "Calibration",
+                         titleBadge: AnyView(TierBadge(engine: engine))) {
                 VStack(alignment: .leading, spacing: 24) {
                     section("Calibrate heading", trailing: nil) {
                         Text("Sweep a full circle, then lock onto the Sun, Moon, or a plane you can see — the most accurate way to line the sky up with reality.")
@@ -1360,12 +1634,7 @@ struct CalibrationView: View {
 
                     compassStatus
                 }
-                .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("Calibration")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -1477,7 +1746,8 @@ struct SkySettingsView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        ScrollView {
+        SettingsScaffold(theme: .sky, title: "View & sky",
+                         titleBadge: AnyView(TierBadge(engine: engine))) {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 10) {
                     modeChip("AR sky", "camera.fill", active: engine.cameraPassthrough) {
@@ -1503,7 +1773,7 @@ struct SkySettingsView: View {
                                subtitle: engine.issVisible ? "Overhead now" : nil)
                 }
                 .padding(.vertical, 4)
-                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .nightCard()
 
                 if engine.showISS {
                     Button { engine.jumpToNextISSPass() } label: {
@@ -1514,12 +1784,7 @@ struct SkySettingsView: View {
 
                 timeScrub
             }
-            .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("View & sky")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
     }
 
     private func modeChip(_ title: String, _ icon: String, active: Bool,
@@ -1574,7 +1839,8 @@ struct AircraftSettingsView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        ScrollView {
+        SettingsScaffold(theme: .aircraft, title: "Aircraft",
+                         titleBadge: AnyView(TierBadge(engine: engine))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(spacing: 0) {
                     SettingRow(title: "Aircraft", icon: "airplane", isOn: $engine.showAircraft,
@@ -1595,7 +1861,7 @@ struct AircraftSettingsView: View {
                                subtitle: "Hear flyovers in 3D — best with AirPods")
                 }
                 .padding(.vertical, 4)
-                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .nightCard()
 
                 if engine.nakedEyeOnly {
                     VStack(alignment: .leading, spacing: 10) {
@@ -1629,12 +1895,7 @@ struct AircraftSettingsView: View {
 
                 PlaneColorLegend()
             }
-            .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("Aircraft")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -1673,11 +1934,11 @@ private struct PlaneColorLegend: View {
                           detail: "On the ground — taxiing or parked.")
                 legendRow(swatch: .heart, title: "Pink heart",
                           detail: "A flight you've favorited.")
-                legendRow(swatch: .ring(Color(red: 1.0, green: 0.82, blue: 0.45)), title: "Gold ring",
+                legendRow(swatch: .ring(Theme.gold), title: "Gold ring",
                           detail: "The flight you're tracking right now.")
             }
             .padding(16)
-            .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .nightCard()
         }
     }
 
@@ -1718,7 +1979,8 @@ struct DataSourceSettingsView: View {
     private var usingFR24: Bool { !engine.fr24ApiKey.isEmpty }
 
     var body: some View {
-        ScrollView {
+        SettingsScaffold(theme: .dataSource, title: "Data source",
+                         titleBadge: AnyView(TierBadge(engine: engine))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
                     Label(usingFR24 ? "Flightradar24" : "airplanes.live (free)",
@@ -1733,7 +1995,7 @@ struct DataSourceSettingsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .nightCard()
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Flightradar24 API token")
@@ -1765,12 +2027,7 @@ struct DataSourceSettingsView: View {
                         .foregroundStyle(Theme.textTertiary)
                 }
             }
-            .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("Data source")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
         .onAppear { token = engine.fr24ApiKey }
     }
 }
@@ -1781,7 +2038,8 @@ struct AccessibilityView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        ScrollView {
+        SettingsScaffold(theme: .accessibility, title: "Accessibility",
+                         titleBadge: AnyView(TierBadge(engine: engine))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(spacing: 0) {
                     SettingRow(title: "Hear & feel the sky", icon: "dot.radiowaves.left.and.right",
@@ -1789,7 +2047,7 @@ struct AccessibilityView: View {
                                subtitle: "Find planes by sound and touch — eyes-free")
                 }
                 .padding(.vertical, 4)
-                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .nightCard()
 
                 accessibilityCard("Hear it", icon: "airpods") {
                     Text("Every nearby aircraft becomes a 3D-positioned engine hum — to your left, your right, above. Close your eyes, point toward the sound, and you're facing the plane. Best with AirPods for full spatial audio.")
@@ -1801,12 +2059,7 @@ struct AccessibilityView: View {
                     Text("Built for blind and low-vision skywatchers first — but anyone can find a plane without staring at the screen. Overhead also respects Reduce Motion, Dynamic Type, and works with VoiceOver.")
                 }
             }
-            .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("Accessibility")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -1823,7 +2076,7 @@ struct AccessibilityView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .nightCard()
     }
 }
 
@@ -1833,27 +2086,18 @@ struct AboutView: View {
     private let feedbackEmail = "hemalmodi3@gmail.com"
 
     var body: some View {
-        ScrollView {
+        SettingsScaffold(theme: .voyage, title: "About & privacy") {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Overhead")
-                        .font(Theme.display(24, .bold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text("Sky Above the Horizon")
-                        .font(Theme.display(14, .regular))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-
                 aboutCard("What it is", icon: "sparkles") {
                     Text("Hold your phone up and Overhead labels the sky around you — live aircraft, the Sun, the Moon, the planets, stars, and the ISS, each placed at its real position in augmented reality.")
                 }
 
                 aboutCard("Reference only", icon: "exclamationmark.triangle") {
-                    Text("Overhead is a reference and educational tool. Positions, routes, and identities come from public data that can be delayed, incomplete, or wrong, and many aircraft (parked, military, or not equipped) don't broadcast at all. Do not use Overhead for navigation, safety, or any operational decision. We take no responsibility for the accuracy or completeness of the data shown.")
+                    Text("Overhead is a reference and educational tool, and we've worked hard to place everything as accurately as we can. Even so, we can't guarantee it: positions, routes, and identities come from public data that can be delayed, incomplete, or wrong, and many aircraft (parked, military, or not equipped) don't broadcast at all. Please don't use Overhead for navigation, safety, or any operational decision — we take no responsibility for the accuracy or completeness of what's shown.")
                 }
 
-                aboutCard("Hold steady", icon: "hand.raised") {
-                    Text("Overhead works best when you stand still and hold the phone steady toward the sky. It relies on your device's compass and motion sensors, which drift while you move — so it may not track accurately while you're walking or in a moving vehicle.")
+                aboutCard("Best under open sky", icon: "location.north.line") {
+                    Text("Overhead points the sky using your iPhone's compass and motion sensors, so it's happiest outdoors in the open. Magnetometers can read a few degrees off — and the structural steel, wiring, and electronics inside airports, terminals, and buildings can pull them well off — so indoors the whole sky may sit noticeably rotated, and near metal, cars, speakers, or a magnetic case too. Hold still, and if something looks off, tap a plane or the Sun to re-align (or run Calibration). Accuracy also drifts while you're walking or in a moving vehicle.")
                 }
 
                 aboutCard("Privacy", icon: "lock.shield") {
@@ -1880,12 +2124,7 @@ struct AboutView: View {
                     .foregroundStyle(Theme.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
-            .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("About & privacy")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -1902,7 +2141,7 @@ struct AboutView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .nightCard()
     }
 }
 
@@ -1911,7 +2150,8 @@ struct AirportSettingsView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        ScrollView {
+        SettingsScaffold(theme: .airport, title: "Airports",
+                         titleBadge: AnyView(TierBadge(engine: engine))) {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(spacing: 0) {
                     SettingRow(title: "Airports", icon: "airplane.arrival",
@@ -1919,17 +2159,12 @@ struct AirportSettingsView: View {
                                subtitle: "Nearby fields on the horizon")
                 }
                 .padding(.vertical, 4)
-                .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .nightCard()
                 Text("Major airports within 150 nautical miles are pinned at their true bearing with their IATA code. Tap one in the sky for details.")
                     .font(Theme.display(12, .regular))
                     .foregroundStyle(Theme.textTertiary)
             }
-            .padding(24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle("Airports")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
     }
 }
 

@@ -133,9 +133,7 @@ final class ISSPassModel: NSObject, CLLocationManagerDelegate {
 
     private func computePass() async {
         guard let location else { return }
-        guard let url = URL(string: "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle"),
-              let (data, _) = try? await URLSession.shared.data(from: url),
-              let text = String(data: data, encoding: .utf8) else {
+        guard let text = await fetchTLE() else {
             state = .offline
             return
         }
@@ -175,12 +173,34 @@ final class ISSPassModel: NSObject, CLLocationManagerDelegate {
             state = .noPass
         }
     }
+
+    /// Celestrak blocks IPs that re-query the same catalog number more than
+    /// about once every two hours, so the TLE is cached for a day (the ISS
+    /// elements barely move in that window) and stale data beats a block page.
+    private func fetchTLE() async -> String? {
+        let defaults = UserDefaults.standard
+        let cached = defaults.string(forKey: "issTLE")
+        let fetchedAt = defaults.object(forKey: "issTLEDate") as? Date
+        if let cached, let fetchedAt, Date().timeIntervalSince(fetchedAt) < 24 * 3600 {
+            return cached
+        }
+        guard let url = URL(string: "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle"),
+              let (data, response) = try? await URLSession.shared.data(from: url),
+              (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true,
+              let text = String(data: data, encoding: .utf8) else {
+            return cached   // stale elements still predict tonight's pass fine
+        }
+        defaults.set(text, forKey: "issTLE")
+        defaults.set(Date(), forKey: "issTLEDate")
+        return text
+    }
 }
 
 // MARK: - View
 
 struct WatchHomeView: View {
     @State private var model = ISSPassModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     private let moonlight = Color(red: 0.96, green: 0.96, blue: 0.91)
     private let accent = Color(red: 0.60, green: 0.74, blue: 1.00)
@@ -197,6 +217,10 @@ struct WatchHomeView: View {
         }
         .background(Color(red: 0.01, green: 0.01, blue: 0.04))
         .task { model.start() }
+        // Recompute on wrist raise so an elapsed pass rolls to the next one.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.start() }
+        }
     }
 
     private var moonSection: some View {
@@ -238,12 +262,29 @@ struct WatchHomeView: View {
                     .font(.system(size: 14, design: .rounded))
                     .foregroundStyle(.secondary)
             case .pass(let rise, let maxEl):
-                Text(timerInterval: Date()...rise, countsDown: true)
-                    .font(.system(size: 26, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(cyan)
-                Text("\(rise.formatted(date: .omitted, time: .shortened)) · up to \(maxEl)° high")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundStyle(.secondary)
+                // The pass state can go stale on the wrist; a past `rise`
+                // would make the ClosedRange below trap, so guard it.
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    if rise > context.date {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(timerInterval: context.date...rise, countsDown: true)
+                                .font(.system(size: 26, weight: .bold, design: .rounded).monospacedDigit())
+                                .foregroundStyle(cyan)
+                            Text("\(rise.formatted(date: .omitted, time: .shortened)) · up to \(maxEl)° high")
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Above the horizon now")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(cyan)
+                            Text("Look up · up to \(maxEl)° high")
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             case .noPass:
                 Text("No pass in the next 24 h")
                     .font(.system(size: 14, design: .rounded))

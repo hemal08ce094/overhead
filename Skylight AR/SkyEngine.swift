@@ -30,6 +30,13 @@ struct SelectedAircraft: Identifiable, Equatable {
     var originCity: String?
     var destination: String?
     var destinationCity: String?
+    // Coordinates behind the route arc: the plane and both endpoints.
+    var lat: Double = 0
+    var lon: Double = 0
+    var originLat: Double?
+    var originLon: Double?
+    var destLat: Double?
+    var destLon: Double?
     // Reality check: where this plane is *observed* to be landing right now,
     // when that disagrees with (or confirms) the filed route.
     var observedArrival: String?       // IATA
@@ -178,10 +185,19 @@ final class SkyEngine {
     private(set) var statFlightsSpotted: Int = 0
     private(set) var statDaysUsed: Int = 0
 
-    func recordSpot() {
+    /// Tiers and medals — every count lives on this device only.
+    let medals = MedalStore()
+
+    func recordSpot(aircraft: Aircraft? = nil) {
         statFlightsSpotted += 1
         UserDefaults.standard.set(statFlightsSpotted, forKey: SkyDefaults.statSpots)
+        medals.recordSpot(totalSpots: statFlightsSpotted,
+                          type: aircraft?.type,
+                          category: aircraft?.category,
+                          callsign: aircraft?.callsign)
     }
+
+    var spotterTier: SpotterTier { MedalCatalog.tier(forSpots: statFlightsSpotted) }
 
     /// Aircraft within this range get labels in `.nearby` mode.
     var nearbyRangeNm: Double = 60
@@ -190,6 +206,9 @@ final class SkyEngine {
     var trafficCount: Int = 0
     var selected: SelectedAircraft?
     var selectedPhoto: PlanePhoto?
+    /// Where the selected plane sits on screen (window coordinates) — the
+    /// anchor the detail sheet's zoom transition grows out of and returns to.
+    var selectedScreenPoint: CGPoint?
     var selectedAirport: SelectedAirport?
     /// Current pinch-zoom factor (1 = no zoom), mirrored from the controller.
     var zoomFactor: Double = 1
@@ -243,6 +262,8 @@ final class SkyEngine {
         favorites = Set(d.stringArray(forKey: SkyDefaults.favorites) ?? [])
         statFlightsSpotted = d.integer(forKey: SkyDefaults.statSpots)
         statDaysUsed = d.integer(forKey: SkyDefaults.statDays)
+        // Long-time spotters keep their milestone medals — quietly, no banner.
+        medals.seed(totalSpots: statFlightsSpotted)
         // Count distinct days under the sky.
         let today = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
         if d.double(forKey: SkyDefaults.lastUsedDay) != today {
@@ -267,7 +288,14 @@ final class SkyEngine {
     func jumpToNextISSPass() { controller?.jumpToNextISSPass() }
     func resetZoom() { controller?.resetZoom() }
     func openFocusedDetail() { controller?.selectFocusedFlight() }
-    func captureShareCard() { controller?.captureShareCard() }
+    func captureShareCard() {
+        controller?.captureShareCard()
+        // The shutter only appears while a transit is imminent — pressing it
+        // is the Transit Hunter moment.
+        if let transit = transitPrediction {
+            medals.recordTransitCapture(callsign: transit.callsign, totalSpots: statFlightsSpotted)
+        }
+    }
 
     /// Flight search. In-view matches come from the live feed instantly; the
     /// global lookup reaches any aircraft via the data source.

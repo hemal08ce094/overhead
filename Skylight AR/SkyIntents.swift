@@ -20,7 +20,11 @@ struct WhatsFlyingIntent: AppIntent {
         guard lat != 0 || lon != 0 else {
             return .result(dialog: "Open Overhead once so I can learn where your sky is.")
         }
-        let traffic = (try? await ADSBClient().aircraft(lat: lat, lon: lon, radiusNm: 40)) ?? []
+        // A fetch failure must not read as "quiet sky" — that's a confident lie
+        // when the network is simply down.
+        guard let traffic = try? await ADSBClient().aircraft(lat: lat, lon: lon, radiusNm: 40) else {
+            return .result(dialog: "I couldn't reach the sky data just now — try again in a moment.")
+        }
         let airborne = traffic.filter { !$0.onGround }
         guard !airborne.isEmpty else {
             return .result(dialog: "Your sky is quiet right now — no aircraft within forty nautical miles.")

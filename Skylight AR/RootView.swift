@@ -21,9 +21,10 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            // Proceed once location is decided either way — denial lands in
-            // the demo sky instead of a dead end.
-            if didOnboard && permissions.location != .notDetermined {
+            // Onboarding completion alone decides entry: the AR screen requests
+            // location itself, so "Not now" there can't strand the user here.
+            // Denial lands in the demo sky instead of a dead end.
+            if didOnboard {
                 ARSkyScreen()
                     .transition(.opacity)
             } else {
@@ -34,7 +35,6 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.5), value: didOnboard)
-        .animation(.easeInOut(duration: 0.5), value: permissions.location != .notDetermined)
         .preferredColorScheme(.dark)
     }
 }

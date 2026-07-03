@@ -20,6 +20,7 @@ import CoreMotion
 import AVFoundation
 import SatelliteKit
 import simd
+import WidgetKit
 
 // MARK: - Model
 
@@ -138,10 +139,18 @@ enum AirlineCodes {
     /// "EK 0226" → "UAE226"; a 3-letter prefix is assumed already ICAO.
     static func toICAOCallsign(_ raw: String) -> String {
         let s = raw.replacingOccurrences(of: " ", with: "")
+        // IATA codes can contain digits (B6, 6E, U2, W6, F9, A3), so match the
+        // two-character prefix against the table directly — but only when a
+        // flight number follows, so ICAO callsigns like "UAL123" pass through.
+        if s.count > 2, let icao = iataToICAO[s.prefix(2).uppercased()],
+           s[s.index(s.startIndex, offsetBy: 2)].isNumber {
+            var rest = String(s.dropFirst(2))
+            while rest.first == "0" { rest.removeFirst() }   // ADS-B strips leading zeros
+            return icao + rest
+        }
         let letters = String(s.prefix { $0.isLetter })
         var rest = String(s.dropFirst(letters.count))
-        while rest.first == "0" { rest.removeFirst() }   // ADS-B strips leading zeros
-        if letters.count == 2, let icao = iataToICAO[letters] { return icao + rest }
+        while rest.first == "0" { rest.removeFirst() }
         return letters + rest
     }
 }
@@ -512,10 +521,27 @@ final class ARSkyViewController: UIViewController {
     private var airportNodes: [String: AirportNode] = [:]
     private var spottedThisSession: Set<String> = []
     private var poorCompassSince: Date?
+    // Home/Lock-Screen glance: last pushed signature + when, so the widget is
+    // reloaded only when the visible content actually changes and never faster
+    // than WidgetKit wants (a 1 Hz reload would just be throttled away).
+    private var lastGlanceSignature: String?
+    private var lastGlanceReload = Date.distantPast
     // Guided-calibration sweep state.
     private var scanStart: Date?
     private var calibrationSamples: [(offset: Double, weight: Double)] = []
     private var scanBuckets: Set<Int> = []
+    /// Rolling window of recent passive north estimates (deg offset =
+    /// trueHeading − cameraYaw). Locking and re-locking run off this consensus
+    /// rather than a single noisy CLHeading, so one bad reading can't strand the
+    /// sky and a genuine drift can still heal.
+    private var northSamples: [(offset: Double, weight: Double, t: Date)] = []
+    /// When a large but self-consistent heading error first appeared — used to
+    /// tell a real drift (persistent) from a magnetic spike (momentary).
+    private var driftSince: Date?
+    /// Alignment state as it was before the guided flow started, so a cancel
+    /// can put everything back instead of leaving the trim wiped and the
+    /// compass frozen mid-sweep.
+    var preCalibration: (offsetDeg: Double, autoAlign: Bool, worldY: Float)?
     private let flightActivity = FlightActivityController()
     private let skyAudio = SkyAudioEngine()
     private let motionManager = CMMotionManager()
@@ -564,6 +590,11 @@ final class ARSkyViewController: UIViewController {
         loadOrRefreshISSTLE()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        syncHeadingOrientation()   // the window (and its orientation) exists now
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         UIApplication.shared.isIdleTimerDisabled = false
@@ -582,6 +613,7 @@ final class ARSkyViewController: UIViewController {
         sceneView.antialiasingMode = .multisampling4X
         view.addSubview(sceneView)
         sceneView.scene.rootNode.addChildNode(darkDomeNode)
+        sceneView.scene.rootNode.addChildNode(horizonGlowNode)
         sceneView.scene.rootNode.addChildNode(dimDomeNode)
         applyBackground()
         sceneView.scene.rootNode.addChildNode(worldNode)
@@ -598,6 +630,24 @@ final class ARSkyViewController: UIViewController {
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.headingFilter = 1
         locationManager.requestWhenInUseAuthorization()
+    }
+
+    /// Heading samples are referenced to the top edge of the device; keep that
+    /// reference glued to the UI orientation, or the compass fusion snaps the
+    /// whole sky ~90° off in landscape.
+    private func syncHeadingOrientation() {
+        switch view.window?.windowScene?.interfaceOrientation {
+        case .landscapeLeft: locationManager.headingOrientation = .landscapeRight
+        case .landscapeRight: locationManager.headingOrientation = .landscapeLeft
+        case .portraitUpsideDown: locationManager.headingOrientation = .portraitUpsideDown
+        default: locationManager.headingOrientation = .portrait
+        }
+    }
+
+    override func viewWillTransition(to size: CGSize,
+                                     with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: nil) { _ in self.syncHeadingOrientation() }
     }
 
     private func setUpGestures() {
@@ -651,10 +701,16 @@ final class ARSkyViewController: UIViewController {
         let cameraOK = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
         let showCamera = wantCamera && cameraOK
         darkDomeNode.isHidden = showCamera
+        horizonGlowNode.isHidden = showCamera  // the real sky has its own horizon
         dimDomeNode.isHidden = !showCamera     // scrim only over the live camera
         guard ARWorldTrackingConfiguration.isSupported else {
-            // Simulator: no session ever runs, so the background is ours to set.
-            sceneView.scene.background.contents = UIColor.black
+            // Simulator: no session runs and SceneKit auto-frames the scene
+            // from outside — hide the near-field night shell (dome + horizon
+            // glow) so it doesn't float in view, and paint the backdrop flat.
+            darkDomeNode.isHidden = true
+            horizonGlowNode.isHidden = true
+            sceneView.scene.background.contents = UIColor(red: 0.010, green: 0.012,
+                                                          blue: 0.045, alpha: 1)
             return
         }
         // Hide the feed behind black for dark sky; hand it back to ARKit for AR.
@@ -691,13 +747,55 @@ final class ARSkyViewController: UIViewController {
         if motionManager.isDeviceMotionActive { motionManager.stopDeviceMotionUpdates() }
     }
 
-    /// Inward-facing black sphere between the camera and the sky content —
+    /// Soft indigo bloom that sits exactly on the horizon in dark-sky mode —
+    /// night with a residual glow at the skyline, not a void. Drawn on a
+    /// capless cylinder around the observer (a textured sphere shows bullseye
+    /// artifacts at its poles), so the band rings the real horizon in 3D.
+    private static let horizonGlowTexture: UIImage = {
+        let h = 256
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1, height: h))
+        return renderer.image { ctx in
+            let glow = UIColor(red: 0.16, green: 0.19, blue: 0.38, alpha: 1)
+            let stops: [(CGFloat, UIColor)] = [
+                (0.00, glow.withAlphaComponent(0)),
+                (0.42, glow.withAlphaComponent(0.30)),
+                (0.50, glow.withAlphaComponent(0.55)),   // the horizon line
+                (0.60, glow.withAlphaComponent(0.18)),
+                (1.00, glow.withAlphaComponent(0)),
+            ]
+            guard let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                        colors: stops.map(\.1.cgColor) as CFArray,
+                                        locations: stops.map(\.0)) else { return }
+            ctx.cgContext.drawLinearGradient(grad, start: .zero,
+                                             end: CGPoint(x: 0, y: h), options: [])
+        }
+    }()
+
+    private lazy var horizonGlowNode: SCNNode = {
+        let tube = SCNCylinder(radius: 46, height: 22)
+        let side = SCNMaterial()
+        side.lightingModel = .constant
+        side.diffuse.contents = Self.horizonGlowTexture
+        side.isDoubleSided = true
+        side.blendMode = .add
+        side.writesToDepthBuffer = false
+        side.readsFromDepthBuffer = false
+        let clear = SCNMaterial()
+        clear.transparency = 0
+        tube.materials = [side, clear, clear]      // no caps
+        let node = SCNNode(geometry: tube)
+        node.renderingOrder = -95                  // over the dome, under content
+        return node
+    }()
+
+    /// Inward-facing night sphere between the camera and the sky content —
     /// draws over the camera feed but never occludes content (no depth I/O).
     private lazy var darkDomeNode: SCNNode = {
         let sphere = SCNSphere(radius: 50)
         let mat = SCNMaterial()
         mat.lightingModel = .constant
-        mat.diffuse.contents = UIColor.black
+        // Not pure black: the faintest indigo keeps depth in the night.
+        mat.diffuse.contents = UIColor(red: 0.010, green: 0.012, blue: 0.045, alpha: 1)
         mat.cullMode = .front                      // render the inside faces
         mat.writesToDepthBuffer = false
         mat.readsFromDepthBuffer = false
@@ -761,8 +859,9 @@ final class ARSkyViewController: UIViewController {
         }
         sceneView.session.run(config, options: reset ? [.resetTracking, .removeExistingAnchors] : [])
         if reset {
-            // The scene frame was reset; realign to north from the next heading.
+            // The scene frame was reset; realign to north from a fresh consensus.
             appliedNorthAccuracy = .infinity
+            northSamples.removeAll(); driftSince = nil
             worldNode.eulerAngles.y = 0
         }
     }
@@ -779,6 +878,29 @@ final class ARSkyViewController: UIViewController {
         pollTask = nil
     }
 
+    /// A full-screen chrome sheet (Profile / Settings / Events / Search) is
+    /// covering the live sky. Nothing is visible to update, so stop the per-frame
+    /// aircraft + sky simulation, the SceneKit render loop, and the network feed,
+    /// then resume the instant it's dismissed. The AR session and its tracking are
+    /// left running (unlike a full background pause), so returning is seamless and
+    /// any heading calibration is left untouched.
+    private var skyObscured = false
+    func setSkyObscured(_ obscured: Bool) {
+        guard isViewLoaded, skyObscured != obscured else { return }
+        skyObscured = obscured
+        if obscured {
+            stopDisplayLink()
+            pollTask?.cancel()
+            pollTask = nil
+            sceneView.isPlaying = false
+            sceneView.rendersContinuously = false
+        } else {
+            sceneView.isPlaying = true
+            sceneView.rendersContinuously = true
+            startPolling()          // restarts the display link and the feed
+        }
+    }
+
     /// When the app was backgrounded, so a long absence can prompt a re-align.
     private var backgroundedAt: Date?
 
@@ -787,7 +909,7 @@ final class ARSkyViewController: UIViewController {
         guard viewIfLoaded?.window != nil else { return }
         startSession()         // ARKit runs in both modes; resume it
         applyBackground()      // toggle the camera feed vs. black per mode
-        startPolling()
+        if !skyObscured { startPolling() }   // stay idle if a sheet still covers the sky
         refreshISSTLEIfStale() // a multi-day background may have aged the TLE
         suggestRealignIfNeeded()
     }
@@ -854,6 +976,11 @@ final class ARSkyViewController: UIViewController {
             // Transient errors are expected at 1 Hz; surface only a streak.
             feedFailureStreak += 1
             if feedFailureStreak >= 3 { engine?.feedOffline = true }
+            // Age out stale planes even while the feed is down, so glyphs —
+            // and their spatial-audio hums — don't haunt the sky at their
+            // last known spots indefinitely.
+            removeStale(now: Date())
+            updateAudio()
         }
     }
 
@@ -877,6 +1004,11 @@ final class ARSkyViewController: UIViewController {
         let offset = engine?.headingOffsetDeg ?? 0
         let mirror = engine?.mirrorX ?? false
         var visible = 0
+        // Accumulate the Home/Lock-Screen glance as we place traffic: how many
+        // are airborne, and the closest one (with its true bearing for the rose).
+        var glanceAirborne = 0
+        var glanceNearest: SkyGlanceSnapshot.Plane?
+        var glanceNearestRange = Double.greatestFiniteMagnitude
 
         for ac in traffic {
             // Ground traffic is hidden unless explicitly enabled.
@@ -920,6 +1052,22 @@ final class ARSkyViewController: UIViewController {
             anchors[ac.hex] = anchor
             lastSeen[ac.hex] = now
             lastFix[ac.hex] = Fix(az: az, el: el, range: range, aircraft: ac)
+
+            // Glance: count airborne traffic and keep the nearest as the hero.
+            if !ac.onGround {
+                glanceAirborne += 1
+                if range < glanceNearestRange {
+                    glanceNearestRange = range
+                    let cs = ac.callsign?.trimmingCharacters(in: .whitespaces)
+                    glanceNearest = SkyGlanceSnapshot.Plane(
+                        callsign: (cs?.isEmpty == false) ? cs : nil,
+                        type: ac.type,
+                        destination: routes.cached(ac.callsign)?.destinationCode,
+                        distanceNm: range / 1852,
+                        altitudeFeet: ac.altitudeFeet,
+                        bearingDeg: az, elevationDeg: el)
+                }
+            }
 
             let position = SkyMath.scenePosition(
                 azimuthDeg: az, elevationDeg: el, radius: sphereRadius,
@@ -965,6 +1113,27 @@ final class ARSkyViewController: UIViewController {
         applyFocus()
         updateTransitPrediction(traffic: traffic, observer: observer)
         updateAudio()
+        writeGlance(count: glanceAirborne, nearest: glanceNearest, observer: observer)
+    }
+
+    /// Persist the "what's overhead now" glance for the widgets, and nudge a
+    /// timeline reload only when the visible content changes — the feed ticks at
+    /// 1 Hz but the Home Screen has no reason to redraw that often.
+    private func writeGlance(count: Int, nearest: SkyGlanceSnapshot.Plane?, observer: CLLocation) {
+        let snapshot = SkyGlanceSnapshot(updated: Date(), count: count,
+                                         offline: engine?.feedOffline ?? false,
+                                         nearest: nearest,
+                                         observerLat: observer.coordinate.latitude,
+                                         observerLon: observer.coordinate.longitude)
+        SkyGlance.write(snapshot)
+
+        // Signature captures only what the widget renders; skip no-op reloads.
+        let sig = "\(count)|\(nearest?.callsign ?? "-")|\(Int((nearest?.distanceNm ?? 0).rounded()))|\(Int((nearest?.bearingDeg ?? 0).rounded()))"
+        let now = Date()
+        guard sig != lastGlanceSignature, now.timeIntervalSince(lastGlanceReload) > 20 else { return }
+        lastGlanceSignature = sig
+        lastGlanceReload = now
+        WidgetCenter.shared.reloadTimelines(ofKind: SkyGlance.widgetKind)
     }
 
     // MARK: Per-frame dead reckoning
@@ -1023,6 +1192,17 @@ final class ARSkyViewController: UIViewController {
     @objc private func stepAircraft() {
         if motionManager.isDeviceMotionActive { updateMotionPointing() }   // fallback pointing only
         if scanStart != nil { updateScanCoverage() }
+        // The sky itself refreshes at 1 Hz regardless of the traffic poll —
+        // on the slow FR24 cadence (8 s) the ISS would otherwise jump ~8° at
+        // a time during a pass, and the sun/moon would visibly stutter.
+        if let observer = observerLocation, Date().timeIntervalSince(lastSkyStepAt) >= 1 {
+            lastSkyStepAt = Date()
+            updateSky(observer: observer, forceStars: false)
+        }
+        // The binaural listener follows the camera a few times a second, so
+        // "point the phone at the sound" holds while the user turns — not
+        // just once per poll.
+        if engine?.soundOn == true, orientTick % 6 == 0 { updateAudio() }
         guard let observer = observerLocation, !anchors.isEmpty else { return }
         let now = Date()
         let offset = engine?.headingOffsetDeg ?? 0
@@ -1057,8 +1237,12 @@ final class ARSkyViewController: UIViewController {
             lastFix[hex]?.range = range
         }
         if engine?.hearFeelSky == true, orientTick % 4 == 0 { updateProximityHaptic() }
+        // Keep the zoom-transition anchor riding on the plane, so a dismiss
+        // returns the sheet to wherever the glyph has moved meanwhile.
+        if selectedHex != nil, orientTick % 10 == 0 { updateSelectedScreenPoint() }
     }
     private var orientTick = 0
+    private var lastSkyStepAt = Date.distantPast
 
     /// Remove an aircraft and everything attached to it (node, trail, fix).
     private func dropAircraft(_ hex: String) {
@@ -1077,10 +1261,16 @@ final class ARSkyViewController: UIViewController {
     func applyAircraftVisibilityFilter() {
         guard let engine, engine.nakedEyeOnly else { return }
         for (hex, fix) in lastFix {
+            let ac = fix.aircraft
             let tracked = hex == selectedHex
-                || (engine.focusedCallsign != nil && fix.aircraft.callsign == engine.focusedCallsign)
-            if !tracked, fix.range / 1852 > nakedEyeMaxRangeNm(altitudeFeet: fix.aircraft.altitudeFeet)
-                || fix.el < Self.nakedEyeMinElevationDeg {
+                || (engine.focusedCallsign != nil && ac.callsign == engine.focusedCallsign)
+            // Mirror the poll-loop rules exactly (ground exemption from the
+            // elevation floor + shown-plane hysteresis), otherwise each slider
+            // tick instantly drops planes the next poll immediately re-adds.
+            let baseMax = ac.onGround ? min(nakedEyeMaxRangeNm(altitudeFeet: 0), 6)
+                                      : nakedEyeMaxRangeNm(altitudeFeet: ac.altitudeFeet)
+            let minEl = ac.onGround ? -90 : Self.nakedEyeMinElevationDeg - 1.5
+            if !tracked, fix.range / 1852 > baseMax * 1.18 || fix.el < minEl {
                 dropAircraft(hex)
             }
         }
@@ -1175,7 +1365,11 @@ final class ARSkyViewController: UIViewController {
             engine.transitPrediction = nil
             transitHapticFired = false
         }
-        let date = effectiveDate()
+        // Transit alerts are real-world events. While the sky clock is
+        // scrubbed the displayed sun/moon are displaced from the real ones,
+        // and the aircraft are always at real-now — don't mix the two frames.
+        guard engine.skyTimeOffsetMin == 0 else { return }
+        let date = Date()
         let lat = observer.coordinate.latitude
         let lon = observer.coordinate.longitude
         let moon = Celestial.moon(date: date, lat: lat, lon: lon)
@@ -1265,9 +1459,13 @@ final class ARSkyViewController: UIViewController {
         let projected = sceneView.projectPoint(node.worldPosition)
         let bounds = sceneView.bounds
         let behind = projected.z > 1 || projected.z < 0
+        // Pinch zoom scales the view about its center, so only the central
+        // bounds/zoom region is actually visible — a plane outside it needs
+        // the arrow even though it projects inside the unscaled bounds.
+        let visible = bounds.insetBy(dx: bounds.width * (1 - 1 / zoomFactor) / 2,
+                                     dy: bounds.height * (1 - 1 / zoomFactor) / 2)
         let onScreen = !behind
-            && projected.x >= 0 && CGFloat(projected.x) <= bounds.width
-            && projected.y >= 0 && CGFloat(projected.y) <= bounds.height
+            && visible.contains(CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y)))
         var arrow: Double?
         if !onScreen {
             var dx = Double(projected.x) - bounds.width / 2
@@ -1483,7 +1681,7 @@ final class ARSkyViewController: UIViewController {
     private func nearestAircraftNode(to point: CGPoint, within threshold: CGFloat) -> AircraftNode? {
         var best: AircraftNode?
         var bestDistance = threshold
-        for node in nodes.values {
+        for node in nodes.values where !node.isHidden {   // never grab an invisible plane
             let projected = sceneView.projectPoint(node.worldPosition)
             guard projected.z > 0, projected.z < 1 else { continue }  // in front of camera
             let dx = CGFloat(projected.x) - point.x
@@ -1502,12 +1700,28 @@ final class ARSkyViewController: UIViewController {
         selectedHex = hex
         nodes[hex]?.setSelected(true)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        if spottedThisSession.insert(hex).inserted { engine?.recordSpot() }
+        if spottedThisSession.insert(hex).inserted {
+            engine?.recordSpot(aircraft: lastFix[hex]?.aircraft)
+        }
         routes.request(lastFix[hex]?.aircraft.callsign)
         photos.request(hex)
         engine?.selectedPhoto = photos.cachedPhoto(hex)
+        updateSelectedScreenPoint()
         refreshSelection()
         applyLabelMode()
+    }
+
+    /// Project the selected glyph into window coordinates for the sheet's
+    /// zoom transition. `convert(_:to: nil)` folds in the pinch-zoom scale.
+    private func updateSelectedScreenPoint() {
+        guard let hex = selectedHex, let node = nodes[hex] else {
+            engine?.selectedScreenPoint = nil
+            return
+        }
+        let p = sceneView.projectPoint(node.presentation.worldPosition)
+        guard p.z > 0, p.z < 1 else { engine?.selectedScreenPoint = nil; return }
+        engine?.selectedScreenPoint = sceneView.convert(CGPoint(x: CGFloat(p.x), y: CGFloat(p.y)),
+                                                        to: nil)
     }
 
     /// Open the focused flight's detail (the focus pill is tappable).
@@ -1592,6 +1806,7 @@ final class ARSkyViewController: UIViewController {
         selectedHex = nil
         engine?.selected = nil
         engine?.selectedPhoto = nil
+        engine?.selectedScreenPoint = nil
         applyLabelMode()
     }
 
@@ -1605,6 +1820,11 @@ final class ARSkyViewController: UIViewController {
         }
         let ac = fix.aircraft
         let route = routes.cached(ac.callsign)
+        // Globetrotter accrues whenever a spotted flight's destination
+        // country resolves (routes come back async; the store dedupes).
+        if let engine, let iso = route?.destCountryISO {
+            engine.medals.recordDestinationCountry(iso, totalSpots: engine.statFlightsSpotted)
+        }
         let arrival = observedArrival(of: ac)
         // adsbdb maps callsigns to *filed* routes — often one leg of a
         // multi-stop run, or stale. When the plane is visibly on approach to
@@ -1629,6 +1849,12 @@ final class ARSkyViewController: UIViewController {
             originCity: route?.originCity,
             destination: route?.destinationCode,
             destinationCity: route?.destinationCity,
+            lat: ac.lat,
+            lon: ac.lon,
+            originLat: route?.originLat,
+            originLon: route?.originLon,
+            destLat: route?.destLat,
+            destLon: route?.destLon,
             observedArrival: arrival?.iata,
             observedArrivalCity: arrival?.city,
             routeMismatch: mismatch)
@@ -1736,7 +1962,7 @@ final class ARSkyViewController: UIViewController {
         let lat = here.coordinate.latitude, lon = here.coordinate.longitude
         let start = Date()
         var minutes = 0.5
-        while minutes < 60 * 24 {                       // search up to 24 h ahead
+        while minutes < 60 * 12 {                       // the sky-time slider tops out at +12 h
             let date = start.addingTimeInterval(minutes * 60)
             if let lla = try? sat.geoPosition(julianDays: SkyMath.julianDay(date)) {
                 let r = SkyMath.azElRange(observerLat: lat, observerLon: lon, observerAltM: 0,
@@ -1756,7 +1982,13 @@ extension ARSkyViewController: ARSCNViewDelegate {
     /// leave the session "running" but starved of frames — a frozen feed under
     /// live SceneKit content. Re-run as soon as the interruption ends.
     nonisolated func sessionInterruptionEnded(_ session: ARSession) {
-        Task { @MainActor in self.applyBackground() }
+        Task { @MainActor in
+            // Plain re-run (no reset): keeps the world frame, but kicks the
+            // capture pipeline back to life when the interruption ended
+            // without a didBecomeActive (in-call banner, Split View, etc.).
+            self.startSession(reset: false)
+            self.applyBackground()
+        }
     }
 
     nonisolated func session(_ session: ARSession, didFailWithError error: Error) {
@@ -1792,6 +2024,8 @@ extension ARSkyViewController: CLLocationManagerDelegate {
             // Siri's "what's flying over me" answers from the last known spot.
             UserDefaults.standard.set(loc.coordinate.latitude, forKey: SkyDefaults.lastLat)
             UserDefaults.standard.set(loc.coordinate.longitude, forKey: SkyDefaults.lastLon)
+            // Seed the widget so it can self-refresh even before the next poll.
+            SkyGlance.writeLocation(lat: loc.coordinate.latitude, lon: loc.coordinate.longitude)
             engine?.loadEventsIfNeeded(lat: loc.coordinate.latitude,
                                        lon: loc.coordinate.longitude)
         }
@@ -1836,44 +2070,101 @@ extension ARSkyViewController: CLLocationManagerDelegate {
               heading.headingAccuracy <= 30,
               let pov = sceneView.pointOfView else { return }
         let f = pov.presentation.simdWorldFront
+        // Near the zenith — the natural posture for this app — the horizontal
+        // component of the camera front is noise, so any yaw derived from it
+        // would slowly random-walk the sky. Wait for a usable posture.
+        guard (Double(f.x) * Double(f.x) + Double(f.z) * Double(f.z)).squareRoot() > 0.25 else { return }
         // Camera's horizontal yaw in the content convention (0 = −Z, 90° = +X).
         let yawCamDeg = atan2(Double(f.x), Double(-f.z)) * 180 / .pi
-        let desired = (heading.trueHeading - yawCamDeg) * .pi / 180
 
-        if appliedNorthAccuracy == .infinity {
-            // First lock: one smooth snap.
-            appliedNorthAccuracy = heading.headingAccuracy
-            let rotate = SCNAction.rotateTo(x: 0, y: CGFloat(desired), z: 0,
-                                            duration: 0.6, usesShortestUnitArc: true)
-            rotate.timingMode = .easeInEaseOut
-            worldNode.runAction(rotate)
-            return
-        }
+        // Roll this reading into a short consensus window; a better-rated sample
+        // carries more weight. Consensus — not any single CLHeading — drives every
+        // lock, so one magnetically-corrupted reading can't strand the sky.
+        let now = Date()
+        northSamples.append((offset: heading.trueHeading - yawCamDeg,
+                             weight: 1.0 / max(heading.headingAccuracy, 5), t: now))
+        northSamples.removeAll { now.timeIntervalSince($0.t) > 4.0 }
+        if northSamples.count > 24 { northSamples.removeFirst(northSamples.count - 24) }
+        guard let cons = northConsensus() else { return }
+        let desired = cons.mean * .pi / 180
+        let agree = cons.r                       // 1 = window agrees tightly, 0 = scattered
 
         var error = (desired - Double(worldNode.eulerAngles.y))
             .truncatingRemainder(dividingBy: 2 * .pi)
         if error > .pi { error -= 2 * .pi }
         if error < -.pi { error += 2 * .pi }
-        // Deadband keeps the sky calm; gain scales with compass confidence.
-        guard abs(error) > 1.5 * .pi / 180 else { return }
         let errDeg = abs(error) * 180 / .pi
-        // Complementary fusion: trust ARKit's smooth yaw for the frame-to-frame
-        // pose and let the compass correct slow bias — but reject the spikes that
-        // magnetic interference (cars, steel, speakers) throws up. A sample
-        // implying a jump far larger than its own stated accuracy allows is noise,
-        // not truth, so damp it; an outright flip is ignored.
-        let plausible = max(8.0, heading.headingAccuracy * 2.0)
-        if errDeg > plausible + 30 { return }                    // flip/spike → drop
-        let trust = errDeg > plausible ? 0.2 : 1.0               // damp soft outliers
-        let gain = min(0.05, max(0.01, 0.02 * (25 / max(heading.headingAccuracy, 5)))) * trust
+
+        if appliedNorthAccuracy == .infinity {
+            // First lock: never trust a lone reading. Wait until several samples
+            // over ≥1s agree tightly, then snap to their consensus. This is what
+            // stops a single bad heading from locking the whole sky the wrong way.
+            guard northSamples.count >= 5, cons.span >= 1.0, agree >= 0.9 else { return }
+            appliedNorthAccuracy = heading.headingAccuracy
+            driftSince = nil
+            snapNorth(to: desired, duration: 0.6)
+            return
+        }
+
+        // A large error the *whole window* agrees on isn't a spike — the sky has
+        // genuinely drifted (a bad prior lock, or a strong local field that has
+        // since passed). If it persists ~1.5s, re-snap to consensus rather than
+        // rejecting the very samples that would heal it — the old gate's fatal
+        // flaw, which left a wrong alignment wrong until the app relaunched.
+        let big = max(20.0, heading.headingAccuracy * 2.0)
+        if errDeg > big {
+            if agree >= 0.9 {
+                if driftSince == nil { driftSince = now }
+                if now.timeIntervalSince(driftSince ?? now) >= 1.5 {
+                    driftSince = nil
+                    appliedNorthAccuracy = heading.headingAccuracy
+                    snapNorth(to: desired, duration: 0.5)
+                }
+            } else {
+                driftSince = nil                 // scattered → magnetic noise, ignore
+            }
+            return
+        }
+        driftSince = nil
+
+        // Small, steady error: gentle bias correction. Deadband keeps the sky
+        // calm; gain scales with both compass confidence and window agreement.
+        guard abs(error) > 1.5 * .pi / 180 else { return }
+        let gain = min(0.05, max(0.01, 0.02 * (25 / max(heading.headingAccuracy, 5)))) * agree
         worldNode.eulerAngles.y += Float(error * gain)
+    }
+
+    /// Weighted circular mean of the north-estimate window, with the resultant
+    /// length `r` ∈ [0,1] (how tightly the samples agree) and the time `span`
+    /// they cover. nil until the window holds anything.
+    private func northConsensus() -> (mean: Double, r: Double, span: TimeInterval)? {
+        guard let first = northSamples.first, let last = northSamples.last else { return nil }
+        var sx = 0.0, sy = 0.0, sw = 0.0
+        for s in northSamples {
+            let a = s.offset * .pi / 180
+            sx += cos(a) * s.weight; sy += sin(a) * s.weight; sw += s.weight
+        }
+        guard sw > 0 else { return nil }
+        let mean = atan2(sy, sx) * 180 / .pi
+        let r = (sx * sx + sy * sy).squareRoot() / sw
+        return (mean, r, last.t.timeIntervalSince(first.t))
+    }
+
+    /// Rotate the world so its north sits at `desired` (radians), shortest arc.
+    private func snapNorth(to desired: Double, duration: TimeInterval) {
+        let rotate = SCNAction.rotateTo(x: 0, y: CGFloat(desired), z: 0,
+                                        duration: duration, usesShortestUnitArc: true)
+        rotate.timingMode = .easeInEaseOut
+        worldNode.runAction(rotate)
     }
 
     // MARK: Guided calibration (360° sweep → lock to Sun/Moon or a plane)
 
     /// Camera yaw in the content convention (0 = −Z, 90° = +X), degrees.
+    /// nil near the zenith, where the projected yaw is noise.
     private func cameraYawDeg() -> Double? {
-        guard let f = sceneView.pointOfView?.presentation.simdWorldFront else { return nil }
+        guard let f = sceneView.pointOfView?.presentation.simdWorldFront,
+              (Double(f.x) * Double(f.x) + Double(f.z) * Double(f.z)).squareRoot() > 0.25 else { return nil }
         return atan2(Double(f.x), Double(-f.z)) * 180 / .pi
     }
 
@@ -1897,23 +2188,39 @@ extension ARSkyViewController: CLLocationManagerDelegate {
     }
 
     func beginCalibrationScan() {
+        preCalibration = (engine?.headingOffsetDeg ?? 0,
+                          engine?.autoAlignEnabled ?? true,
+                          worldNode.eulerAngles.y)
         engine?.headingOffsetDeg = 0          // worldNode rotation is the only knob
         engine?.autoAlignEnabled = false       // freeze passive align during the sweep
         calibrationSamples.removeAll()
         scanBuckets.removeAll()
+        northSamples.removeAll(); driftSince = nil
         scanStart = Date()
     }
 
-    func cancelCalibrationScan() { scanStart = nil }
+    func cancelCalibrationScan() {
+        scanStart = nil
+        // Cancel means discard: restore trim, align mode and sky rotation.
+        if let saved = preCalibration {
+            preCalibration = nil
+            engine?.headingOffsetDeg = saved.offsetDeg
+            engine?.autoAlignEnabled = saved.autoAlign
+            worldNode.removeAllActions()
+            worldNode.eulerAngles.y = saved.worldY
+        }
+    }
 
     /// Jump straight to the lock step (Sun/Moon/plane) without finishing the sweep.
     func skipScan() { if scanStart != nil { finishScan() } else { engine?.calibrationStartAligning() } }
 
-    func lockManualAlignment() { engine?.autoAlignEnabled = false; scanStart = nil }
+    func lockManualAlignment() { preCalibration = nil; engine?.autoAlignEnabled = false; scanStart = nil }
 
     func resumeAutoAlign() {
+        preCalibration = nil
         scanStart = nil
-        appliedNorthAccuracy = .infinity       // re-snap from the next heading
+        appliedNorthAccuracy = .infinity       // re-snap from a fresh consensus
+        northSamples.removeAll(); driftSince = nil
     }
 
     /// Compass sample (only when valid) — feeds the best-fit north estimate.

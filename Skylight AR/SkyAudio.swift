@@ -14,8 +14,8 @@ import SceneKit
 @MainActor
 final class SkyAudioEngine {
 
-    private let engine = AVAudioEngine()
-    private let environment = AVAudioEnvironmentNode()
+    private var engine = AVAudioEngine()
+    private var environment = AVAudioEnvironmentNode()
     private var players: [String: AVAudioPlayerNode] = [:]   // hex → source
     private let humBuffer: AVAudioPCMBuffer?
     private(set) var running = false
@@ -28,7 +28,57 @@ final class SkyAudioEngine {
         // spins up CoreAudio at app launch — a crash surface (RPC timeouts)
         // paid even by users who never enable sound.
         humBuffer = Self.makeHumBuffer()
+
+        // A phone call or Siri stops the engine behind our back; without these
+        // the soundscape stays dead (running == true blocks any restart) until
+        // the user toggles sound off and on.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            let type = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
+                .flatMap(AVAudioSession.InterruptionType.init(rawValue:))
+            Task { @MainActor in self?.handleInterruption(type) }
+        }
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.handleMediaServicesReset() }
+        }
     }
+
+    private func handleInterruption(_ type: AVAudioSession.InterruptionType?) {
+        switch type {
+        case .began:
+            guard running else { return }
+            // Engine is already stopped by the system; drop the sources so a
+            // restart rebuilds them cleanly on the next update.
+            for (_, player) in players { player.stop(); engine.detach(player) }
+            players.removeAll()
+            engine.stop()
+            running = false
+            wantsResume = true
+        case .ended:
+            if wantsResume { wantsResume = false; start() }
+        default:
+            break
+        }
+    }
+
+    private func handleMediaServicesReset() {
+        // Per Apple guidance the whole graph is invalid after a daemon reset:
+        // recreate the engine and environment from scratch.
+        let wasRunning = running || wantsResume
+        players.removeAll()
+        engine = AVAudioEngine()
+        environment = AVAudioEnvironmentNode()
+        graphBuilt = false
+        running = false
+        wantsResume = false
+        if wasRunning { start() }
+    }
+
+    /// True while an interruption holds the engine and we owe a restart.
+    private var wantsResume = false
 
     func start() {
         guard !running else { return }
@@ -107,18 +157,20 @@ final class SkyAudioEngine {
         buffer.frameLength = frames
         var seed: UInt64 = 0x5DEECE66D
         var brown: Float = 0
-        for i in 0..<Int(frames) {
+        func nextSample() -> Float {
             seed = seed &* 6364136223846793005 &+ 1442695040888963407
             let white = Float((seed >> 33) & 0xFFFF) / 32768 - 1
             brown = (brown + 0.02 * white) / 1.02
-            data[i] = brown * 3.0
+            return brown * 3.0
         }
-        // Crossfade the seam so the loop never clicks.
+        for i in 0..<Int(frames) { data[i] = nextSample() }
+        // Seamless wrap: blend the head with the *continuation* of the tail,
+        // so sample[last] flows into sample[0] with no discontinuity. (Fading
+        // the tail toward the head material would still jump at the wrap.)
         let fade = 4096
         for k in 0..<fade {
             let t = Float(k) / Float(fade)
-            let i = Int(frames) - fade + k
-            data[i] = data[i] * (1 - t) + data[k] * t
+            data[k] = data[k] * t + nextSample() * (1 - t)
         }
         return buffer
     }

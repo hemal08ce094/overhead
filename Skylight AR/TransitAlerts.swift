@@ -56,8 +56,8 @@ enum TransitPredictor {
             let trackRad = track * .pi / 180
             let cosLat = cos(ac.lat * .pi / 180)
 
-            var t = 0.0
-            while t <= horizon {
+            // Separation from `fix` at dead-reckoned time t; ∞ below 8° elevation.
+            func sep(at t: Double, from fix: (az: Double, el: Double)) -> Double {
                 let d = speedMps * t
                 let lat = ac.lat + (d * cos(trackRad) / earthR) * 180 / .pi
                 let lon = ac.lon + (d * sin(trackRad) / (earthR * cosLat)) * 180 / .pi
@@ -65,22 +65,44 @@ enum TransitPredictor {
                                             observerAltM: observerAltM,
                                             targetLat: lat, targetLon: lon,
                                             targetAltM: ac.altitudeMeters)
-                if pos.elevation > 8 {
-                    for (body, fix) in targets {
-                        let sep = separation(az1: pos.azimuth, el1: pos.elevation,
-                                             az2: fix.az, el2: fix.el)
-                        if sep < thresholdDeg {
-                            let when = Date().addingTimeInterval(t)
+                guard pos.elevation > 8 else { return .infinity }
+                return separation(az1: pos.azimuth, el1: pos.elevation,
+                                  az2: fix.az, el2: fix.el)
+            }
+
+            // A nearby jet crosses the disc at up to several °/s, so a 2 s grid
+            // can straddle the whole transit with both samples far outside the
+            // threshold. Instead of testing samples directly, find each local
+            // minimum of separation on the coarse grid and refine it finely.
+            let coarseStep = 2.0, coarseGateDeg = 10.0, fineStep = 0.05
+            for (body, fix) in targets {
+                var sPrev2 = Double.infinity   // sep at t - 2·step
+                var sPrev = Double.infinity    // sep at t - step
+                var t = 0.0
+                while t <= horizon + coarseStep {   // one step past, so a minimum at the horizon is seen
+                    let s = sep(at: min(t, horizon), from: fix)
+                    if sPrev <= sPrev2, sPrev <= s, sPrev < coarseGateDeg {
+                        var bestT = t - coarseStep, bestSep = sPrev
+                        var ft = max(0, t - 2 * coarseStep)
+                        let fEnd = min(horizon, t)
+                        while ft <= fEnd {
+                            let fs = sep(at: ft, from: fix)
+                            if fs < bestSep { bestSep = fs; bestT = ft }
+                            ft += fineStep
+                        }
+                        if bestSep < thresholdDeg {
+                            let when = Date().addingTimeInterval(bestT)
                             if best == nil || when < best!.date {
                                 best = TransitPrediction(callsign: callsign, body: body,
                                                          date: when,
                                                          azimuth: fix.az, elevation: fix.el,
-                                                         separationDeg: sep)
+                                                         separationDeg: bestSep)
                             }
                         }
                     }
+                    sPrev2 = sPrev; sPrev = s
+                    t += coarseStep
                 }
-                t += 2
             }
         }
         return best

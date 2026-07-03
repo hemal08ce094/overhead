@@ -19,6 +19,9 @@ enum Theme {
     static let accent      = Color(red: 0.60, green: 0.74, blue: 1.00)
     static let accentSoft  = Color(red: 0.45, green: 0.58, blue: 0.95)
 
+    /// Sunlight gold — eclipses, the sun, transit moments. One value app-wide.
+    static let gold = Color(red: 1.0, green: 0.82, blue: 0.45)
+
     static let textPrimary   = Color.white.opacity(0.96)
     static let textSecondary = Color.white.opacity(0.62)
     static let textTertiary  = Color.white.opacity(0.40)
@@ -40,6 +43,45 @@ enum Theme {
     // Display type — rounded, generous, calm.
     static func display(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
+    }
+}
+
+/// Tracked-caps section label — the one way sections are introduced app-wide.
+struct Eyebrow: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+    var body: some View {
+        Text(text.uppercased())
+            .font(Theme.display(11, .semibold))
+            .tracking(1.6)
+            .foregroundStyle(Theme.textTertiary)
+    }
+}
+
+/// The app's card material: night-tinted glass with a moonlit top edge, so
+/// grouped content reads as part of the sky rather than a gray settings box.
+struct NightCardModifier: ViewModifier {
+    var cornerRadius: CGFloat = 18
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return content
+            .background {
+                shape.fill(Theme.indigo.opacity(0.12))
+                shape.fill(LinearGradient(colors: [.white.opacity(0.07), .white.opacity(0.025)],
+                                          startPoint: .top, endPoint: .bottom))
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(colors: [.white.opacity(0.14), .white.opacity(0.04)],
+                                       startPoint: .top, endPoint: .bottom),
+                        lineWidth: 1))
+    }
+}
+
+extension View {
+    func nightCard(cornerRadius: CGFloat = 18) -> some View {
+        modifier(NightCardModifier(cornerRadius: cornerRadius))
     }
 }
 

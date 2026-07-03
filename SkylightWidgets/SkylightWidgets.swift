@@ -30,6 +30,7 @@ struct SkylightWidgetsBundle: WidgetBundle {
         FlightLiveActivity()
         OpenSkyControl()
         MoonClockWidget()
+        OverheadNowWidget()
     }
 }
 
