@@ -73,6 +73,16 @@ enum WatchMoon {
         }
         return (fraction, phase < 0.5, name)
     }
+
+    /// Whole days until the next full moon (0 = full tonight). The "tonight"
+    /// window matches `state(at:)`'s "Full moon" naming band (phase < 0.53),
+    /// so the card can never say "Full moon" and "in 30d" at the same time.
+    static func daysToFull(from date: Date) -> Int {
+        let age = date.timeIntervalSince(epoch).truncatingRemainder(dividingBy: synodic)
+        var toFull = synodic * 0.5 - age
+        if toFull < -0.03 * synodic { toFull += synodic }   // past the full band → next cycle
+        return max(0, Int((toFull / 86_400).rounded()))
+    }
 }
 
 // MARK: - ISS pass model
@@ -196,6 +206,43 @@ final class ISSPassModel: NSObject, CLLocationManagerDelegate {
     }
 }
 
+// MARK: - Screenshot hooks (DEBUG only, compiled out of Release)
+
+#if DEBUG
+/// `-wshot <name>` launch arg forces a deterministic moon + ISS state so the
+/// single watch screen can be captured in its distinct, compelling states for
+/// App Store screenshots. Never ships (Release strips this).
+enum WatchShot: String {
+    case live, tonight, soon
+    static var current: WatchShot? {
+        guard let v = UserDefaults.standard.string(forKey: "wshot") else { return nil }
+        return WatchShot(rawValue: v)
+    }
+    var forcedState: ISSPassModel.State {
+        switch self {
+        case .live: return .pass(rise: Date().addingTimeInterval(-30), maxElevation: 71)
+        case .tonight: return .pass(rise: Date().addingTimeInterval(3 * 3600 + 24 * 60 + 52), maxElevation: 68)
+        case .soon: return .pass(rise: Date().addingTimeInterval(52 * 60 + 10), maxElevation: 43)
+        }
+    }
+    /// (fraction lit, waxing, name)
+    var moon: (fraction: Double, waxing: Bool, name: String) {
+        switch self {
+        case .live: return (1.0, false, "Full moon")
+        case .tonight: return (0.84, false, "Waning gibbous")
+        case .soon: return (0.18, true, "Waxing crescent")
+        }
+    }
+    var fullMoonText: String {
+        switch self {
+        case .live: return "Full tonight"
+        case .tonight: return "Full moon in 3d"
+        case .soon: return "Full moon in 10d"
+        }
+    }
+}
+#endif
+
 // MARK: - View
 
 struct WatchHomeView: View {
@@ -208,97 +255,212 @@ struct WatchHomeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                moonSection
-                Divider().overlay(.white.opacity(0.15))
-                issSection
+            VStack(spacing: 7) {
+                header
+                moonCard
+                issCard
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 3)
+            .padding(.bottom, 6)
         }
-        .background(Color(red: 0.01, green: 0.01, blue: 0.04))
-        .task { model.start() }
+        .background(
+            LinearGradient(colors: [Color(red: 0.02, green: 0.02, blue: 0.07),
+                                    Color(red: 0.005, green: 0.005, blue: 0.02)],
+                           startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+        )
+        .task {
+            #if DEBUG
+            if let shot = WatchShot.current { model.state = shot.forcedState; return }
+            #endif
+            model.start()
+        }
         // Recompute on wrist raise so an elapsed pass rolls to the next one.
         .onChange(of: scenePhase) { _, phase in
+            #if DEBUG
+            if WatchShot.current != nil { return }
+            #endif
             if phase == .active { model.start() }
         }
     }
 
-    private var moonSection: some View {
-        let moon = WatchMoon.state(at: Date())
-        return HStack(spacing: 10) {
-            moonDisc(fraction: moon.fraction, waxing: moon.waxing)
-                .frame(width: 44, height: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(moon.name)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(moonlight)
-                Text("\(Int((moon.fraction * 100).rounded()))% lit")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
+    private var header: some View {
+        HStack(spacing: 5) {
+            Text("OVERHEAD")
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .tracking(1.5)
+                .foregroundStyle(moonlight)
             Spacer()
+            Image(systemName: "location.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(accent)
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 2)
+    }
+
+    // MARK: Moon
+
+    private var moonCard: some View {
+        #if DEBUG
+        let moon = WatchShot.current?.moon ?? WatchMoon.state(at: Date())
+        let fullText = WatchShot.current?.fullMoonText ?? fullMoonText()
+        #else
+        let moon = WatchMoon.state(at: Date())
+        let fullText = fullMoonText()
+        #endif
+        return card {
+            HStack(spacing: 11) {
+                moonDisc(fraction: moon.fraction, waxing: moon.waxing)
+                    .frame(width: 46, height: 46)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(moon.name)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(moonlight)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                    Text("\(Int((moon.fraction * 100).rounded()))% lit")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text(fullText)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(accent)
+                        .padding(.top, 1)
+                }
+                Spacer(minLength: 0)
+            }
         }
     }
 
-    @ViewBuilder private var issSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Rectangle()
-                    .fill(cyan)
-                    .frame(width: 7, height: 7)
-                    .rotationEffect(.degrees(45))
-                Text("Next ISS pass")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            switch model.state {
-            case .locating:
-                Text("Finding your sky…")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundStyle(.secondary)
-            case .fetching:
-                Text("Reading the orbit…")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundStyle(.secondary)
-            case .pass(let rise, let maxEl):
-                // The pass state can go stale on the wrist; a past `rise`
-                // would make the ClosedRange below trap, so guard it.
-                TimelineView(.periodic(from: .now, by: 30)) { context in
-                    if rise > context.date {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(timerInterval: context.date...rise, countsDown: true)
-                                .font(.system(size: 26, weight: .bold, design: .rounded).monospacedDigit())
-                                .foregroundStyle(cyan)
-                            Text("\(rise.formatted(date: .omitted, time: .shortened)) · up to \(maxEl)° high")
-                                .font(.system(size: 12, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Above the horizon now")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundStyle(cyan)
-                            Text("Look up · up to \(maxEl)° high")
-                                .font(.system(size: 12, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+    private func fullMoonText() -> String {
+        let d = WatchMoon.daysToFull(from: Date())
+        return d == 0 ? "Full tonight" : "Full moon in \(d)d"
+    }
+
+    // MARK: ISS
+
+    @ViewBuilder private var issCard: some View {
+        card {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 5) {
+                    Image(systemName: "dot.radiowaves.up.forward")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(cyan)
+                    Text("NEXT ISS PASS")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(.secondary)
+                    Spacer()
                 }
-            case .noPass:
-                Text("No pass in the next 24 h")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundStyle(.secondary)
-            case .needLocation:
-                Text("Allow location to find your passes")
-                    .font(.system(size: 13, design: .rounded))
-                    .foregroundStyle(.secondary)
-            case .offline:
-                Text("No connection — try again later")
-                    .font(.system(size: 13, design: .rounded))
-                    .foregroundStyle(.secondary)
+                issBody
             }
         }
+    }
+
+    @ViewBuilder private var issBody: some View {
+        switch model.state {
+        case .locating:
+            issPlaceholder("Finding your sky…")
+        case .fetching:
+            issPlaceholder("Reading the orbit…")
+        case .pass(let rise, let maxEl):
+            // The pass state can go stale on the wrist; a past `rise` would make
+            // the countsDown range trap, so branch on it. Countdown leads so it
+            // stays in the viewport; the sky-arc sits beneath it.
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                let live = rise <= context.date
+                VStack(alignment: .leading, spacing: 5) {
+                    if live {
+                        Text("Above the horizon now")
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .foregroundStyle(cyan)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                        Text("Look up · peaks \(maxEl)° high")
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(timerInterval: context.date...rise, countsDown: true)
+                            .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(cyan)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Text("\(rise.formatted(date: .omitted, time: .shortened)) · peaks \(maxEl)° high")
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    passArc(maxEl: maxEl, live: live)
+                        .frame(height: 38)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 1)
+                }
+            }
+        case .noPass:
+            issPlaceholder("No pass in the next 24 h")
+        case .needLocation:
+            issPlaceholder("Allow location to find passes")
+        case .offline:
+            issPlaceholder("No connection — try later")
+        }
+    }
+
+    private func issPlaceholder(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, design: .rounded))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+    }
+
+    /// A little sky dome: the horizon line and the pass trajectory arcing to its
+    /// peak elevation, with the station marked. Height ∝ max elevation.
+    private func passArc(maxEl: Int, live: Bool) -> some View {
+        Canvas { ctx, size in
+            let w = size.width, h = size.height
+            let horizonY = h - 3
+            let leftX = 5.0, rightX = w - 5
+            let peakX = (leftX + rightX) / 2
+            let peakY = horizonY - (h - 8) * min(1, Double(maxEl) / 90.0)
+
+            // horizon
+            var horizon = Path()
+            horizon.move(to: CGPoint(x: leftX, y: horizonY))
+            horizon.addLine(to: CGPoint(x: rightX, y: horizonY))
+            ctx.stroke(horizon, with: .color(.white.opacity(0.16)), lineWidth: 1)
+
+            // trajectory (quadratic whose apex sits at peakY)
+            var arc = Path()
+            arc.move(to: CGPoint(x: leftX, y: horizonY))
+            arc.addQuadCurve(to: CGPoint(x: rightX, y: horizonY),
+                             control: CGPoint(x: peakX, y: 2 * peakY - horizonY))
+            ctx.stroke(arc, with: .color(cyan.opacity(0.85)),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round))
+
+            // station marker at apex
+            let dot = CGRect(x: peakX - 4.5, y: peakY - 4.5, width: 9, height: 9)
+            ctx.fill(Path(ellipseIn: dot.insetBy(dx: -3, dy: -3)), with: .color(cyan.opacity(0.22)))
+            ctx.fill(Path(ellipseIn: dot), with: .color(live ? cyan : moonlight))
+
+            // peak-elevation label
+            ctx.draw(Text("\(maxEl)°")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.85)),
+                     at: CGPoint(x: peakX, y: peakY - 12))
+        }
+    }
+
+    // MARK: Card chrome
+
+    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.white.opacity(0.055))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(.white.opacity(0.09), lineWidth: 1)
+            )
     }
 
     private func moonDisc(fraction: Double, waxing: Bool) -> some View {

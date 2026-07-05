@@ -6,12 +6,14 @@
 //  disc built from SceneKit primitives, physically-based metals lit by a
 //  generated studio environment, and an engraved face whose normal map is
 //  computed at runtime from a drawn emblem — no shipped assets. Drag to spin
-//  with momentum; the medal settles face-on. The shelf uses cheap 2D thumbs;
-//  the 3D view lives only in the detail screen.
+//  with momentum; hero medals idle in a slow perpetual turn like Fitness
+//  awards. Unearned medals render the same 3D disc as a colourless blank.
+//  The shelf grid uses cheap 2D thumbs.
 //
 
 import SwiftUI
 import SceneKit
+import StoreKit
 
 // MARK: - Emblem art (shared by 2D thumbs and the 3D engraving)
 
@@ -336,10 +338,11 @@ enum MedalScene {
         return SCNMatrix4Mult(m, SCNMatrix4MakeTranslation(0.5, 0.5, 0))
     }
 
-    static func make(for medal: Medal, award: MedalAward?, hero: Bool = true) -> (SCNScene, SCNNode) {
+    static func make(for medal: Medal, award: MedalAward?, hero: Bool = true,
+                     locked: Bool = false) -> (SCNScene, SCNNode) {
         let scene = SCNScene()
         scene.lightingEnvironment.contents = MedalArt.studioEnvironment
-        scene.lightingEnvironment.intensity = 1.7
+        scene.lightingEnvironment.intensity = locked ? 1.3 : 1.7
         scene.background.contents = UIColor.clear
 
         let (base, _, _) = MedalArt.colors(medal.finish)
@@ -348,12 +351,21 @@ enum MedalScene {
         func metal() -> SCNMaterial {
             let m = SCNMaterial()
             m.lightingModel = .physicallyBased
-            m.diffuse.contents = base
-            m.metalness.contents = 1.0
-            m.roughness.contents = rough
-            if medal.finish == .night {
-                m.clearCoat.contents = 0.9
-                m.clearCoatRoughness.contents = 0.15
+            if locked {
+                // Unstruck blank: colourless graphite with a duller grind. The
+                // engraving still catches light, so what you're working toward
+                // stays legible — it just hasn't been struck in metal yet.
+                m.diffuse.contents = UIColor(white: 0.46, alpha: 1)
+                m.metalness.contents = 0.85
+                m.roughness.contents = 0.48
+            } else {
+                m.diffuse.contents = base
+                m.metalness.contents = 1.0
+                m.roughness.contents = rough
+                if medal.finish == .night {
+                    m.clearCoat.contents = 0.9
+                    m.clearCoatRoughness.contents = 0.15
+                }
             }
             return m
         }
@@ -384,10 +396,13 @@ enum MedalScene {
         spinner.addChildNode(medalNode)
         scene.rootNode.addChildNode(spinner)
 
+        // Locked medals sit in a quieter studio — same rig, lights turned down.
+        let lightScale: CGFloat = locked ? 0.8 : 1
+
         let key = SCNNode()
         key.light = SCNLight()
         key.light?.type = .directional
-        key.light?.intensity = 420
+        key.light?.intensity = 420 * lightScale
         key.eulerAngles = SCNVector3(-0.5, -0.4, 0)
         scene.rootNode.addChildNode(key)
 
@@ -395,7 +410,7 @@ enum MedalScene {
         let fill = SCNNode()
         fill.light = SCNLight()
         fill.light?.type = .directional
-        fill.light?.intensity = 130
+        fill.light?.intensity = 130 * lightScale
         fill.light?.color = UIColor(red: 0.80, green: 0.86, blue: 1.0, alpha: 1)
         fill.eulerAngles = SCNVector3(0.4, 0.7, 0)
         scene.rootNode.addChildNode(fill)
@@ -405,7 +420,7 @@ enum MedalScene {
         let rimLight = SCNNode()
         rimLight.light = SCNLight()
         rimLight.light?.type = .directional
-        rimLight.light?.intensity = 260
+        rimLight.light?.intensity = 260 * lightScale
         rimLight.eulerAngles = SCNVector3(0.2, .pi - 0.3, 0)
         scene.rootNode.addChildNode(rimLight)
 
@@ -414,7 +429,8 @@ enum MedalScene {
         // HDR + bloom only where the medal is the hero; a 66pt avatar doesn't
         // need an HDR offscreen pass.
         camera.camera?.wantsHDR = hero
-        if hero { camera.camera?.bloomIntensity = 0.12 }
+        camera.camera?.wantsExposureAdaptation = false
+        if hero { camera.camera?.bloomIntensity = locked ? 0.05 : 0.12 }
         camera.position = SCNVector3(0, 0, 3.1)
         scene.rootNode.addChildNode(camera)
 
@@ -422,8 +438,11 @@ enum MedalScene {
     }
 }
 
-/// Interactive medal: drag to spin with momentum, settles face- or back-on.
-/// A reveal spin plays on appear unless Reduce Motion is set.
+/// Interactive medal: drag to spin with momentum. Hero medals live like
+/// Fitness awards — the reveal is one fast turn that relaxes into a perpetual
+/// slow rotation, and a fling glides back to that idle turn instead of
+/// braking. The small avatar (and Reduce Motion) reveals once and rests, so
+/// nothing renders forever where it shouldn't.
 struct MedalView3D: UIViewRepresentable {
     let medal: Medal
     let award: MedalAward?
@@ -432,6 +451,8 @@ struct MedalView3D: UIViewRepresentable {
     /// Full quality (HDR, bloom, 4× MSAA, 60 fps) for the big viewers;
     /// the small avatar renders lighter with no visible difference at its size.
     var hero: Bool = true
+    /// Unearned: the same medal struck as a colourless blank — still spinnable.
+    var locked: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeUIView(context: Context) -> SCNView {
@@ -439,15 +460,19 @@ struct MedalView3D: UIViewRepresentable {
         view.backgroundColor = .clear
         view.antialiasingMode = hero ? .multisampling4X : .multisampling2X
         view.preferredFramesPerSecond = hero ? 60 : 30
-        let (scene, spinner) = MedalScene.make(for: medal, award: award, hero: hero)
+        let (scene, spinner) = MedalScene.make(for: medal, award: award, hero: hero, locked: locked)
         scene.rootNode.childNodes.first { $0.camera != nil }?.position.z = cameraDistance
         view.scene = scene
         context.coordinator.spinner = spinner
 
         if reduceMotion {
             spinner.eulerAngles.y = 0
+        } else if hero {
+            // Reveal: a fast turn that eases into the endless idle rotation.
+            context.coordinator.idleSpeed = 0.3
+            context.coordinator.startSpin(initialVelocity: -6.8)
         } else {
-            // Reveal: one graceful turn that lands face-on.
+            // Avatar reveal: one graceful turn that lands face-on and stops.
             spinner.eulerAngles.y = -2 * .pi * 0.9
             let settle = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 1.4, usesShortestUnitArc: false)
             settle.timingMode = .easeOut
@@ -458,36 +483,80 @@ struct MedalView3D: UIViewRepresentable {
                                          action: #selector(Coordinator.pan(_:)))
         view.addGestureRecognizer(pan)
         view.isAccessibilityElement = true
-        view.accessibilityLabel = "\(medal.name) medal. Drag to rotate."
+        view.accessibilityLabel = locked
+            ? "\(medal.name) medal, not yet earned. Drag to rotate."
+            : "\(medal.name) medal. Drag to rotate."
         return view
     }
 
     func updateUIView(_ view: SCNView, context: Context) {}
 
+    static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
+        coordinator.stopSpin()
+    }
+
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     @MainActor final class Coordinator: NSObject {
         var spinner: SCNNode?
+        /// The slow perpetual turn the medal relaxes back to. 0 (avatar,
+        /// Reduce Motion) means flings settle on the nearest face instead.
+        var idleSpeed: Float = 0
+        private var velocity: Float = 0
         private var startY: Float = 0
+        private var dragging = false
+        private var lastTime: CFTimeInterval = 0
+        private var link: CADisplayLink?
+
+        func startSpin(initialVelocity: Float) {
+            velocity = initialVelocity
+            lastTime = 0
+            guard link == nil else { return }
+            let l = CADisplayLink(target: self, selector: #selector(step(_:)))
+            l.add(to: .main, forMode: .common)
+            link = l
+        }
+
+        func stopSpin() {
+            link?.invalidate()
+            link = nil
+        }
+
+        @objc private func step(_ link: CADisplayLink) {
+            let dt = lastTime == 0 ? 0 : Float(link.timestamp - lastTime)
+            lastTime = link.timestamp
+            guard let spinner, !dragging, dt > 0 else { return }
+            // Exponential glide from the current speed down to the idle turn —
+            // a fling never brakes to a stop, it just becomes the slow spin.
+            let idle = idleSpeed * (velocity < 0 ? -1 : 1)
+            velocity = idle + (velocity - idle) * expf(-dt / 0.85)
+            spinner.eulerAngles.y += velocity * dt
+        }
 
         @objc func pan(_ gesture: UIPanGestureRecognizer) {
             guard let spinner else { return }
             switch gesture.state {
             case .began:
+                dragging = true
                 spinner.removeAllActions()
                 startY = spinner.eulerAngles.y
             case .changed:
                 let dx = Float(gesture.translation(in: gesture.view).x)
                 spinner.eulerAngles.y = startY + dx * 0.012
             case .ended, .cancelled:
-                let v = Float(gesture.velocity(in: gesture.view).x) * 0.012
-                // Coast on the fling, then settle on whichever face is nearest.
-                let projected = spinner.eulerAngles.y + v * 0.32
-                let settled = (projected / .pi).rounded() * .pi
-                let action = SCNAction.rotateTo(x: 0, y: CGFloat(settled), z: 0,
-                                                duration: 0.85, usesShortestUnitArc: false)
-                action.timingMode = .easeOut
-                spinner.runAction(action)
+                dragging = false
+                let v = max(-14, min(14, Float(gesture.velocity(in: gesture.view).x) * 0.012))
+                if idleSpeed > 0 {
+                    startSpin(initialVelocity: v)
+                } else {
+                    // Coast on the fling, then settle on whichever face is nearest.
+                    let projected = spinner.eulerAngles.y + v * 0.32
+                    let settled = (projected / .pi).rounded() * .pi
+                    let action = SCNAction.rotateTo(x: 0, y: CGFloat(settled), z: 0,
+                                                    duration: 0.85, usesShortestUnitArc: false)
+                    action.timingMode = .easeOut
+                    spinner.runAction(action)
+                }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.7)
             default:
                 break
@@ -566,16 +635,31 @@ struct MedalThumb: View {
 }
 
 /// The spotter's current tier as a miniature medal — carried into every
-/// settings header so your standing travels with you.
+/// settings header so your standing travels with you. Tapping it opens the
+/// Tiers & Medals journey (except on that screen itself).
 struct TierBadge: View {
     @Bindable var engine: SkyEngine
+    var size: CGFloat = 26
+    var tappable: Bool = true
+
     var body: some View {
         let id = MedalCatalog.medalID(for: engine.spotterTier)
         if let medal = MedalCatalog.medal(id) {
-            MedalThumb(medal: medal,
-                       earnedDate: engine.medals.earned[id]?.date ?? Date(),
-                       progress: medal.target, target: medal.target,
-                       size: 26)
+            let thumb = MedalThumb(medal: medal,
+                                   earnedDate: engine.medals.earned[id]?.date ?? Date(),
+                                   progress: medal.target, target: medal.target,
+                                   size: size)
+            if tappable {
+                NavigationLink {
+                    MedalsOverviewView(engine: engine)
+                } label: {
+                    thumb
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Your tier: \(engine.spotterTier.name). Opens tiers and medals.")
+            } else {
+                thumb
+            }
         }
     }
 }
@@ -597,8 +681,8 @@ struct MedalsOverviewView: View {
     private static let milestoneIDs = Set(MedalCatalog.milestoneOrder)
 
     var body: some View {
-        SettingsScaffold(theme: .voyage, title: "Tiers & Medals",
-                         titleBadge: AnyView(TierBadge(engine: engine))) {
+        SettingsScaffold(theme: .tiers, title: "Tiers & Medals",
+                         titleBadge: AnyView(TierBadge(engine: engine, size: 46, tappable: false))) {
             VStack(alignment: .leading, spacing: 24) {
                 // Your standing, in metal.
                 VStack(spacing: 10) {
@@ -608,8 +692,10 @@ struct MedalsOverviewView: View {
                                     cameraDistance: 2.7)
                             .frame(height: 240)
                     } else if let first = MedalCatalog.medal("first") {
-                        MedalThumb(medal: first, earnedDate: nil, progress: 0, target: 1, size: 120)
-                            .frame(height: 180)
+                        // Nothing earned yet: the first medal as a blank —
+                        // spin it, want it.
+                        MedalView3D(medal: first, award: nil, cameraDistance: 2.7, locked: true)
+                            .frame(height: 240)
                     }
                     Text(engine.spotterTier.name)
                         .font(Theme.display(24, .bold))
@@ -729,6 +815,7 @@ struct MedalsOverviewView: View {
 struct MedalDetailView: View {
     let medal: Medal
     @Bindable var engine: SkyEngine
+    @Environment(\.requestReview) private var requestReview
 
     private var award: MedalAward? { engine.medals.earned[medal.id] }
     private var progress: Int { engine.medals.progress(for: medal, totalSpots: engine.statFlightsSpotted) }
@@ -736,19 +823,13 @@ struct MedalDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                if award != nil {
-                    MedalView3D(medal: medal, award: award, cameraDistance: 2.8)
-                        .frame(height: 380)
-                        .padding(.top, 8)
-                    Text("Drag to turn it over")
-                        .font(Theme.display(11, .medium))
-                        .foregroundStyle(Theme.textTertiary)
-                } else {
-                    MedalThumb(medal: medal, earnedDate: nil, progress: progress, target: medal.target)
-                        .scaleEffect(2.2)
-                        .frame(height: 220)
-                        .padding(.top, 40)
-                }
+                MedalView3D(medal: medal, award: award, cameraDistance: 2.8,
+                            locked: award == nil)
+                    .frame(height: 380)
+                    .padding(.top, 8)
+                Text(award != nil ? "Drag to turn it over" : "Not yet earned — drag to spin")
+                    .font(Theme.display(11, .medium))
+                    .foregroundStyle(Theme.textTertiary)
 
                 VStack(spacing: 8) {
                     Text(medal.name)
@@ -793,6 +874,21 @@ struct MedalDetailView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.skyGradient.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        // The rating moment: the user is admiring a medal they JUST earned —
+        // browsing the shelf months later must never trigger the ask. Gated
+        // hard (invested users, ~once per four months) and delayed so the
+        // reveal spin finishes before the sheet appears.
+        .task {
+            guard let award, award.date.timeIntervalSinceNow > -15 * 60,
+                  ReviewGate.shouldAsk(spots: engine.statFlightsSpotted,
+                                       nights: engine.statDaysUsed) else { return }
+            try? await Task.sleep(for: .seconds(2.5))
+            // A dismissed view cancels the sleep early — don't burn the ask
+            // budget on a prompt nobody will see.
+            guard !Task.isCancelled else { return }
+            ReviewGate.recordAsk()
+            requestReview()
+        }
     }
 }
 

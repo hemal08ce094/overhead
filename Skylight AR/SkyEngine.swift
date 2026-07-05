@@ -24,6 +24,9 @@ struct SelectedAircraft: Identifiable, Equatable {
     var distanceNm: Double
     var track: Double?
     var groundSpeedKts: Double?
+    var verticalRateFpm: Double?   // + climbing, − descending
+    var registration: String?      // tail number, e.g. "N12345"
+    var squawk: String?            // transponder code; 7500/7600/7700 = emergency
     // Route enrichment (M5, filled async from adsbdb).
     var airline: String?
     var origin: String?
@@ -128,6 +131,12 @@ final class SkyEngine {
     /// haptics — for blind / low-vision users, or anyone, to find a plane
     /// eyes-free. Turning it on also switches the spatial soundscape on.
     var hearFeelSky: Bool  { didSet { persist(); if hearFeelSky { soundOn = true }; controller?.applyAccessibility() } }
+    /// Night vision: remap the whole app to deep red so the eye's dark
+    /// adaptation survives a glance at the screen — the classic astronomy
+    /// courtesy, applied to both the scene render and the UI chrome.
+    var nightVision: Bool = false { didSet { persist(); controller?.applyNightVision() } }
+    /// Local notifications ~10 minutes before visible ISS passes.
+    var issAlerts: Bool = false { didSet { persist(); controller?.applyISSAlerts() } }
 
     /// Minutes added to "now" for the sky clock (time-scrub; not persisted).
     var skyTimeOffsetMin: Double = 0 { didSet { controller?.applySkyTimeNow() } }
@@ -145,7 +154,18 @@ final class SkyEngine {
     var favorites: Set<String> {
         didSet { UserDefaults.standard.set(Array(favorites).sorted(), forKey: SkyDefaults.favorites) }
     }
-    var focusedCallsign: String? { didSet { controller?.applyFocus() } }
+    var focusedCallsign: String? {
+        didSet {
+            if focusedCallsign == nil { spotlightOnly = false }   // ✕ restores the full sky
+            else if focusedCallsign != oldValue { Analytics.log("Focus.started") }
+            controller?.applyFocus()
+        }
+    }
+
+    /// Search spotlight: show only the searched aircraft, hide every other
+    /// plane. Entered when the user picks a search result; exits when they
+    /// stop tracking (✕ on the pill) or tap "Show all".
+    var spotlightOnly: Bool = false { didSet { controller?.applyLayerVisibility() } }
 
     /// Live guidance for the focused flight: where it is, and which way to
     /// turn when it's off screen (`arrowAngle` nil while visible).
@@ -177,7 +197,7 @@ final class SkyEngine {
     func isFavorite(_ callsign: String) -> Bool { favorites.contains(callsign) }
     func toggleFavorite(_ callsign: String) {
         if favorites.contains(callsign) { favorites.remove(callsign) }
-        else { favorites.insert(callsign) }
+        else { favorites.insert(callsign); Analytics.log("Favorite.added") }
         controller?.applyFocus()
     }
 
@@ -190,6 +210,7 @@ final class SkyEngine {
 
     func recordSpot(aircraft: Aircraft? = nil) {
         statFlightsSpotted += 1
+        Analytics.log("Plane.identified")
         UserDefaults.standard.set(statFlightsSpotted, forKey: SkyDefaults.statSpots)
         medals.recordSpot(totalSpots: statFlightsSpotted,
                           type: aircraft?.type,
@@ -206,9 +227,6 @@ final class SkyEngine {
     var trafficCount: Int = 0
     var selected: SelectedAircraft?
     var selectedPhoto: PlanePhoto?
-    /// Where the selected plane sits on screen (window coordinates) — the
-    /// anchor the detail sheet's zoom transition grows out of and returns to.
-    var selectedScreenPoint: CGPoint?
     var selectedAirport: SelectedAirport?
     /// Current pinch-zoom factor (1 = no zoom), mirrored from the controller.
     var zoomFactor: Double = 1
@@ -257,7 +275,12 @@ final class SkyEngine {
         showAirports = d.object(forKey: SkyDefaults.showAirports) as? Bool ?? true
         showTrails = d.object(forKey: SkyDefaults.showTrails) as? Bool ?? true
         soundOn = d.bool(forKey: SkyDefaults.soundOn)
-        hearFeelSky = d.bool(forKey: SkyDefaults.hearFeelSky)
+        // On by default — the proximity pulse is part of the app's core feel.
+        // Only haptics: the spatial soundscape still needs soundOn (opt-in);
+        // the didSet that couples them fires on user toggles, not in init.
+        hearFeelSky = d.object(forKey: SkyDefaults.hearFeelSky) as? Bool ?? true
+        nightVision = d.bool(forKey: SkyDefaults.nightVision)
+        issAlerts = d.bool(forKey: SkyDefaults.issAlerts)
         fr24ApiKey = d.string(forKey: SkyDefaults.fr24ApiKey) ?? ""
         favorites = Set(d.stringArray(forKey: SkyDefaults.favorites) ?? [])
         statFlightsSpotted = d.integer(forKey: SkyDefaults.statSpots)
@@ -337,6 +360,7 @@ final class SkyEngine {
     /// Start the guided flow: 360° sweep, then drag-to-line-up. Switches to the
     /// live camera automatically — the Sun/plane lock needs it.
     func beginCalibration() {
+        Analytics.log("Align.used", ["type": "guided"])
         if !cameraPassthrough { cameraPassthrough = true }
         calibrationScanProgress = 0
         calibrationStep = .scanning
@@ -377,6 +401,7 @@ final class SkyEngine {
     /// sweep) — reuses the same lock primitives as the guided flow. Needs the
     /// camera so the real Sun/Moon/plane is visible to line up against.
     func beginQuickAlign() {
+        Analytics.log("Align.used", ["type": "quick"])
         if !cameraPassthrough { cameraPassthrough = true }
         controller?.prepareQuickAlign()
         calibrationStep = .aligning
@@ -407,5 +432,7 @@ final class SkyEngine {
         d.set(showTrails, forKey: SkyDefaults.showTrails)
         d.set(soundOn, forKey: SkyDefaults.soundOn)
         d.set(hearFeelSky, forKey: SkyDefaults.hearFeelSky)
+        d.set(nightVision, forKey: SkyDefaults.nightVision)
+        d.set(issAlerts, forKey: SkyDefaults.issAlerts)
     }
 }

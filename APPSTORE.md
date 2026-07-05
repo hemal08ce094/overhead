@@ -39,7 +39,7 @@ you down to the moment, shutter ready.
 — Dark-sky mode: the full star map with the camera off, kind to your battery
   and your night vision.
 
-No account. No tracking. Everything computes on your iPhone.
+No account. No ads. No tracking. The sky is computed on your iPhone; live aircraft come from public flight feeds.
 
 ## App Review notes
 Location is core functionality (the app positions aircraft and celestial

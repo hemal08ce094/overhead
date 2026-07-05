@@ -4,9 +4,11 @@
 //
 //  Full-bleed animated headers for the Profile sheet and every settings screen.
 //  The same living-Canvas + Liquid Glass language as `SkyVoyageScene`, but each
-//  screen gets its own themed scene drawn behind clear glass: aircraft traffic on
-//  a radar scope, a runway with a landing jet, a self-locking compass, a celestial
-//  montage, a signalling globe, spatial-audio rings. Pure Canvas — no assets, no
+//  screen gets its own themed scene drawn behind clear glass: a quiet backyard
+//  with distant traffic (Profile), aircraft traffic on a radar scope, a runway
+//  with a landing jet, a self-locking compass, a celestial montage, a signalling
+//  globe, spatial-audio rings, an identifying viewfinder (About), and a plane
+//  climbing the tier ladder (Tiers & Medals). Pure Canvas — no assets, no
 //  dependencies — and every scene freezes to a composed still under Reduce Motion.
 //
 
@@ -17,7 +19,9 @@ import SwiftUI
 /// One themed header per surface. Drives the backdrop, the accent used across the
 /// scene, and the SF Symbol shown in the floating glass title.
 enum HeaderTheme: Equatable {
-    case voyage        // Profile / About — the classic solar voyage
+    case profile       // Profile — your own quiet backyard sky
+    case about         // About & privacy — the viewfinder that identifies the sky
+    case tiers         // Tiers & Medals — the climb
     case sky           // View & sky
     case aircraft
     case airport
@@ -28,7 +32,9 @@ enum HeaderTheme: Equatable {
     /// Two-stop night gradient behind the scene.
     var gradient: [Color] {
         switch self {
-        case .voyage:        return [Color(red: 0.07, green: 0.09, blue: 0.20), Color(red: 0.02, green: 0.02, blue: 0.07)]
+        case .profile:       return [Color(red: 0.07, green: 0.09, blue: 0.20), Color(red: 0.02, green: 0.02, blue: 0.07)]
+        case .about:         return [Color(red: 0.06, green: 0.07, blue: 0.11), Theme.nightBottom]
+        case .tiers:         return [Color(red: 0.11, green: 0.08, blue: 0.04), Theme.nightBottom]
         case .sky:           return [Color(red: 0.06, green: 0.08, blue: 0.20), Theme.nightBottom]
         case .aircraft:      return [Color(red: 0.04, green: 0.09, blue: 0.15), Color(red: 0.01, green: 0.02, blue: 0.05)]
         case .airport:       return [Color(red: 0.09, green: 0.08, blue: 0.14), Color(red: 0.02, green: 0.02, blue: 0.05)]
@@ -41,7 +47,9 @@ enum HeaderTheme: Equatable {
     /// Accent used for scene highlights and the glass icon.
     var accent: Color {
         switch self {
-        case .voyage, .sky:  return Theme.accent
+        case .profile, .sky: return Theme.accent
+        case .about:         return Color(red: 0.68, green: 0.73, blue: 0.84)
+        case .tiers:         return Theme.gold
         case .aircraft:      return Color(red: 0.45, green: 0.85, blue: 0.95)
         case .airport:       return Color(red: 1.00, green: 0.75, blue: 0.40)
         case .calibration:   return Color(red: 0.52, green: 0.92, blue: 0.78)
@@ -53,7 +61,9 @@ enum HeaderTheme: Equatable {
     /// Mark used in the title banner and the pinned bar.
     var icon: String {
         switch self {
-        case .voyage:        return "moon.stars.fill"
+        case .profile:       return "moon.stars.fill"
+        case .about:         return "info.circle"
+        case .tiers:         return "medal.fill"
         case .sky:           return "moon.stars.fill"
         case .aircraft:      return "airplane"
         case .airport:       return "airplane.arrival"
@@ -186,9 +196,10 @@ struct HeaderGlassLens: View {
 
 // MARK: - Title banner + pinned bar
 
-/// Default in-header title banner: the theme's mark and the screen's name in a
-/// clear glass capsule, floating over the scene. It IS the screen's title —
-/// the system nav-bar title stays empty.
+/// Default in-header title banner: a full-width clear glass card — the same
+/// scale and material as the Profile identity card — with the tappable tier
+/// medal, the theme's mark and the screen's name floating over the scene.
+/// It IS the screen's title — the system nav-bar title stays empty.
 struct HeaderTitleBanner: View {
     let theme: HeaderTheme
     let title: String
@@ -196,20 +207,22 @@ struct HeaderTitleBanner: View {
     var badge: AnyView? = nil
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 12) {
             if let badge { badge }
             Image(systemName: theme.icon)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.accent)
             Text(title)
-                .font(Theme.display(17, .semibold))
+                .font(Theme.display(19, .bold))
                 .foregroundStyle(Theme.textPrimary)
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 11)
-        .glassEffect(.clear, in: .capsule)
-        .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 1))
-        .shadow(color: .black.opacity(0.28), radius: 10, y: 5)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.clear, in: .rect(cornerRadius: 22))
+        .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+        .shadow(color: .black.opacity(0.28), radius: 12, y: 6)
     }
 }
 
@@ -319,19 +332,14 @@ struct SettingsScaffold<Content: View>: View {
 
 // MARK: - Scene dispatch
 
-/// The animated scene for a theme. Voyage reuses the original solar hero; every
-/// other theme is a bespoke Canvas below.
+/// The animated scene for a theme — every theme gets its own bespoke Canvas below.
 struct SettingsHeaderScene: View {
     let theme: HeaderTheme
     /// Stop drawing while the header is scrolled away under the pinned bar.
     var paused: Bool = false
 
     var body: some View {
-        if theme == .voyage {
-            SkyVoyageScene(paused: paused)
-        } else {
-            HeaderCanvas(theme: theme, paused: paused)
-        }
+        HeaderCanvas(theme: theme, paused: paused)
     }
 }
 
@@ -386,7 +394,9 @@ private struct HeaderCanvas: View {
             Canvas { ctx, size in
                 drawStars(ctx, size, t)
                 switch theme {
-                case .voyage:        break
+                case .profile:       drawProfile(ctx, size, t)
+                case .about:         drawAbout(ctx, size, t)
+                case .tiers:         drawTiers(ctx, size, t)
                 case .sky:           drawSky(ctx, size, t)
                 case .aircraft:      drawAircraft(ctx, size, t)
                 case .airport:       drawAirport(ctx, size, t)
@@ -463,6 +473,177 @@ private struct HeaderCanvas: View {
                        with: .color(color))
         }
         drawPlaneSymbol(ctx, at: pt, heading: heading, scale: f.scale, color: color)
+    }
+
+    // MARK: Profile (your own backyard)
+
+    /// Quiet and personal, unlike every instrument-panel scene around it: a
+    /// warm porch-light bloom low on the horizon — this is home — with a
+    /// couple of small, slow, distant aircraft (not a busy scope) and an
+    /// occasional shooting star, the one wish-on-a-star touch that's yours.
+    private func drawProfile(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        let amber = Color(red: 1.0, green: 0.78, blue: 0.48)
+
+        ctx.fill(Path(CGRect(x: 0, y: h * 0.60, width: w, height: h * 0.40)),
+                 with: .linearGradient(Gradient(colors: [.clear, amber.opacity(0.10)]),
+                                       startPoint: CGPoint(x: 0, y: h * 0.60), endPoint: CGPoint(x: 0, y: h)))
+        let porch = CGPoint(x: w * 0.5, y: h * 1.06)
+        ctx.fill(circlePath(porch, h * 0.55),
+                 with: .radialGradient(Gradient(colors: [amber.opacity(0.16), .clear]),
+                                       center: porch, startRadius: 4, endRadius: h * 0.55))
+
+        // Distant, quiet traffic — small and slow, not the busy scope on Aircraft.
+        let flyers = [
+            Flyer(y: 0.20, cycle: 19, phase: 1.5, altT: 0.75, scale: 10),
+            Flyer(y: 0.36, cycle: 24, phase: 9.0, altT: 0.35, scale: 8),
+        ]
+        for f in flyers { drawFlyer(ctx, size, t, f) }
+
+        // A wish, now and then.
+        let cyc = 16.0
+        let ph = (t.truncatingRemainder(dividingBy: cyc)) / cyc
+        if ph < 0.14 {
+            let u = ph / 0.14
+            let start = CGPoint(x: w * 0.14, y: h * 0.08)
+            let end = CGPoint(x: w * 0.52, y: h * 0.32)
+            func shootPt(_ u: Double) -> CGPoint {
+                CGPoint(x: start.x + (end.x - start.x) * CGFloat(u),
+                        y: start.y + (end.y - start.y) * CGFloat(u))
+            }
+            let pt = shootPt(u)
+            var trail = ctx
+            for i in 1...10 {
+                let uu = u - Double(i) * 0.03
+                guard uu > 0 else { break }
+                trail.opacity = (1 - Double(i) / 10) * 0.5
+                trail.fill(circlePath(shootPt(uu), 1.0), with: .color(.white))
+            }
+            ctx.fill(circlePath(pt, 1.4), with: .color(.white))
+        }
+    }
+
+    // MARK: About (the viewfinder that identifies the sky)
+
+    /// A slow-breathing AR viewfinder — the app's core trick, seen from
+    /// outside — with the Sun, Moon and a plane taking turns drifting through
+    /// and being "identified," plus a small privacy tell: a mote that only
+    /// ever orbits a lock, never leaving home.
+    private func drawAbout(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        let steel = theme.accent
+        let center = CGPoint(x: w * 0.5, y: h * 0.54)
+
+        let breathe = 1 + 0.06 * sin(t * 1.1)
+        let half = h * 0.30 * CGFloat(breathe)
+        let armLen = half * 0.32
+        var rc = ctx; rc.opacity = 0.55
+        for (sx, sy) in [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)] {
+            let c = CGPoint(x: center.x + CGFloat(sx) * half, y: center.y + CGFloat(sy) * half * 0.72)
+            var p = Path()
+            p.move(to: CGPoint(x: c.x - CGFloat(sx) * armLen, y: c.y))
+            p.addLine(to: c)
+            p.addLine(to: CGPoint(x: c.x, y: c.y - CGFloat(sy) * armLen))
+            rc.stroke(p, with: .color(steel), lineWidth: 1.6)
+        }
+        // Thin reference ring with a few slowly rotating ticks.
+        let ring = Path(ellipseIn: CGRect(x: center.x - half * 1.18, y: center.y - half * 0.86,
+                                          width: half * 2.36, height: half * 1.72))
+        ctx.stroke(ring, with: .color(steel.opacity(0.16)), lineWidth: 1)
+        let spin = t * 0.1
+        for i in 0..<24 where i % 3 == 0 {
+            let ang = Double(i) * (.pi / 12) + spin
+            var tk = Path()
+            tk.move(to: pointOn(center, half * 1.18, ang))
+            tk.addLine(to: pointOn(center, half * 1.10, ang))
+            ctx.stroke(tk, with: .color(.white.opacity(0.18)), lineWidth: 1)
+        }
+
+        // A glyph drifts through and brightens as the viewfinder "locks on."
+        let glyphs = ["airplane", "moon.stars.fill", "sun.max.fill"]
+        let cyc = 10.0
+        let index = Int(t / cyc) % glyphs.count
+        let u = (t.truncatingRemainder(dividingBy: cyc)) / cyc
+        let gx = w * (0.14 + 0.72 * CGFloat(u))
+        let pt = CGPoint(x: gx, y: center.y)
+        let lock = max(0, 1 - abs(gx - center.x) / (w * 0.36))
+        var glyph = ctx.resolve(Image(systemName: glyphs[index]))
+        glyph.shading = .color(.white.opacity(0.80 + 0.20 * lock))
+        ctx.drawLayer { layer in
+            layer.translateBy(x: pt.x, y: pt.y)
+            if lock > 0 { layer.addFilter(.shadow(color: steel.opacity(0.7 * lock), radius: 6)) }
+            layer.draw(glyph, in: CGRect(x: -8, y: -8, width: 16, height: 16))
+        }
+
+        // Privacy tell: a mote that only ever orbits the lock — nothing leaves home.
+        let lockPt = CGPoint(x: w * 0.86, y: h * 0.85)
+        ctx.fill(circlePath(lockPt, 12),
+                 with: .radialGradient(Gradient(colors: [steel.opacity(0.14), .clear]),
+                                       center: lockPt, startRadius: 1, endRadius: 12))
+        var lockIcon = ctx.resolve(Image(systemName: "lock.fill"))
+        lockIcon.shading = .color(steel.opacity(0.75))
+        ctx.draw(lockIcon, at: lockPt)
+        let orbA = t * 1.4
+        ctx.fill(circlePath(CGPoint(x: lockPt.x + cos(orbA) * 9, y: lockPt.y + sin(orbA) * 9), 1.3),
+                 with: .color(.white.opacity(0.5)))
+    }
+
+    // MARK: Tiers & Medals (the climb)
+
+    /// A staircase of waypoints rising to a bright medal at the top, with a
+    /// plane climbing it tier by tier — progression made literal, distinct
+    /// from Profile's stillness and About's instrument read-out.
+    private func drawTiers(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        let gold = theme.accent
+        let steps = 6
+
+        let pts = (0..<steps).map { i -> CGPoint in
+            let fx = 0.10 + 0.80 * CGFloat(i) / CGFloat(steps - 1)
+            let fy = 0.86 - 0.62 * CGFloat(i) / CGFloat(steps - 1)
+            return CGPoint(x: w * fx, y: h * fy)
+        }
+        var path = Path()
+        path.move(to: pts[0])
+        for p in pts.dropFirst() { path.addLine(to: p) }
+        ctx.stroke(path, with: .color(gold.opacity(0.22)),
+                   style: StrokeStyle(lineWidth: 1.4, lineCap: .round, dash: [1, 5]))
+
+        for (i, p) in pts.enumerated() {
+            let top = i == steps - 1
+            var d = ctx; d.opacity = top ? 1 : 0.55
+            if top {
+                d.fill(circlePath(p, 16),
+                       with: .radialGradient(Gradient(colors: [gold.opacity(0.4), .clear]),
+                                             center: p, startRadius: 2, endRadius: 16))
+            }
+            d.fill(circlePath(p, top ? 5 : 2.6), with: .color(gold))
+        }
+
+        // A plane climbing the staircase tier by tier, then resetting.
+        func climbPoint(_ u: Double) -> CGPoint {
+            let seg = Double(steps - 1) * min(max(u, 0), 1)
+            let i = min(Int(seg), steps - 2)
+            let f = CGFloat(seg - Double(i))
+            return CGPoint(x: pts[i].x + (pts[i + 1].x - pts[i].x) * f,
+                          y: pts[i].y + (pts[i + 1].y - pts[i].y) * f)
+        }
+        let cyc = 12.0
+        let u = (t.truncatingRemainder(dividingBy: cyc)) / (cyc * 0.85)
+        guard u <= 1.02 else { return }
+        let pt = climbPoint(u)
+        let ahead = climbPoint(min(u + 0.015, 1.0))
+        let heading = atan2(ahead.y - pt.y, ahead.x - pt.x)
+
+        var trail = ctx
+        for i in 1...16 {
+            let uu = u - Double(i) * 0.012
+            guard uu > 0 else { break }
+            let fade = 1 - Double(i) / 16
+            trail.opacity = fade * 0.3
+            trail.fill(circlePath(climbPoint(uu), 1.0 + CGFloat(i) * 0.07), with: .color(.white))
+        }
+        drawPlaneSymbol(ctx, at: pt, heading: heading, scale: 14, color: .white)
     }
 
     // MARK: Sky (View & sky)

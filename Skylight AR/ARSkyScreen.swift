@@ -32,24 +32,14 @@ struct ARSkyScreen: View {
     @State private var showEvents = false
     @State private var showSearch = false
     @State private var showAircraftDetail = false
-    @Namespace private var planeZoom
+    #if DEBUG
+    @State private var showMedals = false
+    #endif
 
     var body: some View {
         ZStack {
             ARSkyContainer(engine: engine)
                 .ignoresSafeArea()
-                // Invisible anchor riding the selected glyph: the detail sheet
-                // zooms out of the plane's spot in the sky and returns to
-                // wherever it has flown by dismissal.
-                .overlay {
-                    if let point = engine.selectedScreenPoint {
-                        Color.clear
-                            .frame(width: 56, height: 56)
-                            .matchedTransitionSource(id: "selected-plane", in: planeZoom)
-                            .position(point)
-                            .allowsHitTesting(false)
-                    }
-                }
 
             // Subtle vignette keeps overlay chrome legible on a bright sky.
             LinearGradient(colors: [.black.opacity(0.35), .clear, .clear, .black.opacity(0.4)],
@@ -154,7 +144,6 @@ struct ARSkyScreen: View {
         }
         .sheet(isPresented: $showAircraftDetail, onDismiss: { engine.deselect() }) {
             AircraftDetailSheet(engine: engine)
-                .navigationTransition(.zoom(sourceID: "selected-plane", in: planeZoom))
         }
         .sheet(item: Bindable(engine).selectedAirport) { airport in
             AirportDetailSheet(airport: airport)
@@ -174,35 +163,73 @@ struct ARSkyScreen: View {
             engine.controller?.setSkyObscured(obscured)
         }
         #if DEBUG
+        .sheet(isPresented: $showMedals) {
+            NavigationStack { MedalsOverviewView(engine: engine) }
+        }
         .onAppear {
             switch ShotScreen.current {
             case .events: showEvents = true
             case .profile: showProfile = true
             case .search: showSearch = true
+            case .medals: showMedals = true
+            case .viewsky: showProfile = true   // ProfileView auto-pushes View & sky
             default: break
             }
         }
         #endif
     }
 
-    private var statusPill: some View {
-        HStack(spacing: 8) {
-            PulsingDot(color: engine.feedOffline ? .orange : Theme.accent)
-            Text(statusText)
-                .font(Theme.display(14, .medium))
-                .foregroundStyle(Theme.textPrimary)
-            if !engine.feedOffline, engine.trafficCount > 0 {
-                Text("· \(engine.trafficCount)")
-                    .font(Theme.display(14, .semibold).monospacedDigit())
-                    .foregroundStyle(Theme.accent)
+    @ViewBuilder private var statusPill: some View {
+        if engine.spotlightOnly, let searched = engine.focusedCallsign {
+            // Search spotlight: only the searched plane is in the sky. The
+            // offline cue must survive here — with every other plane hidden,
+            // this pill is the only place a dead feed can show at all.
+            HStack(spacing: 8) {
+                if engine.feedOffline {
+                    PulsingDot(color: .orange)
+                } else {
+                    Image(systemName: "globe")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.gold)
+                }
+                Text(engine.feedOffline ? "Only \(searched) — no connection" : "Only \(searched)")
+                    .font(Theme.display(14, .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Button {
+                    engine.spotlightOnly = false      // back to the full sky, still tracking
+                } label: {
+                    Text("Show all")
+                        .font(Theme.display(13, .semibold))
+                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .contentShape(Capsule())
+                }
             }
+            .padding(.horizontal, 14).padding(.vertical, 7)
+            .glassEffect(.regular.tint(Theme.gold.opacity(0.12)), in: .capsule)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(engine.feedOffline
+                ? "No connection. Showing only \(searched). Show all planes."
+                : "Showing only \(searched). Show all planes.")
+        } else {
+            HStack(spacing: 8) {
+                PulsingDot(color: engine.feedOffline ? .orange : Theme.accent)
+                Text(statusText)
+                    .font(Theme.display(14, .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                if !engine.feedOffline, engine.trafficCount > 0 {
+                    Text("· \(engine.trafficCount)")
+                        .font(Theme.display(14, .semibold).monospacedDigit())
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 9)
+            .glassEffect(.regular, in: .capsule)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(engine.feedOffline
+                ? "No connection. Showing sky only."
+                : "Scanning the sky. \(engine.trafficCount) aircraft overhead.")
         }
-        .padding(.horizontal, 14).padding(.vertical, 9)
-        .glassEffect(.regular, in: .capsule)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(engine.feedOffline
-            ? "No connection. Showing sky only."
-            : "Scanning the sky. \(engine.trafficCount) aircraft overhead.")
     }
 
     private var statusText: String {
@@ -300,7 +327,7 @@ struct ARSkyScreen: View {
     private var shutterButton: some View {
         HStack {
             Spacer()
-            Button { engine.captureShareCard() } label: {
+            Button { engine.captureShareCard(); Analytics.log("Transit.shutterTapped") } label: {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(Theme.gold)
@@ -492,7 +519,7 @@ struct ARSkyScreen: View {
     /// Top-right bell — the sky calendar, one tap from anywhere.
     /// Top-right entry to flight search.
     private var searchButton: some View {
-        Button { showSearch = true } label: {
+        Button { showSearch = true; Analytics.log("Search.opened") } label: {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
@@ -504,7 +531,7 @@ struct ARSkyScreen: View {
     }
 
     private var eventsBell: some View {
-        Button { showEvents = true } label: {
+        Button { showEvents = true; Analytics.log("Events.opened") } label: {
             Image(systemName: "bell")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
@@ -563,7 +590,7 @@ struct ARSkyScreen: View {
 
     /// Top-left entry to the profile sheet.
     private var profileButton: some View {
-        Button { showProfile = true } label: {
+        Button { showProfile = true; Analytics.log("Profile.opened") } label: {
             Image(systemName: "person.crop.circle")
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
@@ -905,6 +932,13 @@ struct FlightSearchView: View {
 struct AircraftDetailSheet: View {
     @Bindable var engine: SkyEngine
     @Environment(\.dismiss) private var dismiss
+    // Two-stage dismissal: a downward swipe settles on a compact strip
+    // (callsign + airline, sky live and tappable behind it) instead of
+    // closing; a further swipe from the strip dismisses for real. The
+    // selection resets on each presentation so every plane opens at the
+    // half card, not wherever the last drag left the sheet.
+    @State private var detent: PresentationDetent = .medium
+    private static let mini = PresentationDetent.height(132)
 
     var body: some View {
         Group {
@@ -912,6 +946,7 @@ struct AircraftDetailSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
                         header(ac)
+                        if let emergency = emergencyMeaning(ac.squawk) { emergencyCard(ac, meaning: emergency) }
                         if let photo = engine.selectedPhoto { photoCard(photo) }
                         if ac.airline != nil || ac.destination != nil { routeCard(ac) }
                         if let arrival = ac.observedArrival { arrivalCard(ac, arrival: arrival) }
@@ -928,7 +963,8 @@ struct AircraftDetailSheet: View {
                 Color.clear.onAppear { dismiss() }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([Self.mini, .medium, .large], selection: $detent)
+        .presentationBackgroundInteraction(.enabled(upThrough: Self.mini))
         .presentationBackground {
             Color.clear
                 .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
@@ -936,6 +972,7 @@ struct AircraftDetailSheet: View {
                 .allowsHitTesting(false)
         }
         .preferredColorScheme(.dark)
+        .onAppear { detent = .medium }
     }
 
     private func header(_ ac: SelectedAircraft) -> some View {
@@ -944,9 +981,15 @@ struct AircraftDetailSheet: View {
                 Text(ac.callsign)
                     .font(Theme.display(30, .bold))
                     .foregroundStyle(Theme.textPrimary)
-                Text([ac.airline, ac.type].compactMap(\.self).joined(separator: "  ·  "))
+                Text([ac.airline, ac.type, ac.registration].compactMap(\.self).joined(separator: "  ·  "))
                     .font(Theme.display(15, .medium))
                     .foregroundStyle(Theme.textSecondary)
+                if let phase = phase(ac) {
+                    Label(phase.text, systemImage: phase.icon)
+                        .font(Theme.display(13, .medium).monospacedDigit())
+                        .foregroundStyle(phase.color)
+                        .padding(.top, 2)
+                }
             }
             Spacer()
             Button {
@@ -977,6 +1020,57 @@ Image(systemName: "scope")
             }
             .accessibilityLabel("Close")
         }
+    }
+
+    /// One human line for what the plane is *doing* — climbing, descending or
+    /// cruising — from vertical rate and altitude. Small rates read as level
+    /// flight; at cruise altitudes the level line speaks flight levels.
+    private func phase(_ ac: SelectedAircraft) -> (text: String, icon: String, color: Color)? {
+        if ac.onGround {
+            return ("On the ground", "airplane", Theme.textTertiary)
+        }
+        let vr = ac.verticalRateFpm ?? 0
+        let rate = "\(Int(abs(vr).rounded()).formatted()) ft/min"
+        if vr >= 500 {
+            return ("Climbing · \(rate)", "arrow.up.right", Theme.accent)
+        }
+        if vr <= -500 {
+            let verb = ac.altitudeFeet < 5000 ? "On approach" : "Descending"
+            return ("\(verb) · \(rate)", "arrow.down.right", Color(red: 1.00, green: 0.75, blue: 0.40))
+        }
+        guard ac.altitudeFeet > 0 else { return nil }
+        return ac.altitudeFeet >= 18_000
+            ? ("Cruising at FL\(Int((ac.altitudeFeet / 100).rounded()))", "arrow.right", Theme.textSecondary)
+            : ("Level at \(Int((ac.altitudeFeet / 100).rounded()) * 100) ft", "arrow.right", Theme.textSecondary)
+    }
+
+    /// The three transponder codes every spotter knows. Anything else stays
+    /// off the sheet — routine squawks are noise.
+    private func emergencyMeaning(_ squawk: String?) -> String? {
+        switch squawk {
+        case "7500": return "hijack alert"
+        case "7600": return "radio failure"
+        case "7700": return "general emergency"
+        default:     return nil
+        }
+    }
+
+    private func emergencyCard(_ ac: SelectedAircraft, meaning: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.red)
+                .padding(.top, 1)
+            Text("Squawking \(ac.squawk ?? "") — \(meaning). This aircraft has declared an emergency.")
+                .font(Theme.display(13, .semibold))
+                .foregroundStyle(Theme.textPrimary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.14),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .strokeBorder(Color.red.opacity(0.35), lineWidth: 1))
     }
 
     /// The actual airframe, when planespotters has one.
@@ -1261,7 +1355,9 @@ struct ProfileIdentityCard: View {
                                     cameraDistance: 2.3,
                                     hero: false)
                     } else if let first = MedalCatalog.medal("first") {
-                        MedalThumb(medal: first, earnedDate: nil, progress: 0, target: 1, size: 58)
+                        MedalView3D(medal: first, award: nil,
+                                    cameraDistance: 2.3,
+                                    hero: false, locked: true)
                     }
                 }
                 .frame(width: 66, height: 66)
@@ -1295,20 +1391,59 @@ struct ProfileIdentityCard: View {
 
 struct ProfileView: View {
     @Bindable var engine: SkyEngine
+    #if DEBUG
+    @State private var shotPushViewSky = false
+    #endif
 
     var body: some View {
         // One identity card at the top of the header — Overhead, your tier
         // medal, your standing — with the living sky behind it: the airliner
         // threads the card's glass, planets drift below. Tap for the journey.
-        SettingsScaffold(theme: .voyage, title: "Overhead",
+        SettingsScaffold(theme: .profile, title: "Overhead",
                          // Sits clear of the nav bar's floating close button.
                          headerAccessory: AnyView(ProfileIdentityCard(engine: engine)
                             .padding(.top, 30)),
                          headerAccessoryAtTop: true,
-                         headerScene: AnyView(SkyVoyageScene(planeBaseY: 0.42, planeArc: 0.09)),
                          headerExtraHeight: 30,
                          compactLeading: AnyView(MoonMark().frame(width: 20, height: 20))) {
             VStack(alignment: .leading, spacing: 22) {
+                // The tier program, one tap away — medal, rank, and the road
+                // to the next rung.
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow("Your tier")
+                    NavigationLink {
+                        MedalsOverviewView(engine: engine)
+                    } label: {
+                        HStack(spacing: 14) {
+                            TierBadge(engine: engine, size: 44, tappable: false)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(engine.spotterTier.name)
+                                    .font(Theme.display(16, .semibold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                if let next = MedalCatalog.nextTier(forSpots: engine.statFlightsSpotted) {
+                                    Text("\(next.threshold - engine.statFlightsSpotted) flights to \(next.name)")
+                                        .font(Theme.display(12, .regular).monospacedDigit())
+                                        .foregroundStyle(Theme.textSecondary)
+                                        .contentTransition(.numericText())
+                                } else {
+                                    Text("Top of the ladder")
+                                        .font(Theme.display(12, .regular))
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                        .padding(14)
+                        .contentShape(Rectangle())
+                        .nightCard()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Your tier: \(engine.spotterTier.name). Learn about tiers and medals.")
+                }
+
                 VStack(alignment: .leading, spacing: 10) {
                     Eyebrow("Favorite flights")
                     if engine.favorites.isEmpty {
@@ -1380,6 +1515,11 @@ struct ProfileView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { ProfileCloseButton() }
         }
+        #if DEBUG
+        // `-shot viewsky` screenshot hook: land directly on View & sky.
+        .onAppear { if ShotScreen.current == .viewsky { shotPushViewSky = true } }
+        .navigationDestination(isPresented: $shotPushViewSky) { SkySettingsView(engine: engine) }
+        #endif
     }
 
     private func settingsLink<Destination: View>(_ title: String, icon: String,
@@ -1583,7 +1723,7 @@ struct CalibrationView: View {
 
     var body: some View {
         SettingsScaffold(theme: .calibration, title: "Calibration",
-                         titleBadge: AnyView(TierBadge(engine: engine))) {
+                         titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
                 VStack(alignment: .leading, spacing: 24) {
                     section("Calibrate heading", trailing: nil) {
                         Text("Sweep a full circle, then lock onto the Sun, Moon, or a plane you can see — the most accurate way to line the sky up with reality.")
@@ -1731,7 +1871,17 @@ private struct SettingRow: View {
                 }
             }
             Spacer()
-            Toggle("", isOn: $isOn).labelsHidden().tint(Theme.accentSoft)
+            // The analytics hook lives in the binding's setter so only real
+            // user taps land there — programmatic writes (permission
+            // rollbacks, didSet coupling) go straight to the source binding
+            // and never emit a phantom Setting.toggled.
+            Toggle("", isOn: Binding(
+                get: { isOn },
+                set: { on in
+                    isOn = on
+                    Analytics.log("Setting.toggled", ["name": title, "on": on ? "true" : "false"])
+                }))
+                .labelsHidden().tint(Theme.accentSoft)
         }
         .padding(.horizontal, 14).padding(.vertical, 11)
     }
@@ -1747,16 +1897,25 @@ struct SkySettingsView: View {
 
     var body: some View {
         SettingsScaffold(theme: .sky, title: "View & sky",
-                         titleBadge: AnyView(TierBadge(engine: engine))) {
+                         titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 10) {
                     modeChip("AR sky", "camera.fill", active: engine.cameraPassthrough) {
                         engine.cameraPassthrough = true
+                        Analytics.log("Mode.selected", ["mode": "ar"])
                     }
                     modeChip("Dark sky", "moon.stars.fill", active: !engine.cameraPassthrough) {
                         engine.cameraPassthrough = false
+                        Analytics.log("Mode.selected", ["mode": "dark"])
                     }
                 }
+
+                VStack(spacing: 0) {
+                    SettingRow(title: "Night vision", icon: "eye.fill", isOn: $engine.nightVision,
+                               subtitle: "Deep red display — protects your dark adaptation")
+                }
+                .padding(.vertical, 4)
+                .nightCard()
 
                 VStack(spacing: 0) {
                     SettingRow(title: "Sun", icon: "sun.max.fill", isOn: $engine.showSun)
@@ -1771,6 +1930,9 @@ struct SkySettingsView: View {
                     settingsDivider
                     SettingRow(title: "ISS", icon: "diamond.fill", isOn: $engine.showISS,
                                subtitle: engine.issVisible ? "Overhead now" : nil)
+                    settingsDivider
+                    SettingRow(title: "ISS pass alerts", icon: "bell.badge.fill", isOn: $engine.issAlerts,
+                               subtitle: "A nudge 10 minutes before it rises")
                 }
                 .padding(.vertical, 4)
                 .nightCard()
@@ -1840,7 +2002,7 @@ struct AircraftSettingsView: View {
 
     var body: some View {
         SettingsScaffold(theme: .aircraft, title: "Aircraft",
-                         titleBadge: AnyView(TierBadge(engine: engine))) {
+                         titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(spacing: 0) {
                     SettingRow(title: "Aircraft", icon: "airplane", isOn: $engine.showAircraft,
@@ -1980,7 +2142,7 @@ struct DataSourceSettingsView: View {
 
     var body: some View {
         SettingsScaffold(theme: .dataSource, title: "Data source",
-                         titleBadge: AnyView(TierBadge(engine: engine))) {
+                         titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
                     Label(usingFR24 ? "Flightradar24" : "airplanes.live (free)",
@@ -2039,7 +2201,7 @@ struct AccessibilityView: View {
 
     var body: some View {
         SettingsScaffold(theme: .accessibility, title: "Accessibility",
-                         titleBadge: AnyView(TierBadge(engine: engine))) {
+                         titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(spacing: 0) {
                     SettingRow(title: "Hear & feel the sky", icon: "dot.radiowaves.left.and.right",
@@ -2083,10 +2245,11 @@ struct AccessibilityView: View {
 /// About, how-it-works, the reference-only disclaimer, privacy, and feedback.
 struct AboutView: View {
     @Environment(\.openURL) private var openURL
+    @State private var shareUsageStats = !Analytics.isOptedOut
     private let feedbackEmail = "hemalmodi3@gmail.com"
 
     var body: some View {
-        SettingsScaffold(theme: .voyage, title: "About & privacy") {
+        SettingsScaffold(theme: .about, title: "About & privacy") {
             VStack(alignment: .leading, spacing: 22) {
                 aboutCard("What it is", icon: "sparkles") {
                     Text("Hold your phone up and Overhead labels the sky around you — live aircraft, the Sun, the Moon, the planets, stars, and the ISS, each placed at its real position in augmented reality.")
@@ -2105,7 +2268,17 @@ struct AboutView: View {
                         Text("No account. No tracking. No ads.")
                             .font(Theme.display(13, .semibold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("Your location is used only on your iPhone to place aircraft and sky objects relative to you. It is never sent to a server, shared, or sold. Favorites and stats live only on this device. Overhead has no analytics and collects nothing about you.\n\nAircraft data comes from public feeds: airplanes.live (positions), adsbdb (routes), planespotters.net (photos), CelesTrak (orbits). Those services have their own terms.")
+                        Text("Your location places the sky around you, and is sent to public flight services like airplanes.live to fetch the aircraft near you — never linked to an account, logged by us, or used to track you. Favorites and stats live only on this device.\n\nTo improve the app, Overhead may collect anonymous usage statistics — which features get used, never who you are, where you are, or what you looked at. You can turn this off below.\n\nAircraft data comes from public feeds: airplanes.live (positions), adsbdb (routes), planespotters.net (photos), CelesTrak (orbits). Those services have their own terms.")
+                        Toggle(isOn: $shareUsageStats) {
+                            Text("Share anonymous usage statistics")
+                                .font(Theme.display(13, .medium))
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                        .tint(Theme.accentSoft)
+                        .padding(.top, 4)
+                        .onChange(of: shareUsageStats) { _, share in
+                            Analytics.setOptedOut(!share)
+                        }
                     }
                 }
 
@@ -2118,6 +2291,14 @@ struct AboutView: View {
                     Label("Share feedback", systemImage: "envelope")
                 }
                 .buttonStyle(PrimaryButtonStyle())
+
+                Button {
+                    openURL(ReviewGate.writeReviewURL)
+                } label: {
+                    Label("Rate Overhead on the App Store", systemImage: "star")
+                }
+                .buttonStyle(GhostButtonStyle())
+                .frame(maxWidth: .infinity)
 
                 Text("Feedback goes to \(feedbackEmail)")
                     .font(Theme.display(11, .regular))
@@ -2151,7 +2332,7 @@ struct AirportSettingsView: View {
 
     var body: some View {
         SettingsScaffold(theme: .airport, title: "Airports",
-                         titleBadge: AnyView(TierBadge(engine: engine))) {
+                         titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(spacing: 0) {
                     SettingRow(title: "Airports", icon: "airplane.arrival",

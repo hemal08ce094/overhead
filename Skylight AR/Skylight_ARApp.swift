@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct Skylight_ARApp: App {
+    init() { Analytics.start() }
+
     var body: some Scene {
         WindowGroup {
             RootView()

@@ -16,7 +16,6 @@ import Foundation
 import SceneKit
 import ARKit
 import CoreLocation
-import CoreMotion
 import AVFoundation
 import SatelliteKit
 import simd
@@ -425,6 +424,8 @@ enum SkyDefaults {
     static let showTrails        = "showTrails"         // Bool
     static let soundOn           = "soundOn"            // Bool
     static let hearFeelSky       = "hearFeelSky"        // Bool
+    static let nightVision       = "nightVision"        // Bool
+    static let issAlerts         = "issAlerts"          // Bool
     static let fr24ApiKey        = "fr24ApiKey"         // String
     static let lastLat           = "lastLat"            // Double (for Siri)
     static let lastLon           = "lastLon"            // Double
@@ -544,7 +545,6 @@ final class ARSkyViewController: UIViewController {
     var preCalibration: (offsetDeg: Double, autoAlign: Bool, worldY: Float)?
     private let flightActivity = FlightActivityController()
     private let skyAudio = SkyAudioEngine()
-    private let motionManager = CMMotionManager()
 
     // Sky layer + trails
     private var sky: SkyScene?
@@ -585,9 +585,11 @@ final class ARSkyViewController: UIViewController {
         // phone, so the auto-lock dimming/sleep would interrupt tracking.
         UIApplication.shared.isIdleTimerDisabled = true
         startSession(reset: true)
-        applyBackground()      // routes to IMU pointing when in dark-sky mode
+        applyBackground()      // black background over the live session in dark mode
         startPolling()
         loadOrRefreshISSTLE()
+        applyNightVision()
+        scheduleISSPassAlertsIfStale()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -692,10 +694,13 @@ final class ARSkyViewController: UIViewController {
 
     /// Live camera AR, or the dark sky. ARKit world tracking runs in BOTH modes
     /// — it gives a smooth render loop and stable, drift-free pointing — and
-    /// "dark sky" simply hides the live camera feed behind solid black. (Pausing
-    /// the session for dark mode, as before, left the AR view's render loop
-    /// without a driver: it stuttered and flickered, and the sensor frame jumped
-    /// on every switch.) The camera stays on for tracking; nothing from it shows.
+    /// "dark sky" hides the live feed behind the opaque night dome. Two dead
+    /// ends live in git history, do not revisit them: pausing the session for
+    /// dark mode leaves the render loop without a driver (frozen, flickering
+    /// sky; yaw re-references on every switch), and overwriting
+    /// scene.background with black permanently loses ARKit's feed provider on
+    /// iOS 26/27 (nil doesn't restore it) plus drops the per-frame clear, so
+    /// stale frames burn in as a ghost second sky.
     func applyBackground() {
         let wantCamera = engine?.cameraPassthrough ?? true
         let cameraOK = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
@@ -713,38 +718,14 @@ final class ARSkyViewController: UIViewController {
                                                           blue: 0.045, alpha: 1)
             return
         }
-        // Hide the feed behind black for dark sky; hand it back to ARKit for AR.
-        sceneView.scene.background.contents = showCamera ? nil : UIColor.black
+        // The scene background stays ARKit's live-feed provider, ALWAYS.
+        // Overwriting it (with black, then nil to undo) permanently loses the
+        // feed on iOS 26/27 — and a dead background also drops the per-frame
+        // clear, so stale frames burn in as a ghost "second sky". Dark mode
+        // is simply the opaque night dome (renderingOrder -100) drawn over
+        // the feed; toggling modes only ever flips node visibility above.
         // The 1000 m sky dome needs a far clip well past ARKit's default.
         if let camera = sceneView.pointOfView?.camera { camera.zNear = 0.1; camera.zFar = 1500 }
-    }
-
-    // MARK: IMU pointing — fallback only (real devices use ARKit in both modes)
-
-    /// CoreMotion reference (Z up) → SceneKit world (Y up).
-    private let motionRefToWorld = simd_quatf(angle: -.pi / 2, axis: simd_float3(1, 0, 0))
-
-    private func startMotionPointing() {
-        guard motionManager.isDeviceMotionAvailable, !motionManager.isDeviceMotionActive else { return }
-        if let camera = sceneView.pointOfView?.camera { camera.zNear = 0.1; camera.zFar = 1500 }
-        motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
-        motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
-    }
-
-    /// Drive the camera orientation from the latest IMU sample, called once per
-    /// display frame (in `stepAircraft`) so it stays synced to the render.
-    private func updateMotionPointing() {
-        guard let q = motionManager.deviceMotion?.attitude.quaternion,
-              let pov = sceneView.pointOfView else { return }
-        let dq = simd_quatf(ix: Float(q.x), iy: Float(q.y), iz: Float(q.z), r: Float(q.w))
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = 0          // no implicit easing per frame
-        pov.simdOrientation = motionRefToWorld * dq
-        SCNTransaction.commit()
-    }
-
-    private func stopMotionPointing() {
-        if motionManager.isDeviceMotionActive { motionManager.stopDeviceMotionUpdates() }
     }
 
     /// Soft indigo bloom that sits exactly on the horizon in dark-sky mode —
@@ -870,9 +851,166 @@ final class ARSkyViewController: UIViewController {
     /// toggle) takes effect immediately.
     func applyTrackingConfig() { if viewIfLoaded?.window != nil { startSession() } }
 
+    // MARK: Night vision
+
+    /// Deep-red rendering that spares the eye's dark adaptation. Two layers:
+    /// a color-grading LUT collapses the SceneKit render (sky, planes, the
+    /// camera feed) to red luminance, and a multiply overlay on the window
+    /// reddens every piece of SwiftUI chrome — sheets and covers included.
+    @MainActor
+    enum NightVision {
+        private static var overlay: UIView?
+
+        /// 32-cube LUT as SceneKit's horizontal-strip format: every color
+        /// becomes its luminance on the red channel, with a whisper of green
+        /// so bright whites keep a little shape.
+        static let lut: UIImage = {
+            let n = 32
+            var rgba = [UInt8](repeating: 0, count: n * n * n * 4)
+            for b in 0..<n {
+                for g in 0..<n {
+                    for r in 0..<n {
+                        let lum = 0.35 * Double(r) + 0.50 * Double(g) + 0.15 * Double(b)
+                        let v = UInt8(min(255, lum / Double(n - 1) * 255))
+                        let i = (g * n * n + b * n + r) * 4
+                        rgba[i] = v
+                        rgba[i + 1] = UInt8(Double(v) * 0.10)
+                        rgba[i + 2] = 0
+                        rgba[i + 3] = 255
+                    }
+                }
+            }
+            // The buffer pointer is only valid inside this closure, so the
+            // context must be created AND read back within it.
+            let image: CGImage? = rgba.withUnsafeMutableBytes { buf in
+                CGContext(data: buf.baseAddress, width: n * n, height: n, bitsPerComponent: 8,
+                          bytesPerRow: n * n * 4, space: CGColorSpaceCreateDeviceRGB(),
+                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.makeImage()
+            }
+            return image.map(UIImage.init(cgImage:)) ?? UIImage()
+        }()
+
+        static func setOverlay(_ on: Bool) {
+            if on {
+                guard overlay == nil,
+                      let window = UIApplication.shared.connectedScenes
+                        .compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return }
+                let v = UIView(frame: window.bounds)
+                v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                v.backgroundColor = UIColor(red: 1.0, green: 0.14, blue: 0.05, alpha: 1)
+                v.layer.compositingFilter = "multiplyBlendMode"
+                v.isUserInteractionEnabled = false
+                window.addSubview(v)
+                overlay = v
+            } else {
+                overlay?.removeFromSuperview()
+                overlay = nil
+            }
+        }
+    }
+
+    func applyNightVision() {
+        let on = engine?.nightVision == true
+        sceneView.pointOfView?.camera?.colorGrading.contents = on ? NightVision.lut : nil
+        NightVision.setOverlay(on)
+    }
+
+    // MARK: ISS pass alerts
+
+    private var issAlertsScheduledAt: Date?
+
+    /// Toggle handler: ask permission, then schedule; clearing removes only
+    /// our own pending requests.
+    func applyISSAlerts() {
+        if engine?.issAlerts == true {
+            Task { @MainActor in
+                let center = UNUserNotificationCenter.current()
+                let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+                guard granted else { engine?.issAlerts = false; return }
+                scheduleISSPassAlerts()
+            }
+        } else {
+            issAlertsScheduledAt = nil
+            Task {
+                let center = UNUserNotificationCenter.current()
+                let ours = await center.pendingNotificationRequests()
+                    .map(\.identifier).filter { $0.hasPrefix("isspass-") }
+                center.removePendingNotificationRequests(withIdentifiers: ours)
+            }
+        }
+    }
+
+    /// Refresh the schedule when it's older than six hours (TLE drift and
+    /// location changes both stay well inside that window).
+    func scheduleISSPassAlertsIfStale() {
+        guard engine?.issAlerts == true,
+              issAlertsScheduledAt.map({ Date().timeIntervalSince($0) > 6 * 3600 }) ?? true
+        else { return }
+        scheduleISSPassAlerts()
+    }
+
+    /// Scan the next 48 h of the orbit for visible passes (elevation > 10°)
+    /// and schedule a local notification 10 minutes before each rise.
+    /// Stamps freshness only once the TLE and a location are actually in hand,
+    /// so an early bail keeps `scheduleISSPassAlertsIfStale()` retrying.
+    private func scheduleISSPassAlerts() {
+        guard let sat = sky?.issSatellite, let here = observerLocation else { return }
+        issAlertsScheduledAt = Date()
+        let lat = here.coordinate.latitude, lon = here.coordinate.longitude
+        Task.detached(priority: .utility) {
+            var passes: [(rise: Date, maxEl: Double, az: Double)] = []
+            let start = Date()
+            var t = 120.0
+            var rise: Date?
+            var riseAz = 0.0, maxEl = 0.0
+            while t < 48 * 3600, passes.count < 4 {
+                let date = start.addingTimeInterval(t)
+                if let lla = try? sat.geoPosition(julianDays: SkyMath.julianDay(date)) {
+                    let g = SkyMath.azElRange(observerLat: lat, observerLon: lon, observerAltM: 0,
+                                              targetLat: lla.lat, targetLon: lla.lon,
+                                              targetAltM: lla.alt * 1000)
+                    if g.elevation > 10 {
+                        if rise == nil { rise = date; riseAz = g.azimuth }
+                        maxEl = max(maxEl, g.elevation)
+                    } else if let r = rise {
+                        passes.append((r, maxEl, riseAz))
+                        rise = nil; maxEl = 0
+                    }
+                }
+                t += 30
+            }
+            let found = passes
+            await MainActor.run {
+                Self.scheduleNotifications(for: found)
+            }
+        }
+    }
+
+    private static func scheduleNotifications(for passes: [(rise: Date, maxEl: Double, az: Double)]) {
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let stale = await center.pendingNotificationRequests()
+                .map(\.identifier).filter { $0.hasPrefix("isspass-") }
+            center.removePendingNotificationRequests(withIdentifiers: stale)
+            for pass in passes {
+                let fireAt = pass.rise.addingTimeInterval(-600)
+                guard fireAt > Date() else { continue }
+                let content = UNMutableNotificationContent()
+                content.title = "ISS pass in 10 minutes"
+                content.body = "Rises \(compass(pass.az)) and climbs to \(Int(pass.maxEl.rounded()))° — open Overhead to watch it cross."
+                content.sound = .default
+                let comps = Calendar.current.dateComponents(
+                    [.year, .month, .day, .hour, .minute, .second], from: fireAt)
+                let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+                try? await center.add(UNNotificationRequest(
+                    identifier: "isspass-\(Int(pass.rise.timeIntervalSince1970))",
+                    content: content, trigger: trigger))
+            }
+        }
+    }
+
     private func pauseEverything() {
         sceneView.session.pause()
-        stopMotionPointing()
         stopDisplayLink()
         pollTask?.cancel()
         pollTask = nil
@@ -897,6 +1035,7 @@ final class ARSkyViewController: UIViewController {
         } else {
             sceneView.isPlaying = true
             sceneView.rendersContinuously = true
+            applyBackground()       // the mode may have changed inside the cover
             startPolling()          // restarts the display link and the feed
         }
     }
@@ -908,7 +1047,7 @@ final class ARSkyViewController: UIViewController {
     @objc private func appDidBecomeActive() {
         guard viewIfLoaded?.window != nil else { return }
         startSession()         // ARKit runs in both modes; resume it
-        applyBackground()      // toggle the camera feed vs. black per mode
+        applyBackground()      // dome visibility per mode
         if !skyObscured { startPolling() }   // stay idle if a sheet still covers the sky
         refreshISSTLEIfStale() // a multi-day background may have aged the TLE
         suggestRealignIfNeeded()
@@ -1085,7 +1224,8 @@ final class ARSkyViewController: UIViewController {
                 nodes[ac.hex] = node
                 worldNode.addChildNode(node)
             }
-            node.isHidden = !(engine?.showAircraft ?? true)
+            node.isHidden = !(engine?.showAircraft ?? true) || hiddenBySpotlight(ac)
+            trailNodes[ac.hex]?.isHidden = node.isHidden || !(engine?.showTrails ?? true)
 
             let labelOn = labelVisible(rangeNm: range / 1852, hex: ac.hex)
             node.setLabelVisible(labelOn)
@@ -1109,6 +1249,17 @@ final class ARSkyViewController: UIViewController {
 
         removeStale(now: now)
         engine?.trafficCount = visible
+        #if DEBUG
+        // `-shot spotlight` hook: emulate picking the first live plane from
+        // search, so the spotlight state can be captured deterministically.
+        if ShotScreen.current == .spotlight, engine?.focusedCallsign == nil,
+           let first = traffic.first(where: { $0.callsign != nil && !$0.onGround }) {
+            trackSearchResult(SearchResult(
+                hex: first.hex, callsign: first.callsign, type: first.type,
+                registration: nil, airline: nil, altitudeFeet: first.altitudeFeet,
+                onGround: false, distanceNm: nil, azimuth: nil, inView: true))
+        }
+        #endif
         refreshSelection()
         applyFocus()
         updateTransitPrediction(traffic: traffic, observer: observer)
@@ -1190,8 +1341,17 @@ final class ARSkyViewController: UIViewController {
     /// low-pass absorbs the small correction when a fresh fix lands without
     /// adding lag (the target is always projected to true-now).
     @objc private func stepAircraft() {
-        if motionManager.isDeviceMotionActive { updateMotionPointing() }   // fallback pointing only
         if scanStart != nil { updateScanCoverage() }
+        // The night shells (dark dome, camera scrim, horizon glow) are sky
+        // backdrops, not world objects: keep them centered on the camera so
+        // walking can never carry the observer outside them — from outside
+        // they loom as a huge dark sphere with a violet glow band.
+        if let pov = sceneView.pointOfView?.presentation {
+            let p = pov.worldPosition
+            darkDomeNode.position = p
+            dimDomeNode.position = p
+            horizonGlowNode.position = p
+        }
         // The sky itself refreshes at 1 Hz regardless of the traffic poll —
         // on the slow FR24 cadence (8 s) the ISS would otherwise jump ~8° at
         // a time during a pass, and the sun/moon would visibly stutter.
@@ -1237,9 +1397,6 @@ final class ARSkyViewController: UIViewController {
             lastFix[hex]?.range = range
         }
         if engine?.hearFeelSky == true, orientTick % 4 == 0 { updateProximityHaptic() }
-        // Keep the zoom-transition anchor riding on the plane, so a dismiss
-        // returns the sheet to wherever the glyph has moved meanwhile.
-        if selectedHex != nil, orientTick % 10 == 0 { updateSelectedScreenPoint() }
     }
     private var orientTick = 0
     private var lastSkyStepAt = Date.distantPast
@@ -1706,22 +1863,8 @@ final class ARSkyViewController: UIViewController {
         routes.request(lastFix[hex]?.aircraft.callsign)
         photos.request(hex)
         engine?.selectedPhoto = photos.cachedPhoto(hex)
-        updateSelectedScreenPoint()
         refreshSelection()
         applyLabelMode()
-    }
-
-    /// Project the selected glyph into window coordinates for the sheet's
-    /// zoom transition. `convert(_:to: nil)` folds in the pinch-zoom scale.
-    private func updateSelectedScreenPoint() {
-        guard let hex = selectedHex, let node = nodes[hex] else {
-            engine?.selectedScreenPoint = nil
-            return
-        }
-        let p = sceneView.projectPoint(node.presentation.worldPosition)
-        guard p.z > 0, p.z < 1 else { engine?.selectedScreenPoint = nil; return }
-        engine?.selectedScreenPoint = sceneView.convert(CGPoint(x: CGFloat(p.x), y: CGFloat(p.y)),
-                                                        to: nil)
     }
 
     /// Open the focused flight's detail (the focus pill is tappable).
@@ -1794,6 +1937,9 @@ final class ARSkyViewController: UIViewController {
     func trackSearchResult(_ result: SearchResult) {
         if let cs = result.callsign?.trimmingCharacters(in: .whitespaces), !cs.isEmpty {
             engine?.focusedCallsign = cs
+            // Search spotlight: the sky shows only the plane they asked for.
+            // Cleared by ✕ on the focus pill or "Show all" on the status pill.
+            engine?.spotlightOnly = true
         }
         routes.request(result.callsign)
         if nodes[result.hex] != nil || lastFix[result.hex] != nil {
@@ -1806,7 +1952,6 @@ final class ARSkyViewController: UIViewController {
         selectedHex = nil
         engine?.selected = nil
         engine?.selectedPhoto = nil
-        engine?.selectedScreenPoint = nil
         applyLabelMode()
     }
 
@@ -1844,6 +1989,9 @@ final class ARSkyViewController: UIViewController {
             distanceNm: fix.range / 1852,
             track: ac.track,
             groundSpeedKts: ac.groundSpeedKts,
+            verticalRateFpm: ac.verticalRateFpm,
+            registration: ac.registration,
+            squawk: ac.squawk,
             airline: route?.airline,
             origin: route?.originCode,
             originCity: route?.originCity,
@@ -1891,12 +2039,22 @@ final class ARSkyViewController: UIViewController {
 
     // MARK: Layer / time hooks (called by SkyEngine)
 
+    /// True when the search spotlight is on and this aircraft isn't the one.
+    private func hiddenBySpotlight(_ ac: Aircraft?) -> Bool {
+        guard engine?.spotlightOnly == true,
+              let focus = engine?.focusedCallsign else { return false }
+        return ac?.callsign?.trimmingCharacters(in: .whitespaces) != focus
+    }
+
     func applyLayerVisibility() {
         let showAircraft = engine?.showAircraft ?? true
         let showGround = engine?.showGroundAircraft ?? false
+        let showTrails = engine?.showTrails ?? true
         for (hex, node) in nodes {
             let grounded = lastFix[hex]?.aircraft.onGround == true
             node.isHidden = !showAircraft || (grounded && !showGround)
+                || hiddenBySpotlight(lastFix[hex]?.aircraft)
+            trailNodes[hex]?.isHidden = node.isHidden || !showTrails
         }
         sky?.setVisibility()
         if let here = observerLocation {
@@ -1954,6 +2112,9 @@ final class ARSkyViewController: UIViewController {
         issTLEFetchedAt = Date()
         UserDefaults.standard.set(Array(lines.prefix(3)), forKey: SkyDefaults.issTLELines)
         UserDefaults.standard.set(issTLEFetchedAt, forKey: SkyDefaults.issTLEDate)
+        // Fresh elements → refresh any scheduled pass alerts.
+        issAlertsScheduledAt = nil
+        scheduleISSPassAlertsIfStale()
     }
 
     /// Scrub the sky clock forward to the ISS's next rise above ~10°.
@@ -2028,6 +2189,9 @@ extension ARSkyViewController: CLLocationManagerDelegate {
             SkyGlance.writeLocation(lat: loc.coordinate.latitude, lon: loc.coordinate.longitude)
             engine?.loadEventsIfNeeded(lat: loc.coordinate.latitude,
                                        lon: loc.coordinate.longitude)
+            // The launch-time attempt bails without a fix; now that one exists,
+            // schedule for real. No-ops once stamped fresh.
+            scheduleISSPassAlertsIfStale()
         }
     }
 

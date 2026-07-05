@@ -13,7 +13,7 @@ import Foundation
 
 enum ShotScreen: String {
     case onboard0, onboard1, onboard2
-    case sky, events, profile, search
+    case sky, events, profile, search, medals, viewsky, spotlight
 
     /// Reads the `-shot <name>` launch argument (parsed into UserDefaults).
     static var current: ShotScreen? {
@@ -31,11 +31,21 @@ enum ShotScreen: String {
         }
     }
 
+    /// Shots that should show a lived-in profile — real stats, favorites, medals.
+    var seedsData: Bool { self == .profile || self == .medals || self == .viewsky }
+
     /// Force the right entry point: onboarding shots show onboarding, in-app
     /// shots skip it. Order-independent across successive launches.
     static func applyPreconditions() {
         guard let s = current else { return }
         UserDefaults.standard.set(s.onboardingPage == nil, forKey: "didOnboard")
+        if s.seedsData {
+            let d = UserDefaults.standard
+            d.set(247, forKey: SkyDefaults.statSpots)
+            d.set(18, forKey: SkyDefaults.statDays)
+            d.set(["EK203", "BA106", "UAL123", "QFA1", "SIA321"], forKey: SkyDefaults.favorites)
+            MedalStore.seedDemoState()
+        }
     }
 }
 #endif

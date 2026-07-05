@@ -234,6 +234,39 @@ final class MedalStore {
         }
     }
 
+    #if DEBUG
+    /// A rich, believable medal state for App Store screenshots — a spread of
+    /// earned milestones and special medals, a few still in progress. DEBUG only,
+    /// written straight to storage before the store loads.
+    static func seedDemoState() {
+        let now = Date()
+        func ago(_ days: Double) -> Date { now.addingTimeInterval(-days * 86_400) }
+        let earned: [String: MedalAward] = [
+            "first":      MedalAward(date: ago(41), detail: "EK203 · A388"),
+            "spots10":    MedalAward(date: ago(37), detail: nil),
+            "spots25":    MedalAward(date: ago(31), detail: nil),
+            "spots50":    MedalAward(date: ago(25), detail: nil),
+            "spots100":   MedalAward(date: ago(15), detail: nil),
+            "spots200":   MedalAward(date: ago(5),  detail: "BA106 · B77W"),
+            "superjumbo": MedalAward(date: ago(34), detail: "EK203 · A388"),
+            "queen":      MedalAward(date: ago(22), detail: "BA001 · B744"),
+            "rotor":      MedalAward(date: ago(28), detail: "N911EV · H60"),
+            "starsailor": MedalAward(date: ago(12), detail: nil),
+            "nightowl":   MedalAward(date: ago(9),  detail: nil),
+        ]
+        let state = State(earned: earned,
+                          widebodyTypes: ["A388", "B77W", "A359", "B789"],
+                          widebodyCount: 22,
+                          nightCount: 12,
+                          countries: ["AE", "GB", "US", "DE", "SG", "JP", "FR"],
+                          superjumboSeen: true, queenSeen: true, rotorSeen: true,
+                          transitCaptured: false, issCaught: true, seeded: true)
+        if let data = try? JSONEncoder().encode(state) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+    #endif
+
     // MARK: Events
 
     /// One-time backfill so a long-time spotter's milestones don't reset to
@@ -305,6 +338,7 @@ final class MedalStore {
         for medal in MedalCatalog.all where state.earned[medal.id] == nil {
             guard progress(for: medal, totalSpots: totalSpots) >= medal.target else { continue }
             state.earned[medal.id] = MedalAward(date: Date(), detail: detail)
+            if celebrate { Analytics.log("Medal.earned", ["id": medal.id]) }
             if celebrate {
                 pendingReveal = medal
                 UINotificationFeedbackGenerator().notificationOccurred(.success)

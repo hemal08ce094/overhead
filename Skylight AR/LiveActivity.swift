@@ -60,14 +60,18 @@ final class FlightActivityController {
         }
     }
 
+    /// One orphan sweep per launch is enough — after that, an `end()` with no
+    /// live activity must be a pure no-op. (Even *querying* `.activities` is
+    /// an ActivityKit XPC round-trip, and this is called every poll tick
+    /// while unfocused — it was spamming the console once per second.)
+    private var orphansSwept = false
+
     /// End every activity of our type, not just the held instance — after an
     /// app relaunch the system-side activity outlives our handle and would
     /// otherwise be orphaned on the lock screen forever.
     func end() {
-        // Cheap no-op when there's nothing to end (this is called every poll
-        // tick while unfocused) — don't spawn a task per second for nothing.
-        guard callsign != nil || activity != nil
-                || !Activity<FlightActivityAttributes>.activities.isEmpty else { return }
+        guard callsign != nil || activity != nil || !orphansSwept else { return }
+        orphansSwept = true
         callsign = nil
         activity = nil
         enqueue {
