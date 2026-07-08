@@ -88,11 +88,11 @@ struct OnboardingView: View {
         // Settings and keep the skip as a way forward so nobody gets stuck here.
         PrimingCard(
             hero: LocationHero(),
-            title: "Your place under the sky",
-            message: "Overhead uses your location to compute exactly where each aircraft and celestial object sits above you.",
-            primary: permissions.locationDenied ? "Open Settings" : "Enable Location",
+            title: String(localized: "Your place under the sky"),
+            message: String(localized: "Overhead uses your location to compute exactly where each aircraft and celestial object sits above you."),
+            primary: permissions.locationDenied ? String(localized: "Open Settings") : String(localized: "Enable Location"),
             action: { permissions.locationDenied ? openSettings() : permissions.requestLocation() },
-            skipTitle: permissions.locationDenied ? "Continue with demo sky" : "Not now",
+            skipTitle: permissions.locationDenied ? String(localized: "Continue with demo sky") : String(localized: "Not now"),
             skipAction: { advance() })
     }
 
@@ -101,14 +101,14 @@ struct OnboardingView: View {
         // a silent no-op, so the primary routes to Settings instead.
         PrimingCard(
             hero: CameraHero(),
-            title: "See through to the real sky",
-            message: "The camera lets Overhead place aircraft and stars onto the live sky in augmented reality. You can also use a low-power dark-sky mode.",
-            primary: permissions.cameraDenied ? "Open Settings" : "Enable Camera",
+            title: String(localized: "See through to the real sky"),
+            message: String(localized: "The camera lets Overhead place aircraft and stars onto the live sky in augmented reality. You can also use a low-power dark-sky mode."),
+            primary: permissions.cameraDenied ? String(localized: "Open Settings") : String(localized: "Enable Camera"),
             action: {
                 if permissions.cameraDenied { openSettings() }
                 else { Task { await permissions.requestCamera() } }
             },
-            skipTitle: "Skip — use dark sky",
+            skipTitle: String(localized: "Skip — use dark sky"),
             skipAction: { advance() })
     }
 
@@ -135,10 +135,10 @@ struct OnboardingView: View {
                         .multilineTextAlignment(.center)
                 }
                 VStack(alignment: .leading, spacing: 13) {
-                    tip("sun.max", "Best outdoors under open sky. The compass gets pulled off inside airports and buildings, so the sky can sit rotated there.")
-                    tip("hand.raised.fill", "Hold up your phone and stand still, pointing it toward the sky.")
-                    tip("scope", "If a plane sits a little off, tap it — or the Sun — to snap north back into place.")
-                    tip("info.circle", "Positions come from public data and your compass, so treat it as a guide, not gospel.")
+                    tip("sun.max", String(localized: "Best outdoors under open sky. The compass gets pulled off inside airports and buildings, so the sky can sit rotated there."))
+                    tip("hand.raised.fill", String(localized: "Hold up your phone and stand still, pointing it toward the sky."))
+                    tip("scope", String(localized: "If a plane sits a little off, tap it — or the Sun — to snap north back into place."))
+                    tip("info.circle", String(localized: "Positions come from public data and your compass, so treat it as a guide, not gospel."))
                 }
                 Button("Enter the sky") { finish() }
                     .buttonStyle(PrimaryButtonStyle())
@@ -490,7 +490,7 @@ private struct CameraHero: View {
                 var lead = screen; lead.opacity = 0.6
                 var lp = Path(); lp.move(to: plane); lp.addLine(to: chip)
                 lead.stroke(lp, with: .color(.white), style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
-                drawChip(screen, at: chip, text: "BA212 · 38,000 ft")
+                drawChip(screen, at: chip, text: String(localized: "BA212 · 38,000 ft"))
             }
 
             // Glass frame + inner highlight.

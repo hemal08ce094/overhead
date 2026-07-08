@@ -1,0 +1,126 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld aircraft overhead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld aviones sobre ti"
+          }
+        }
+      }
+    },
+    "−180°" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "−180°"
+          }
+        }
+      }
+    },
+    "180°" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "180°"
+          }
+        }
+      }
+    },
+    "Aircraft via airplanes.live · ephemeris on device" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviones vía airplanes.live · efemérides en el dispositivo"
+          }
+        }
+      }
+    },
+    "Align to north" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alinear al norte"
+          }
+        }
+      }
+    },
+    "Close the sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar el cielo"
+          }
+        }
+      }
+    },
+    "Location denied — using demo sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicación denegada — cielo de demostración"
+          }
+        }
+      }
+    },
+    "North" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Norte"
+          }
+        }
+      }
+    },
+    "Open the sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir el cielo"
+          }
+        }
+      }
+    },
+    "Overhead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead"
+          }
+        }
+      }
+    },
+    "Vision Pro has no compass. Drag until a known direction — the sun, the moon, or a landmark flight — lines up with the real world." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El Vision Pro no tiene brújula. Arrastra hasta que una referencia conocida —el sol, la luna o un vuelo reconocible— coincida con el mundo real."
+          }
+        }
+      }
+    },
+    "Waiting for location…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando la ubicación…"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.2"
+}

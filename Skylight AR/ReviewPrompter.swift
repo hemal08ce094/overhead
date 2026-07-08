@@ -13,7 +13,6 @@
 import Foundation
 
 enum ReviewGate {
-    static let appStoreID = "6782262384"
     private static let lastAskKey = "review.lastAskAt"
 
     /// True when the user is invested and we haven't asked recently.
@@ -32,9 +31,4 @@ enum ReviewGate {
         UserDefaults.standard.set(Date(), forKey: lastAskKey)
     }
 
-    /// Deep link straight into the App Store review sheet, for the explicit
-    /// "Rate Overhead" row in About — always available, never rate-limited.
-    static var writeReviewURL: URL {
-        URL(string: "https://apps.apple.com/app/id\(appStoreID)?action=write-review")!
-    }
 }

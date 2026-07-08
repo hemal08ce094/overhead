@@ -484,8 +484,8 @@ struct MedalView3D: UIViewRepresentable {
         view.addGestureRecognizer(pan)
         view.isAccessibilityElement = true
         view.accessibilityLabel = locked
-            ? "\(medal.name) medal, not yet earned. Drag to rotate."
-            : "\(medal.name) medal. Drag to rotate."
+            ? String(localized: "\(medal.name) medal, not yet earned. Drag to rotate.")
+            : String(localized: "\(medal.name) medal. Drag to rotate.")
         return view
     }
 
@@ -681,7 +681,7 @@ struct MedalsOverviewView: View {
     private static let milestoneIDs = Set(MedalCatalog.milestoneOrder)
 
     var body: some View {
-        SettingsScaffold(theme: .tiers, title: "Tiers & Medals",
+        SettingsScaffold(theme: .tiers, title: String(localized: "Tiers & Medals"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46, tappable: false))) {
             VStack(alignment: .leading, spacing: 24) {
                 // Your standing, in metal.
@@ -712,11 +712,21 @@ struct MedalsOverviewView: View {
                         }
                         .padding(.horizontal, 40)
                     }
+                    ShareLink(item: AppInfo.appStoreURL,
+                              message: Text(AppInfo.tierShareMessage(tier: engine.spotterTier.name,
+                                                                     spots: engine.statFlightsSpotted))) {
+                        Label("Share your tier", systemImage: "square.and.arrow.up")
+                            .font(Theme.display(14, .semibold))
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 16).padding(.vertical, 9)
+                            .glassEffect(.regular, in: .capsule)
+                    }
+                    .padding(.top, 2)
                 }
                 .frame(maxWidth: .infinity)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow("Tiers")
+                    Eyebrow(String(localized: "Tiers"))
                     VStack(spacing: 0) {
                         ForEach(Array(MedalCatalog.tiers.enumerated()), id: \.element.name) { i, tier in
                             tierRow(tier)
@@ -729,7 +739,7 @@ struct MedalsOverviewView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow("Medals")
+                    Eyebrow(String(localized: "Medals"))
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 3),
                               spacing: 18) {
                         ForEach(MedalCatalog.all.filter { !Self.milestoneIDs.contains($0.id) }) { medal in

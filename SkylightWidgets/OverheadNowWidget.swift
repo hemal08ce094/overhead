@@ -94,8 +94,14 @@ enum Sky {
 // MARK: - Formatting helpers
 
 enum Fmt {
-    static let compass = ["N","NNE","NE","ENE","E","ESE","SE","SSE",
-                          "S","SSW","SW","WSW","W","WNW","NW","NNW"]
+    static let compass = [String(localized: "N"), String(localized: "NNE"),
+                          String(localized: "NE"), String(localized: "ENE"),
+                          String(localized: "E"), String(localized: "ESE"),
+                          String(localized: "SE"), String(localized: "SSE"),
+                          String(localized: "S"), String(localized: "SSW"),
+                          String(localized: "SW"), String(localized: "WSW"),
+                          String(localized: "W"), String(localized: "WNW"),
+                          String(localized: "NW"), String(localized: "NNW")]
 
     static func point(_ bearing: Double) -> String {
         compass[(Int((bearing / 22.5).rounded()) % 16 + 16) % 16]
@@ -103,19 +109,20 @@ enum Fmt {
 
     static func altitude(_ feet: Double) -> String {
         feet >= 18_000
-            ? "FL\(Int((feet / 100).rounded()))"
-            : "\(Int((feet / 500).rounded() * 500).formatted()) ft"
+            ? String(localized: "FL\(Int((feet / 100).rounded()))")
+            : String(localized: "\(Int((feet / 500).rounded() * 500).formatted()) ft")
     }
 
     static func distance(_ nm: Double) -> String {
-        nm < 10 ? String(format: "%.1f nm", nm) : "\(Int(nm.rounded())) nm"
+        nm < 10 ? String(localized: "\(String(format: "%.1f", nm)) nm")
+                : String(localized: "\(Int(nm.rounded())) nm")
     }
 
     static func age(_ updated: Date, now: Date) -> String {
         let s = max(0, now.timeIntervalSince(updated))
-        if s < 90 { return "just now" }
-        if s < 3_600 { return "\(Int(s / 60))m ago" }
-        return "\(Int(s / 3_600))h ago"
+        if s < 90 { return String(localized: "just now") }
+        if s < 3_600 { return String(localized: "\(Int(s / 60))m ago") }
+        return String(localized: "\(Int(s / 3_600))h ago")
     }
 
     static func isStale(_ updated: Date, now: Date) -> Bool {
@@ -124,7 +131,7 @@ enum Fmt {
 
     static func callsign(_ p: SkyGlanceSnapshot.Plane) -> String {
         if let c = p.callsign, !c.isEmpty { return c }
-        return "Traffic"
+        return String(localized: "Traffic")
     }
 }
 

@@ -62,14 +62,14 @@ enum WatchMoon {
         let fraction = (1 - cos(2 * .pi * phase)) / 2
         let name: String
         switch phase {
-        case ..<0.03, 0.97...: name = "New moon"
-        case ..<0.22: name = "Waxing crescent"
-        case ..<0.28: name = "First quarter"
-        case ..<0.47: name = "Waxing gibbous"
-        case ..<0.53: name = "Full moon"
-        case ..<0.72: name = "Waning gibbous"
-        case ..<0.78: name = "Last quarter"
-        default: name = "Waning crescent"
+        case ..<0.03, 0.97...: name = String(localized: "New moon")
+        case ..<0.22: name = String(localized: "Waxing crescent")
+        case ..<0.28: name = String(localized: "First quarter")
+        case ..<0.47: name = String(localized: "Waxing gibbous")
+        case ..<0.53: name = String(localized: "Full moon")
+        case ..<0.72: name = String(localized: "Waning gibbous")
+        case ..<0.78: name = String(localized: "Last quarter")
+        default: name = String(localized: "Waning crescent")
         }
         return (fraction, phase < 0.5, name)
     }
@@ -333,7 +333,7 @@ struct WatchHomeView: View {
 
     private func fullMoonText() -> String {
         let d = WatchMoon.daysToFull(from: Date())
-        return d == 0 ? "Full tonight" : "Full moon in \(d)d"
+        return d == 0 ? String(localized: "Full tonight") : String(localized: "Full moon in \(d)d")
     }
 
     // MARK: ISS
@@ -359,9 +359,9 @@ struct WatchHomeView: View {
     @ViewBuilder private var issBody: some View {
         switch model.state {
         case .locating:
-            issPlaceholder("Finding your sky…")
+            issPlaceholder(String(localized: "Finding your sky…"))
         case .fetching:
-            issPlaceholder("Reading the orbit…")
+            issPlaceholder(String(localized: "Reading the orbit…"))
         case .pass(let rise, let maxEl):
             // The pass state can go stale on the wrist; a past `rise` would make
             // the countsDown range trap, so branch on it. Countdown leads so it
@@ -393,11 +393,11 @@ struct WatchHomeView: View {
                 }
             }
         case .noPass:
-            issPlaceholder("No pass in the next 24 h")
+            issPlaceholder(String(localized: "No pass in the next 24 h"))
         case .needLocation:
-            issPlaceholder("Allow location to find passes")
+            issPlaceholder(String(localized: "Allow location to find passes"))
         case .offline:
-            issPlaceholder("No connection — try later")
+            issPlaceholder(String(localized: "No connection — try later"))
         }
     }
 

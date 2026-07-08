@@ -30,14 +30,14 @@ enum MoonMath {
         let waxing = phase < 0.5
         let name: String
         switch phase {
-        case ..<0.03, 0.97...: name = "New moon"
-        case ..<0.22: name = "Waxing crescent"
-        case ..<0.28: name = "First quarter"
-        case ..<0.47: name = "Waxing gibbous"
-        case ..<0.53: name = "Full moon"
-        case ..<0.72: name = "Waning gibbous"
-        case ..<0.78: name = "Last quarter"
-        default: name = "Waning crescent"
+        case ..<0.03, 0.97...: name = String(localized: "New moon")
+        case ..<0.22: name = String(localized: "Waxing crescent")
+        case ..<0.28: name = String(localized: "First quarter")
+        case ..<0.47: name = String(localized: "Waxing gibbous")
+        case ..<0.53: name = String(localized: "Full moon")
+        case ..<0.72: name = String(localized: "Waning gibbous")
+        case ..<0.78: name = String(localized: "Last quarter")
+        default: name = String(localized: "Waning crescent")
         }
         let sinceEpoch = date.timeIntervalSince(epoch)
         let cycles = (sinceEpoch / synodic).rounded(.down)

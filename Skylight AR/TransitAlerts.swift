@@ -10,7 +10,15 @@
 import Foundation
 
 struct TransitPrediction: Equatable {
-    enum Body: String { case moon = "Moon", sun = "Sun" }
+    enum Body: String {
+        case moon = "Moon", sun = "Sun"
+        var displayName: String {
+            switch self {
+            case .moon: return String(localized: "Moon")
+            case .sun: return String(localized: "Sun")
+            }
+        }
+    }
     let callsign: String
     let body: Body
     let date: Date

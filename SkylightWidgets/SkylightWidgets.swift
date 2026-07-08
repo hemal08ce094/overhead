@@ -80,7 +80,7 @@ struct FlightLiveActivity: Widget {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(context.state.overhead
-                         ? String(format: "%.0f nm", context.state.distanceNm)
+                         ? String(localized: "\(String(format: "%.0f", context.state.distanceNm)) nm")
                          : "—")
                         .font(.system(size: 20, weight: .bold, design: .rounded).monospacedDigit())
                         .foregroundStyle(accent)
@@ -106,7 +106,7 @@ struct FlightLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.overhead
-                         ? String(format: "%.0f nm", context.state.distanceNm)
+                         ? String(localized: "\(String(format: "%.0f", context.state.distanceNm)) nm")
                          : "—")
                         .font(.system(size: 16, weight: .bold, design: .rounded).monospacedDigit())
                         .foregroundStyle(accent)
@@ -131,7 +131,7 @@ struct FlightLiveActivity: Widget {
                     .foregroundStyle(accent)
             } compactTrailing: {
                 Text(context.state.overhead
-                     ? String(format: "%.0fnm", context.state.distanceNm)
+                     ? String(localized: "\(String(format: "%.0f", context.state.distanceNm))nm")
                      : "—")
                     .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
                     .foregroundStyle(accent)

@@ -96,9 +96,9 @@ final class SkyEngine {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .all: return "All"
-            case .nearby: return "Nearby"
-            case .off: return "Off"
+            case .all: return String(localized: "All")
+            case .nearby: return String(localized: "Nearby")
+            case .off: return String(localized: "Off")
             }
         }
     }
@@ -115,6 +115,7 @@ final class SkyEngine {
     var showMoon: Bool     { didSet { persist(); controller?.applyLayerVisibility() } }
     var showPlanets: Bool  { didSet { persist(); controller?.applyLayerVisibility() } }
     var showStars: Bool    { didSet { persist(); controller?.applyLayerVisibility() } }
+    var showMilkyWay: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     var showISS: Bool      { didSet { persist(); controller?.applyLayerVisibility() } }
     var showAircraft: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     /// Planes taxiing/parked are noise for a sky app — hidden by default.
@@ -265,6 +266,7 @@ final class SkyEngine {
         showMoon = d.object(forKey: SkyDefaults.showMoon) as? Bool ?? true
         showPlanets = d.object(forKey: SkyDefaults.showPlanets) as? Bool ?? true
         showStars = d.object(forKey: SkyDefaults.showStars) as? Bool ?? true
+        showMilkyWay = d.object(forKey: SkyDefaults.showMilkyWay) as? Bool ?? true
         showISS = d.object(forKey: SkyDefaults.showISS) as? Bool ?? true
         showAircraft = d.object(forKey: SkyDefaults.showAircraft) as? Bool ?? true
         showGroundAircraft = d.object(forKey: SkyDefaults.showGroundAircraft) as? Bool ?? false
@@ -423,6 +425,7 @@ final class SkyEngine {
         d.set(showMoon, forKey: SkyDefaults.showMoon)
         d.set(showPlanets, forKey: SkyDefaults.showPlanets)
         d.set(showStars, forKey: SkyDefaults.showStars)
+        d.set(showMilkyWay, forKey: SkyDefaults.showMilkyWay)
         d.set(showISS, forKey: SkyDefaults.showISS)
         d.set(showAircraft, forKey: SkyDefaults.showAircraft)
         d.set(showGroundAircraft, forKey: SkyDefaults.showGroundAircraft)

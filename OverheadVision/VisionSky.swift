@@ -109,7 +109,7 @@ enum VCelestial {
 final class VisionSkyModel: NSObject, CLLocationManagerDelegate {
     var skyOpen = false
     var northOffsetDeg: Double = 0
-    var statusLine = "Waiting for location…"
+    var statusLine = String(localized: "Waiting for location…")
 
     private(set) var location: CLLocation?
     private(set) var traffic: [VAircraft] = []
@@ -135,7 +135,7 @@ final class VisionSkyModel: NSObject, CLLocationManagerDelegate {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways: manager.requestLocation()
         case .notDetermined: manager.requestWhenInUseAuthorization()
-        default: statusLine = "Location denied — using demo sky"
+        default: statusLine = String(localized: "Location denied — using demo sky")
             location = CLLocation(latitude: 37.6213, longitude: -122.3790)
         }
         startPolling()
@@ -148,7 +148,7 @@ final class VisionSkyModel: NSObject, CLLocationManagerDelegate {
             switch status {
             case .authorizedWhenInUse, .authorizedAlways: manager.requestLocation()
             case .denied, .restricted:
-                self.statusLine = "Location denied — using demo sky"
+                self.statusLine = String(localized: "Location denied — using demo sky")
                 self.location = CLLocation(latitude: 37.6213, longitude: -122.3790)
             default: break
             }
@@ -190,7 +190,7 @@ final class VisionSkyModel: NSObject, CLLocationManagerDelegate {
                              callsign: (r["flight"] as? String)?.trimmingCharacters(in: .whitespaces),
                              lat: lat, lon: lon, altM: altFt * 0.3048)
         }
-        statusLine = "\(traffic.count) aircraft overhead"
+        statusLine = String(localized: "\(traffic.count) aircraft overhead")
     }
 
     private func fetchTLE() async {

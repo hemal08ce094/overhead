@@ -80,10 +80,10 @@ enum AircraftSearchField: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .callsign:     return "Flight"
-        case .registration: return "Tail"
-        case .type:         return "Type"
-        case .squawk:       return "Squawk"
+        case .callsign:     return String(localized: "Flight")
+        case .registration: return String(localized: "Tail")
+        case .type:         return String(localized: "Type")
+        case .squawk:       return String(localized: "Squawk")
         }
     }
     /// Endpoint path segment on the airplanes.live v2 API.
@@ -415,6 +415,7 @@ enum SkyDefaults {
     static let showMoon          = "showMoon"           // Bool
     static let showPlanets       = "showPlanets"        // Bool
     static let showStars         = "showStars"          // Bool
+    static let showMilkyWay      = "showMilkyWay"       // Bool
     static let showISS           = "showISS"            // Bool
     static let showAircraft      = "showAircraft"       // Bool
     static let showGroundAircraft = "showGroundAircraft" // Bool
@@ -475,11 +476,12 @@ final class ARSkyViewController: UIViewController {
     // Tunables
     private let sphereRadius: Double = 1000     // meters; any large value works
     private var pollInterval: Duration = .seconds(1)
-    private let staleAfter: TimeInterval = 15   // drop aircraft not seen for this long
     private let searchRadiusNm = 80
     // Pipeline lag is now per-source: see `DataSource.feedLatencySec`.
-    /// Cap on how far ahead a stalled fix may be dead-reckoned (s).
-    private let maxExtrapolationSec: Double = 20
+    /// Cap on how far ahead a stalled fix may be dead-reckoned (s). Doubles as
+    /// the staleness cutoff: once a plane's fix is older than this it fades out
+    /// rather than hanging frozen at the cap.
+    private let maxExtrapolationSec: Double = 30
     /// Below this elevation, an aircraft is lost to horizon haze/buildings and
     /// is treated as not naked-eye visible.
     private static let nakedEyeMinElevationDeg: Double = 3
@@ -490,6 +492,8 @@ final class ARSkyViewController: UIViewController {
 
     // AR + location
     private let sceneView = ARSCNView(frame: .zero)
+    private let glyphKeyLightNode = SCNNode()
+    private let glyphFillLightNode = SCNNode()
     private let locationManager = CLLocationManager()
     private var observerLocation: CLLocation?
 
@@ -511,7 +515,6 @@ final class ARSkyViewController: UIViewController {
 
     // State
     private var nodes: [String: AircraftNode] = [:]
-    private var lastSeen: [String: Date] = [:]
     private var lastFix: [String: Fix] = [:]
     /// Per-aircraft dead-reckoning baseline, advanced every display frame so the
     /// marker glides continuously between 1 Hz fixes instead of stepping.
@@ -619,6 +622,21 @@ final class ARSkyViewController: UIViewController {
         sceneView.scene.rootNode.addChildNode(dimDomeNode)
         applyBackground()
         sceneView.scene.rootNode.addChildNode(worldNode)
+        // Dedicated rig for the aircraft darts — the only 3D-shaded objects in
+        // an otherwise constant-lit scene. The category mask keeps it off the
+        // domes and sprites. Key direction follows the real sun (updateSky).
+        let key = SCNLight()
+        key.type = .directional
+        key.intensity = 850
+        key.categoryBitMask = AircraftNode.glyphLightMask
+        glyphKeyLightNode.light = key
+        worldNode.addChildNode(glyphKeyLightNode)
+        let fill = SCNLight()
+        fill.type = .ambient
+        fill.intensity = 320
+        fill.categoryBitMask = AircraftNode.glyphLightMask
+        glyphFillLightNode.light = fill
+        worldNode.addChildNode(glyphFillLightNode)
         sky = SkyScene(root: worldNode, engine: engine, radius: sphereRadius)
         routes.onResolved = { [weak self] callsign in self?.routeResolved(callsign) }
         photos.onResolved = { [weak self] hex in
@@ -702,9 +720,7 @@ final class ARSkyViewController: UIViewController {
     /// iOS 26/27 (nil doesn't restore it) plus drops the per-frame clear, so
     /// stale frames burn in as a ghost second sky.
     func applyBackground() {
-        let wantCamera = engine?.cameraPassthrough ?? true
-        let cameraOK = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
-        let showCamera = wantCamera && cameraOK
+        let showCamera = showsCameraFeed
         darkDomeNode.isHidden = showCamera
         horizonGlowNode.isHidden = showCamera  // the real sky has its own horizon
         dimDomeNode.isHidden = !showCamera     // scrim only over the live camera
@@ -724,6 +740,14 @@ final class ARSkyViewController: UIViewController {
         // clear, so stale frames burn in as a ghost "second sky". Dark mode
         // is simply the opaque night dome (renderingOrder -100) drawn over
         // the feed; toggling modes only ever flips node visibility above.
+        // Dark mode still pays for the hidden feed, so trim it: re-run the
+        // session (in place, no reset — world frame and alignment survive)
+        // whenever the running video tier no longer matches the mode, and
+        // cap the render loop at 60 Hz while nothing photographic is shown.
+        if videoFormatIsLowRes == showCamera, viewIfLoaded?.window != nil {
+            startSession()
+        }
+        sceneView.preferredFramesPerSecond = showCamera ? 0 : 60
         // The 1000 m sky dome needs a far clip well past ARKit's default.
         if let camera = sceneView.pointOfView?.camera { camera.zNear = 0.1; camera.zFar = 1500 }
     }
@@ -807,6 +831,18 @@ final class ARSkyViewController: UIViewController {
 
     // MARK: AR session
 
+    /// True when the live camera feed is actually on screen (camera mode AND
+    /// permission granted) — the one definition both the session config and
+    /// the dome visibility derive from.
+    private var showsCameraFeed: Bool {
+        (engine?.cameraPassthrough ?? true)
+            && AVCaptureDevice.authorizationStatus(for: .video) == .authorized
+    }
+
+    /// Which video tier the running session was configured with, so
+    /// `applyBackground()` can re-run only when the mode actually changed.
+    private var videoFormatIsLowRes = false
+
     /// Run (or resume) the AR session. `reset: true` starts tracking from
     /// scratch and re-estimates north; plain resumes keep the existing world
     /// frame so the sky doesn't swing on every unlock or app switch.
@@ -833,11 +869,18 @@ final class ARSkyViewController: UIViewController {
         }
         // Don't trust the default video format: iOS 27.0 ships a 10 fps default
         // ("frame rate set to 10.0 by user defaults") that makes the feed feel
-        // frozen. Pin the first ≥30 fps format (Apple lists best-first).
-        if let smooth = ARWorldTrackingConfiguration.supportedVideoFormats
-            .first(where: { $0.framesPerSecond >= 30 }) {
-            config.videoFormat = smooth
-        }
+        // frozen. Camera mode pins the first ≥30 fps format (Apple lists
+        // best-first). Dark mode hides the feed behind the night dome, so the
+        // SMALLEST ≥30 fps format wins back the ISP + GPU cost of a 4K video
+        // pipeline nobody sees — tracking quality is unaffected.
+        let smooth = ARWorldTrackingConfiguration.supportedVideoFormats
+            .filter { $0.framesPerSecond >= 30 }
+        let wantLowRes = !showsCameraFeed
+        let format = wantLowRes
+            ? smooth.min(by: { $0.imageResolution.width < $1.imageResolution.width })
+            : smooth.first
+        if let format { config.videoFormat = format }
+        videoFormatIsLowRes = wantLowRes
         sceneView.session.run(config, options: reset ? [.resetTracking, .removeExistingAnchors] : [])
         if reset {
             // The scene frame was reset; realign to north from a fresh consensus.
@@ -996,8 +1039,8 @@ final class ARSkyViewController: UIViewController {
                 let fireAt = pass.rise.addingTimeInterval(-600)
                 guard fireAt > Date() else { continue }
                 let content = UNMutableNotificationContent()
-                content.title = "ISS pass in 10 minutes"
-                content.body = "Rises \(compass(pass.az)) and climbs to \(Int(pass.maxEl.rounded()))° — open Overhead to watch it cross."
+                content.title = String(localized: "ISS pass in 10 minutes")
+                content.body = String(localized: "Rises \(compass(pass.az)) and climbs to \(Int(pass.maxEl.rounded()))° — open Overhead to watch it cross.")
                 content.sound = .default
                 let comps = Calendar.current.dateComponents(
                     [.year, .month, .day, .hour, .minute, .second], from: fireAt)
@@ -1075,13 +1118,10 @@ final class ARSkyViewController: UIViewController {
     /// (global, satellite coverage — but billed per call, so poll gently),
     /// otherwise the free non-commercial airplanes.live feed.
     func configureDataSource() {
-        if let key = engine?.fr24ApiKey, !key.isEmpty {
-            dataSource = FR24Source(apiKey: key)
-            pollInterval = .seconds(8)
-        } else {
-            dataSource = ADSBClient()
-            pollInterval = .seconds(1)
-        }
+        // FR24 temporarily disabled (its settings entry is hidden): always use
+        // the free feed, even when a token is still stored from before.
+        dataSource = ADSBClient()
+        pollInterval = .seconds(1)
     }
 
     private func startPolling() {
@@ -1134,6 +1174,20 @@ final class ARSkyViewController: UIViewController {
                     offset: engine?.headingOffsetDeg ?? 0,
                     mirror: engine?.mirrorX ?? false,
                     forceStars: forceStars)
+        // Key-light the aircraft darts from the real sun's bearing so their
+        // shading matches the light outdoors. Elevation is clamped upward —
+        // after sunset the "sun" keeps lighting gently from above the horizon
+        // rather than leaving every plane unlit from below.
+        let sun = Celestial.sun(date: effectiveDate(),
+                                lat: observer.coordinate.latitude,
+                                lon: observer.coordinate.longitude)
+        let pos = SkyMath.scenePosition(azimuthDeg: sun.az,
+                                        elevationDeg: min(max(sun.el, 25), 65),
+                                        radius: 100,
+                                        headingOffsetDeg: engine?.headingOffsetDeg ?? 0,
+                                        mirrorX: engine?.mirrorX ?? false)
+        glyphKeyLightNode.position = pos
+        glyphKeyLightNode.look(at: SCNVector3Zero)
     }
 
     // MARK: Rendering
@@ -1189,7 +1243,6 @@ final class ARSkyViewController: UIViewController {
 
             visible += 1
             anchors[ac.hex] = anchor
-            lastSeen[ac.hex] = now
             lastFix[ac.hex] = Fix(az: az, el: el, range: range, aircraft: ac)
 
             // Glance: count airborne traffic and keep the nearest as the hero.
@@ -1222,6 +1275,12 @@ final class ARSkyViewController: UIViewController {
                 node.apply(aircraft: ac)
                 node.position = position
                 nodes[ac.hex] = node
+                // Fade in rather than pop, landing on the same opacity
+                // applyFocus() would assign so the two can't fight.
+                let dimmed = engine?.focusedCallsign != nil
+                    && ac.callsign != engine?.focusedCallsign
+                node.opacity = 0
+                node.runAction(.fadeOpacity(to: dimmed ? 0.22 : 1.0, duration: 0.4))
                 worldNode.addChildNode(node)
             }
             node.isHidden = !(engine?.showAircraft ?? true) || hiddenBySpotlight(ac)
@@ -1372,25 +1431,35 @@ final class ARSkyViewController: UIViewController {
         // Position stays per-frame so motion is still smooth.
         orientTick &+= 1
         let doOrient = orientTick % 10 == 0
+        // Smooth over a fixed *time* constant, not a fixed per-frame factor:
+        // 0.5/frame converged in ~80 ms at 60 Hz (~40 ms at 120 Hz), so each
+        // fresh fix landed as a visible snap. τ≈0.3 s turns the correction into
+        // a glide; projecting the target τ ahead cancels the filter's lag, so
+        // the glyph still rides where the plane is *now*.
+        let tau = 0.3
+        let stepDt = min(max(now.timeIntervalSinceReferenceDate - lastStepAt, 0), 0.5)
+        lastStepAt = now.timeIntervalSinceReferenceDate
+        let a = Float(1 - exp(-stepDt / tau))
         for (hex, anchor) in anchors {
             guard let node = nodes[hex], !node.isHidden else { continue }
-            let (az, el, range) = geometry(of: anchor, at: now, observer: observer)
+            let (az, el, range) = geometry(of: anchor, at: now.addingTimeInterval(tau),
+                                           observer: observer)
             let target = SkyMath.scenePosition(azimuthDeg: az, elevationDeg: el,
                                                radius: sphereRadius,
                                                headingOffsetDeg: offset, mirrorX: mirror)
             let p = node.position
-            let a: Float = 0.5
             node.position = SCNVector3(p.x + (target.x - p.x) * a,
                                        p.y + (target.y - p.y) * a,
                                        p.z + (target.z - p.z) * a)
             if doOrient {
-                // Aim the glyph along its track: project the spot it'll be a few
-                // seconds ahead and point at that on screen.
+                // The ahead point is only the fallback for feeds with no
+                // track/speed; the primary path orients from the track itself.
                 let fwd = geometry(of: anchor, at: now.addingTimeInterval(10), observer: observer)
                 let ahead = SkyMath.scenePosition(azimuthDeg: fwd.az, elevationDeg: fwd.el,
                                                   radius: sphereRadius,
                                                   headingOffsetDeg: offset, mirrorX: mirror)
-                orientGlyph(node, at: target, ahead: ahead)
+                orientGlyph(node, anchor: anchor, at: target, ahead: ahead,
+                            offset: offset, mirror: mirror)
             }
             lastFix[hex]?.az = az
             lastFix[hex]?.el = el
@@ -1399,16 +1468,19 @@ final class ARSkyViewController: UIViewController {
         if engine?.hearFeelSky == true, orientTick % 4 == 0 { updateProximityHaptic() }
     }
     private var orientTick = 0
+    private var lastStepAt: TimeInterval = 0
     private var lastSkyStepAt = Date.distantPast
 
     /// Remove an aircraft and everything attached to it (node, trail, fix).
+    /// The node fades out over a beat instead of vanishing between two frames —
+    /// planes leave the sky the way they entered it.
     private func dropAircraft(_ hex: String) {
         guard nodes[hex] != nil || anchors[hex] != nil else { return }
-        nodes[hex]?.removeFromParentNode(); nodes[hex] = nil
-        trailNodes[hex]?.removeFromParentNode(); trailNodes[hex] = nil
+        let fadeOut = SCNAction.sequence([.fadeOut(duration: 0.4), .removeFromParentNode()])
+        nodes[hex]?.runAction(fadeOut); nodes[hex] = nil
+        trailNodes[hex]?.runAction(fadeOut); trailNodes[hex] = nil
         trails[hex] = nil
         lastFix[hex] = nil
-        lastSeen[hex] = nil
         anchors[hex] = nil
         if hex == selectedHex { deselect() }
     }
@@ -1537,20 +1609,31 @@ final class ARSkyViewController: UIViewController {
             moon: (moon.az, moon.el), sun: (sun.az, sun.el))
     }
 
-    /// Rotate a glyph to its on-screen direction of motion so the nose runs
-    /// head-to-tail along the drawn trail. Falls back to a track-based
-    /// estimate when there's no usable projected motion yet.
-    /// Aim the glyph along its true direction of travel: project the plane's
-    /// current spot and a spot a little further along its track, and point the
-    /// glyph from one to the other on screen. Works regardless of motion timing
-    /// or where the camera is aimed (so it stays correct while you pan).
-    private func orientGlyph(_ node: AircraftNode, at position: SCNVector3, ahead: SCNVector3) {
-        let p1 = sceneView.projectPoint(worldNode.convertPosition(position, to: nil))
-        let p2 = sceneView.projectPoint(worldNode.convertPosition(ahead, to: nil))
-        let dx = p2.x - p1.x
-        let dy = p2.y - p1.y                        // view coords: y grows downward
-        guard p1.z > 0, p1.z < 1, dx * dx + dy * dy > 1 else { return }
-        node.setGlyphScreenAngle(atan2(dx, -dy))
+    /// Aim the glyph along the plane's *true* 3D direction of travel — ground
+    /// track for heading, vertical rate for pitch — not its apparent on-screen
+    /// drift. A plane climbing away from the observer sinks toward the horizon
+    /// visually, and pointing the nose along that drift read as "descending".
+    /// The az/el→scene mapping is the same one that places the glyph, so the
+    /// direction lands in worldNode space (the glyph's parent frame) with the
+    /// heading offset and mirror already folded in.
+    private func orientGlyph(_ node: AircraftNode, anchor: Anchor,
+                             at position: SCNVector3, ahead: SCNVector3,
+                             offset: Double, mirror: Bool) {
+        if let track = anchor.track, let gs = anchor.gsKts, gs > 1 {
+            let gsMs = gs * 0.514444
+            let vsMs = (anchor.vsFpm ?? 0) * 0.00508
+            // True flight-path angles are a few degrees — nearly invisible at
+            // glyph size — so the climb slope is exaggerated before the atan.
+            let climbDeg = atan2(vsMs * 2.5, gsMs) * 180 / .pi
+            let d = SkyMath.scenePosition(azimuthDeg: track, elevationDeg: climbDeg,
+                                          radius: 1, headingOffsetDeg: offset, mirrorX: mirror)
+            node.setVelocityDirection(simd_float3(d.x, d.y, d.z))
+        } else {
+            // No track/speed in the feed: fall back to the apparent drift.
+            node.setVelocityDirection(simd_float3(ahead.x - position.x,
+                                                  ahead.y - position.y,
+                                                  ahead.z - position.z))
+        }
     }
 
     // MARK: Favorites & focus
@@ -1693,11 +1776,11 @@ final class ARSkyViewController: UIViewController {
         let snapshot = sceneView.snapshot()
         let title: String
         if let transit = engine?.transitPrediction {
-            title = "\(transit.callsign) crossing the \(transit.body.rawValue)"
+            title = String(localized: "\(transit.callsign) crossing the \(transit.body.displayName)")
         } else if let selected = engine?.selected {
             title = selected.callsign
         } else {
-            title = "The sky right now"
+            title = String(localized: "The sky right now")
         }
         let formatter = DateFormatter()
         formatter.dateStyle = .long
@@ -1772,8 +1855,13 @@ final class ARSkyViewController: UIViewController {
         }
     }
 
+    /// Age planes out by *fix age*, not feed presence: a contact can stay in
+    /// the response while its position (`seen_pos`) stops updating — it hits
+    /// the extrapolation cap and would otherwise hang motionless in the sky
+    /// indefinitely. One rule covers both cases (vanished from the feed, or
+    /// listed with a frozen fix): older than we're willing to dead-reckon → out.
     private func removeStale(now: Date) {
-        for (hex, seen) in lastSeen where now.timeIntervalSince(seen) > staleAfter {
+        for (hex, anchor) in anchors where now.timeIntervalSince(anchor.observedAt) > maxExtrapolationSec {
             dropAircraft(hex)
         }
     }
@@ -2642,12 +2730,18 @@ final class AircraftNode: SCNNode {
     let hex: String
 
     private let glyphNode = SCNNode()
+    /// Camera-facing chrome (label, halo, heart, focus ring, tap target) lives
+    /// under one billboarded child; the glyph itself is a small 3D dart
+    /// oriented in world space along the plane's true velocity, so a climbing
+    /// plane reads nose-up like the real one — not along its apparent drift.
+    private let billboardNode = SCNNode()
     private let labelNode = SCNNode()
     private let plateNode = SCNNode()
     private let haloNode = SCNNode()
     private let favoriteNode = SCNNode()
     private let focusNode = SCNNode()
     private let hitNode = SCNNode()
+    private var glyphMaterials: [SCNMaterial] = []
     private var baseScale: Float = 1
     private var destinationCode: String?
     private var lastAircraft: Aircraft?
@@ -2655,7 +2749,8 @@ final class AircraftNode: SCNNode {
     init(aircraft: Aircraft) {
         hex = aircraft.hex
         super.init()
-        constraints = [SCNBillboardConstraint()]   // always face the camera
+        billboardNode.constraints = [SCNBillboardConstraint()]
+        addChildNode(billboardNode)
         buildHitTarget()
         buildHalo()
         buildGlyph(for: aircraft)
@@ -2675,7 +2770,7 @@ final class AircraftNode: SCNNode {
         plane.materials = [mat]
         hitNode.geometry = plane
         hitNode.position = SCNVector3(0, -4, -0.5)
-        addChildNode(hitNode)
+        billboardNode.addChildNode(hitNode)
     }
 
     private func buildHalo() {
@@ -2686,7 +2781,7 @@ final class AircraftNode: SCNNode {
         torus.materials = [mat]
         haloNode.geometry = torus
         haloNode.isHidden = true
-        addChildNode(haloNode)
+        billboardNode.addChildNode(haloNode)
 
         // Favorite: a real heart riding above the glyph — white-rimmed pink
         // with a soft glow so it reads on black sky and daylight camera alike.
@@ -2699,7 +2794,7 @@ final class AircraftNode: SCNNode {
         favoriteNode.geometry = heart
         favoriteNode.position = SCNVector3(0, 11, 0.2)
         favoriteNode.isHidden = true
-        addChildNode(favoriteNode)
+        billboardNode.addChildNode(favoriteNode)
 
         // Focus: a warm gold ring, breathing gently.
         let focusTorus = SCNTorus(ringRadius: 14, pipeRadius: 0.7)
@@ -2717,7 +2812,7 @@ final class AircraftNode: SCNNode {
             breathe.timingMode = .easeInEaseOut
             focusNode.runAction(breathe)
         }
-        addChildNode(focusNode)
+        billboardNode.addChildNode(focusNode)
     }
 
     func setFavorite(_ on: Bool) { favoriteNode.isHidden = !on }
@@ -2752,35 +2847,91 @@ final class AircraftNode: SCNNode {
         }
     }()
 
-    /// Crisp SF Symbol airliner, drawn nose-up, white so the altitude tint can
-    /// multiply it to colour. A soft dark outline keeps it legible on a bright
-    /// daytime sky as well as black.
-    static let planeImage: UIImage = {
-        let size = CGSize(width: 128, height: 128)
-        return UIGraphicsImageRenderer(size: size).image { ctx in
-            let cg = ctx.cgContext
-            let config = UIImage.SymbolConfiguration(pointSize: 78, weight: .semibold)
-            guard let plane = UIImage(systemName: "airplane", withConfiguration: config) else { return }
-            // The symbol's nose points east by default; rotate it to point up.
-            cg.translateBy(x: 64, y: 64)
-            cg.rotate(by: -.pi / 2)
-            let rect = CGRect(x: -plane.size.width / 2, y: -plane.size.height / 2,
-                              width: plane.size.width, height: plane.size.height)
-            // Dark halo for contrast, then the white plane on top.
-            plane.withTintColor(.black.withAlphaComponent(0.55), renderingMode: .alwaysOriginal)
-                .draw(in: rect.insetBy(dx: -1.5, dy: -1.5))
-            plane.withTintColor(.white, renderingMode: .alwaysOriginal).draw(in: rect)
-        }
+    /// Lights with this category mask shade the aircraft darts (the only
+    /// 3D-lit objects in the scene); everything else stays constant-lit.
+    static let glyphLightMask = 2
+
+    /// Top-view airliner silhouette in path space (nose up +Y): rounded nose,
+    /// swept wings and tailplane, tapering tail cone. Right side listed
+    /// nose-to-tail; the left side is its mirror.
+    private static let planformPath: UIBezierPath = {
+        let right: [CGPoint] = [
+            CGPoint(x: 1.1, y: 1.9),    // wing root, leading edge
+            CGPoint(x: 8.2, y: -2.4),   // wingtip, leading edge
+            CGPoint(x: 8.2, y: -3.5),   // wingtip, trailing edge
+            CGPoint(x: 1.1, y: -1.1),   // wing root, trailing edge
+            CGPoint(x: 1.1, y: -5.0),   // tailplane root, leading edge
+            CGPoint(x: 3.6, y: -6.6),   // tailplane tip, leading edge
+            CGPoint(x: 3.6, y: -7.4),   // tailplane tip, trailing edge
+            CGPoint(x: 0.7, y: -6.9),   // tailplane root, trailing edge
+        ]
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: -1.1, y: 5.2))
+        path.addQuadCurve(to: CGPoint(x: 1.1, y: 5.2),
+                          controlPoint: CGPoint(x: 0, y: 8.4))    // rounded nose
+        right.forEach { path.addLine(to: $0) }
+        path.addLine(to: CGPoint(x: 0, y: -7.7))                  // tail cone
+        right.reversed().forEach { path.addLine(to: CGPoint(x: -$0.x, y: $0.y)) }
+        path.close()
+        path.flatness = 0.05
+        return path
     }()
 
+    /// Swept vertical fin, side view (x aft, y up).
+    private static let finPath: UIBezierPath = {
+        let path = UIBezierPath()
+        path.move(to: .zero)
+        path.addLine(to: CGPoint(x: 2.3, y: 3.0))
+        path.addLine(to: CGPoint(x: 3.1, y: 3.0))
+        path.addLine(to: CGPoint(x: 2.9, y: 0))
+        path.close()
+        return path
+    }()
+
+    /// A little airliner, nose along +Z: an extruded planform (wings + tail),
+    /// a capsule fuselage for volume, and a swept fin. Parts are lambert-lit by
+    /// the glyph light rig (sun-matched key + ambient fill) with an emissive
+    /// floor so nothing goes black at night; each part also carries a dark
+    /// inverted-hull shell — front faces culled so only a rim shows — keeping
+    /// the silhouette crisp against a bright daytime sky. The altitude tint
+    /// multiplies over all of it, as it did with the old sprite.
     private func buildGlyph(for aircraft: Aircraft) {
-        let billboard = SCNPlane(width: 18, height: 18)
-        let mat = SCNMaterial()
-        mat.lightingModel = .constant     // unaffected by scene lighting; reads on bright sky
-        mat.diffuse.contents = AircraftNode.planeImage
-        mat.isDoubleSided = true
-        billboard.materials = [mat]
-        glyphNode.geometry = billboard
+        func part(_ geometry: SCNGeometry, brightness: CGFloat,
+                  position: SCNVector3, euler: SCNVector3 = SCNVector3Zero) {
+            let mat = SCNMaterial()
+            mat.lightingModel = .lambert
+            mat.diffuse.contents = UIColor(white: brightness, alpha: 1)
+            mat.emission.contents = UIColor(white: 0.20, alpha: 1)
+            geometry.materials = [mat]
+            glyphMaterials.append(mat)
+            let node = SCNNode(geometry: geometry)
+            node.position = position
+            node.eulerAngles = euler
+            node.categoryBitMask = AircraftNode.glyphLightMask
+            glyphNode.addChildNode(node)
+
+            let hullGeometry = geometry.copy() as! SCNGeometry
+            let hullMat = SCNMaterial()
+            hullMat.lightingModel = .constant
+            hullMat.diffuse.contents = UIColor(white: 0, alpha: 1)
+            hullMat.cullMode = .front
+            hullGeometry.materials = [hullMat]
+            let hull = SCNNode(geometry: hullGeometry)
+            hull.position = position
+            hull.eulerAngles = euler
+            hull.scale = SCNVector3(1.14, 1.14, 1.14)
+            glyphNode.addChildNode(hull)
+        }
+        let plan = SCNShape(path: AircraftNode.planformPath, extrusionDepth: 0.7)
+        plan.chamferRadius = 0.2
+        part(plan, brightness: 0.9, position: SCNVector3(0, 0, 0),
+             euler: SCNVector3(Float.pi / 2, 0, 0))
+        part(SCNCapsule(capRadius: 0.95, height: 13.8), brightness: 1.0,
+             position: SCNVector3(0, 0.35, 0.3), euler: SCNVector3(Float.pi / 2, 0, 0))
+        let fin = SCNShape(path: AircraftNode.finPath, extrusionDepth: 0.5)
+        fin.chamferRadius = 0.12
+        part(fin, brightness: 0.85, position: SCNVector3(0, 0.3, -4.4),
+             euler: SCNVector3(0, Float.pi / 2, 0))
         baseScale = Float(GlyphCategory.from(aircraft.category).scale)
         glyphNode.scale = SCNVector3(baseScale, baseScale, baseScale)
         addChildNode(glyphNode)
@@ -2810,8 +2961,8 @@ final class AircraftNode: SCNNode {
         plateNode.geometry = plate
         plateNode.position = SCNVector3(0, -12, 0)
 
-        addChildNode(plateNode)
-        addChildNode(labelNode)
+        billboardNode.addChildNode(plateNode)
+        billboardNode.addChildNode(labelNode)
     }
 
     private func labelString(for aircraft: Aircraft) -> String {
@@ -2823,23 +2974,28 @@ final class AircraftNode: SCNNode {
     }
 
     /// Refresh per-fix visuals: altitude-graded color and the label text.
-    /// Orientation is set separately via `setGlyphScreenAngle` — the
-    /// controller derives it from the node's actual projected motion so the
-    /// nose always points along the drawn trail.
+    /// Orientation is set separately via `setVelocityDirection` — the
+    /// controller derives it from the plane's true 3D motion.
     func apply(aircraft: Aircraft) {
         lastAircraft = aircraft
         let color = AircraftNode.altitudeColor(feet: aircraft.altitudeFeet, onGround: aircraft.onGround)
-        // Tint the white plane symbol by altitude via multiply (keeps the dark
-        // outline and crisp edges from the shared image).
-        glyphNode.geometry?.firstMaterial?.multiply.contents = color
+        // Multiply the per-part fake shading by the altitude tint.
+        for mat in glyphMaterials { mat.multiply.contents = color }
         refreshLabelLayout()
     }
 
-    /// Point the nose along a screen-space direction (radians clockwise from
-    /// screen-up). The billboard keeps the glyph's plane facing the camera, so
-    /// an in-plane z-rotation maps directly onto screen angle.
-    func setGlyphScreenAngle(_ radians: Float) {
-        glyphNode.eulerAngles.z = -radians
+    /// Aim the dart's nose along the plane's velocity, given in the node's
+    /// parent (sky-world) space. Wings stay level (up = world up) — we don't
+    /// know bank angle from ADS-B, and rolling the glyph would only add noise.
+    func setVelocityDirection(_ dir: simd_float3) {
+        let len = simd_length(dir)
+        guard len > 0.01 else { return }
+        let fwd = dir / len
+        // Degenerate straight-up/down: keep the previous orientation.
+        guard abs(fwd.y) < 0.99 else { return }
+        let right = simd_normalize(simd_cross(simd_float3(0, 1, 0), fwd))
+        let up = simd_cross(fwd, right)
+        glyphNode.simdOrientation = simd_quatf(simd_float3x3(columns: (right, up, fwd)))
     }
 
     /// Append the destination airport code to the label once the route resolves.

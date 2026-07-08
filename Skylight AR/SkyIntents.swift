@@ -39,10 +39,17 @@ struct WhatsFlyingIntent: AppIntent {
         let range = SkyMath.azElRange(observerLat: lat, observerLon: lon, observerAltM: 0,
                                       targetLat: nearest.lat, targetLon: nearest.lon,
                                       targetAltM: nearest.altitudeMeters).range / 1852
-        let name = nearest.callsign ?? "an unidentified aircraft"
-        let type = nearest.type.map { ", a \($0)," } ?? ""
-        let plural = airborne.count == 1 ? "is one aircraft" : "are \(airborne.count) aircraft"
-        return .result(dialog: "There \(plural) above you. The nearest is \(name)\(type) about \(Int(range.rounded())) nautical miles away.")
+        let name = nearest.callsign ?? String(localized: "an unidentified aircraft")
+        let miles = Int(range.rounded())
+        // Whole-sentence format strings (no glued fragments) so translators can
+        // reorder freely; the English output is byte-identical to the old assembly.
+        let countSentence = airborne.count == 1
+            ? String(localized: "There is one aircraft above you.")
+            : String(localized: "There are \(airborne.count) aircraft above you.")
+        let nearestSentence = nearest.type.map { type in
+            String(localized: "The nearest is \(name), a \(type), about \(miles) nautical miles away.")
+        } ?? String(localized: "The nearest is \(name) about \(miles) nautical miles away.")
+        return .result(dialog: "\(countSentence) \(nearestSentence)")
     }
 }
 

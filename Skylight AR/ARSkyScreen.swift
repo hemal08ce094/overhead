@@ -233,9 +233,9 @@ struct ARSkyScreen: View {
     }
 
     private var statusText: String {
-        if engine.feedOffline { return "Sky only — no connection" }
-        if engine.usingDemoLocation { return "Demo sky" }
-        return "Scanning the sky"
+        if engine.feedOffline { return String(localized: "Sky only — no connection") }
+        if engine.usingDemoLocation { return String(localized: "Demo sky") }
+        return String(localized: "Scanning the sky")
     }
 
     private var timeOffsetPill: some View {
@@ -262,7 +262,7 @@ struct ARSkyScreen: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Theme.gold)
             VStack(alignment: .leading, spacing: 1) {
-                Text("\(transit.callsign) crosses the \(transit.body.rawValue)")
+                Text("\(transit.callsign) crosses the \(transit.body.displayName)")
                     .font(Theme.display(14, .semibold))
                     .foregroundStyle(Theme.textPrimary)
                 Text("Look \(compass(transit.azimuth)) · \(Int(transit.elevation.rounded()))° up")
@@ -505,15 +505,15 @@ struct ARSkyScreen: View {
 
     private var alignInstruction: String {
         if engine.calibrationSunUp {
-            return "Aim the center of your screen right at the Sun, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done."
+            return String(localized: "Aim the center of your screen right at the Sun, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done.")
         }
         if engine.calibrationMoonUp {
-            return "Aim the center of your screen right at the Moon, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done."
+            return String(localized: "Aim the center of your screen right at the Moon, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done.")
         }
         if engine.selected != nil {
-            return "Center the real plane on screen and tap Lock to plane — its exact bearing snaps the sky into place. Or drag the sky until a plane sits where you see it, then tap Done."
+            return String(localized: "Center the real plane on screen and tap Lock to plane — its exact bearing snaps the sky into place. Or drag the sky until a plane sits where you see it, then tap Done.")
         }
-        return "Drag the sky left or right until a plane sits exactly where you see it in the air, then tap Done."
+        return String(localized: "Drag the sky left or right until a plane sits exactly where you see it in the air, then tap Done.")
     }
 
     /// Top-right bell — the sky calendar, one tap from anywhere.
@@ -530,6 +530,12 @@ struct ARSkyScreen: View {
         .accessibilityLabel("Find a flight")
     }
 
+    /// Something within 48 h lights a dot on the bell in the event's colour —
+    /// the calendar announces itself only when it has something to say.
+    private var imminentEvent: SkyEvent? {
+        engine.events.first { $0.date.timeIntervalSinceNow < 48 * 3600 }
+    }
+
     private var eventsBell: some View {
         Button { showEvents = true; Analytics.log("Events.opened") } label: {
             Image(systemName: "bell")
@@ -538,8 +544,17 @@ struct ARSkyScreen: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
                 .glassEffect(.regular, in: .circle)
+                .overlay(alignment: .topTrailing) {
+                    if let soon = imminentEvent {
+                        Circle().fill(soon.kind.tint)
+                            .frame(width: 9, height: 9)
+                            .overlay(Circle().stroke(Theme.nightBottom, lineWidth: 1.5))
+                            .offset(x: -4, y: 5)
+                    }
+                }
         }
-        .accessibilityLabel("Sky events")
+        .accessibilityLabel(imminentEvent.map { String(localized: "Sky events. \($0.title) within two days.") }
+                            ?? String(localized: "Sky events"))
     }
 
     /// Alignment-confidence chip: the icon's tint reflects how trustworthy the
@@ -577,15 +592,15 @@ struct ARSkyScreen: View {
     private var alignAccessibility: String {
         let base: String
         switch engine.compassQuality {
-        case .good:    base = "Heading looks good"
-        case .fair:    base = "Heading is approximate"
-        case .poor:    base = "Heading is unreliable"
-        case .unknown: base = "Heading not yet known"
+        case .good:    base = String(localized: "Heading looks good")
+        case .fair:    base = String(localized: "Heading is approximate")
+        case .poor:    base = String(localized: "Heading is unreliable")
+        case .unknown: base = String(localized: "Heading not yet known")
         }
         if let s = engine.secondsSinceAlign, !engine.autoAlignEnabled {
-            return "\(base). Aligned \(Int(s)) seconds ago. Fix alignment."
+            return String(localized: "\(base). Aligned \(Int(s)) seconds ago. Fix alignment.")
         }
-        return "\(base). Fix sky alignment."
+        return String(localized: "\(base). Fix sky alignment.")
     }
 
     /// Top-left entry to the profile sheet.
@@ -693,7 +708,7 @@ struct FlightSearchView: View {
                             idleState
                         }
                         if !inView.isEmpty {
-                            section("In view now", inView)
+                            section(String(localized: "In view now"), inView)
                         }
                         if searching && anywhere.isEmpty {
                             HStack(spacing: 10) {
@@ -705,7 +720,7 @@ struct FlightSearchView: View {
                             .padding(.top, 4)
                         }
                         if !anywhere.isEmpty {
-                            section("Anywhere", anywhere)
+                            section(String(localized: "Anywhere"), anywhere)
                         }
                         if shouldShowEmpty {
                             emptyState
@@ -826,7 +841,7 @@ struct FlightSearchView: View {
         VStack(alignment: .leading, spacing: 18) {
             if !engine.favorites.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow("Favorites")
+                    Eyebrow(String(localized: "Favorites"))
                     chipRow(Array(engine.favorites).sorted()) { favorite in
                         field = .callsign
                         query = favorite
@@ -834,7 +849,7 @@ struct FlightSearchView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 10) {
-                Eyebrow("Try")
+                Eyebrow(String(localized: "Try"))
                 chipRow(field.placeholder.components(separatedBy: ", ")) { example in
                     query = example
                 }
@@ -869,13 +884,13 @@ struct FlightSearchView: View {
     private var fieldHint: String {
         switch field {
         case .callsign:
-            return "A flight number reaches any aircraft in the world — type it as printed on your ticket."
+            return String(localized: "A flight number reaches any aircraft in the world — type it as printed on your ticket.")
         case .registration:
-            return "A tail number follows one specific airframe wherever it flies."
+            return String(localized: "A tail number follows one specific airframe wherever it flies.")
         case .type:
-            return "An aircraft type finds every one aloft nearby — A388 is the A380."
+            return String(localized: "An aircraft type finds every one aloft nearby — A388 is the A380.")
         case .squawk:
-            return "Squawk codes are what pilots dial for ATC — 7700 is a declared emergency."
+            return String(localized: "Squawk codes are what pilots dial for ATC — 7700 is a declared emergency.")
         }
     }
 
@@ -889,7 +904,10 @@ struct FlightSearchView: View {
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
             if field == .callsign || field == .registration {
-                Text("A global match needs the full \(field == .callsign ? "flight number" : "tail") — e.g. \(field.placeholder.components(separatedBy: ",").first ?? "").")
+                let example = field.placeholder.components(separatedBy: ",").first ?? ""
+                Text(field == .callsign
+                     ? "A global match needs the full flight number — e.g. \(example)."
+                     : "A global match needs the full tail — e.g. \(example).")
                     .font(Theme.display(12, .regular))
                     .foregroundStyle(Theme.textTertiary)
                     .multilineTextAlignment(.center)
@@ -1027,30 +1045,32 @@ Image(systemName: "scope")
     /// flight; at cruise altitudes the level line speaks flight levels.
     private func phase(_ ac: SelectedAircraft) -> (text: String, icon: String, color: Color)? {
         if ac.onGround {
-            return ("On the ground", "airplane", Theme.textTertiary)
+            return (String(localized: "On the ground"), "airplane", Theme.textTertiary)
         }
         let vr = ac.verticalRateFpm ?? 0
         let rate = "\(Int(abs(vr).rounded()).formatted()) ft/min"
         if vr >= 500 {
-            return ("Climbing · \(rate)", "arrow.up.right", Theme.accent)
+            return (String(localized: "Climbing · \(rate)"), "arrow.up.right", Theme.accent)
         }
         if vr <= -500 {
-            let verb = ac.altitudeFeet < 5000 ? "On approach" : "Descending"
-            return ("\(verb) · \(rate)", "arrow.down.right", Color(red: 1.00, green: 0.75, blue: 0.40))
+            let text = ac.altitudeFeet < 5000
+                ? String(localized: "On approach · \(rate)")
+                : String(localized: "Descending · \(rate)")
+            return (text, "arrow.down.right", Color(red: 1.00, green: 0.75, blue: 0.40))
         }
         guard ac.altitudeFeet > 0 else { return nil }
         return ac.altitudeFeet >= 18_000
-            ? ("Cruising at FL\(Int((ac.altitudeFeet / 100).rounded()))", "arrow.right", Theme.textSecondary)
-            : ("Level at \(Int((ac.altitudeFeet / 100).rounded()) * 100) ft", "arrow.right", Theme.textSecondary)
+            ? (String(localized: "Cruising at FL\(Int((ac.altitudeFeet / 100).rounded()))"), "arrow.right", Theme.textSecondary)
+            : (String(localized: "Level at \(Int((ac.altitudeFeet / 100).rounded()) * 100) ft"), "arrow.right", Theme.textSecondary)
     }
 
     /// The three transponder codes every spotter knows. Anything else stays
     /// off the sheet — routine squawks are noise.
     private func emergencyMeaning(_ squawk: String?) -> String? {
         switch squawk {
-        case "7500": return "hijack alert"
-        case "7600": return "radio failure"
-        case "7700": return "general emergency"
+        case "7500": return String(localized: "hijack alert")
+        case "7600": return String(localized: "radio failure")
+        case "7700": return String(localized: "general emergency")
         default:     return nil
         }
     }
@@ -1171,15 +1191,16 @@ Image(systemName: "scope")
     private func routeFooter(_ ac: SelectedAircraft, destLat: Double, destLon: Double) -> String? {
         let toGo = RouteProgress.distanceNm(ac.lat, ac.lon, destLat, destLon)
         guard toGo > 5 else { return nil }
-        var text = "\(Int(toGo.rounded()).formatted()) nm to go"
+        let distance = Int(toGo.rounded()).formatted()
         if let gs = ac.groundSpeedKts, gs > 80, !ac.onGround {
             let hours = toGo / gs
             let h = Int(hours)
             let m = Int((hours - Double(h)) * 60)
-            text += h > 0 ? " · about \(h) h \(String(format: "%02d", m)) m"
-                          : " · about \(m) m"
+            return h > 0
+                ? String(localized: "\(distance) nm to go · about \(h) h \(String(format: "%02d", m)) m")
+                : String(localized: "\(distance) nm to go · about \(m) m")
         }
-        return text
+        return String(localized: "\(distance) nm to go")
     }
 
     private func endpoint(code: String?, city: String?, alignment: HorizontalAlignment) -> some View {
@@ -1197,12 +1218,12 @@ Image(systemName: "scope")
     private func statsGrid(_ ac: SelectedAircraft) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
                   spacing: 14) {
-            stat(ac.onGround ? "—" : "\(Int((ac.altitudeFeet / 100).rounded()) * 100) ft", "Altitude")
-            stat(ac.groundSpeedKts.map { "\(Int($0.rounded())) kt" } ?? "—", "Ground speed")
-            stat(ac.track.map { "\(compass($0)) \(Int($0.rounded()))°" } ?? "—", "Track")
-            stat(String(format: "%.0f nm", ac.distanceNm), "Distance")
-            stat("\(compass(ac.azimuth)) \(Int(ac.azimuth.rounded()))°", "Bearing")
-            stat("\(Int(ac.elevation.rounded()))°", "Elevation")
+            stat(ac.onGround ? "—" : "\(Int((ac.altitudeFeet / 100).rounded()) * 100) ft", String(localized: "Altitude"))
+            stat(ac.groundSpeedKts.map { "\(Int($0.rounded())) kt" } ?? "—", String(localized: "Ground speed"))
+            stat(ac.track.map { "\(compass($0)) \(Int($0.rounded()))°" } ?? "—", String(localized: "Track"))
+            stat(String(format: "%.0f nm", ac.distanceNm), String(localized: "Distance"))
+            stat("\(compass(ac.azimuth)) \(Int(ac.azimuth.rounded()))°", String(localized: "Bearing"))
+            stat("\(Int(ac.elevation.rounded()))°", String(localized: "Elevation"))
         }
     }
 
@@ -1249,15 +1270,16 @@ struct AirportDetailSheet: View {
                 }
 
                 VStack(spacing: 0) {
-                    infoRow("Location", "\(airport.city), \(airport.country)")
+                    infoRow(String(localized: "Location"), "\(airport.city), \(airport.country)")
                     rowDivider
-                    infoRow("ICAO / IATA", "\(airport.icao) / \(airport.iata)")
+                    infoRow(String(localized: "ICAO / IATA"), "\(airport.icao) / \(airport.iata)")
                     rowDivider
-                    infoRow("Distance", String(format: "%.0f nm from you", airport.distanceNm))
+                    infoRow(String(localized: "Distance"),
+                            String(format: String(localized: "%.0f nm from you"), airport.distanceNm))
                     rowDivider
-                    infoRow("Bearing", "\(compass(airport.azimuth)) \(Int(airport.azimuth.rounded()))°")
+                    infoRow(String(localized: "Bearing"), "\(compass(airport.azimuth)) \(Int(airport.azimuth.rounded()))°")
                     rowDivider
-                    infoRow("Coordinates", String(format: "%.4f°, %.4f°", airport.lat, airport.lon))
+                    infoRow(String(localized: "Coordinates"), String(format: "%.4f°, %.4f°", airport.lat, airport.lon))
                 }
                 .nightCard()
             }
@@ -1295,8 +1317,14 @@ struct AirportDetailSheet: View {
 
 /// 16-point compass label for an azimuth in degrees.
 func compass(_ degrees: Double) -> String {
-    let dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-                "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    let dirs = [String(localized: "N"), String(localized: "NNE"),
+                String(localized: "NE"), String(localized: "ENE"),
+                String(localized: "E"), String(localized: "ESE"),
+                String(localized: "SE"), String(localized: "SSE"),
+                String(localized: "S"), String(localized: "SSW"),
+                String(localized: "SW"), String(localized: "WSW"),
+                String(localized: "W"), String(localized: "WNW"),
+                String(localized: "NW"), String(localized: "NNW")]
     let i = Int((degrees / 22.5).rounded()) % 16
     return dirs[(i + 16) % 16]
 }
@@ -1327,9 +1355,11 @@ struct ProfileIdentityCard: View {
     private var standing: String {
         let nights = engine.statDaysUsed
         let flights = engine.statFlightsSpotted
-        let n = "\(nights) night\(nights == 1 ? "" : "s")"
-        let f = "\(flights) flight\(flights == 1 ? "" : "s")"
-        return "\(engine.spotterTier.name) · \(f) · \(n)"
+        let n = nights == 1 ? String(localized: "\(nights) night")
+                            : String(localized: "\(nights) nights")
+        let f = flights == 1 ? String(localized: "\(flights) flight")
+                             : String(localized: "\(flights) flights")
+        return String(localized: "\(engine.spotterTier.name) · \(f) · \(n)")
     }
 
     /// Highest milestone earned — the medal that *is* your rank.
@@ -1410,7 +1440,7 @@ struct ProfileView: View {
                 // The tier program, one tap away — medal, rank, and the road
                 // to the next rung.
                 VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow("Your tier")
+                    Eyebrow(String(localized: "Your tier"))
                     NavigationLink {
                         MedalsOverviewView(engine: engine)
                     } label: {
@@ -1445,7 +1475,7 @@ struct ProfileView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow("Favorite flights")
+                    Eyebrow(String(localized: "Favorite flights"))
                     if engine.favorites.isEmpty {
                         Text("Tap the heart on any flight to keep it here. Favorites get a pink mark in the sky.")
                             .font(Theme.display(13, .regular))
@@ -1465,40 +1495,41 @@ struct ProfileView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow("Settings")
+                    Eyebrow(String(localized: "Settings"))
                     VStack(spacing: 0) {
-                        settingsLink("View & sky", icon: "moon.stars.fill",
-                                     subtitle: engine.cameraPassthrough ? "AR sky · layers · sky time" : "Dark sky · layers · sky time") {
+                        settingsLink(String(localized: "View & sky"), icon: "moon.stars.fill",
+                                     subtitle: engine.cameraPassthrough ? String(localized: "AR sky · layers · sky time") : String(localized: "Dark sky · layers · sky time")) {
                             SkySettingsView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink("Aircraft", icon: "airplane",
-                                     subtitle: "Visibility, trails, labels, sound") {
+                        settingsLink(String(localized: "Aircraft"), icon: "airplane",
+                                     subtitle: String(localized: "Visibility, trails, labels, sound")) {
                             AircraftSettingsView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink("Airports", icon: "airplane.arrival",
-                                     subtitle: engine.showAirports ? "Shown on the horizon" : "Hidden") {
+                        settingsLink(String(localized: "Airports"), icon: "airplane.arrival",
+                                     subtitle: engine.showAirports ? String(localized: "Shown on the horizon") : String(localized: "Hidden")) {
                             AirportSettingsView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink("Calibration", icon: "scope",
-                                     subtitle: "Recalibrate heading · point at the Sun") {
+                        settingsLink(String(localized: "Calibration"), icon: "scope",
+                                     subtitle: String(localized: "Recalibrate heading · point at the Sun")) {
                             CalibrationView(engine: engine)
                         }
+                        // FR24 temporarily disabled — the Data source row is
+                        // hidden until the FR24 path is production-ready.
+                        // settingsLink("Data source", icon: "dot.radiowaves.up.forward",
+                        //              subtitle: engine.fr24ApiKey.isEmpty ? "airplanes.live (free)" : "Flightradar24") {
+                        //     DataSourceSettingsView(engine: engine)
+                        // }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink("Data source", icon: "dot.radiowaves.up.forward",
-                                     subtitle: engine.fr24ApiKey.isEmpty ? "airplanes.live (free)" : "Flightradar24") {
-                            DataSourceSettingsView(engine: engine)
-                        }
-                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink("Accessibility", icon: "accessibility",
-                                     subtitle: "Hear & feel the sky") {
+                        settingsLink(String(localized: "Accessibility"), icon: "accessibility",
+                                     subtitle: String(localized: "Hear & feel the sky")) {
                             AccessibilityView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink("About & privacy", icon: "info.circle",
-                                     subtitle: "How it works · privacy · feedback") {
+                        settingsLink(String(localized: "About & privacy"), icon: "info.circle",
+                                     subtitle: String(localized: "How it works · privacy · feedback")) {
                             AboutView()
                         }
                     }
@@ -1587,9 +1618,22 @@ struct ProfileView: View {
 struct EventsView: View {
     @Bindable var engine: SkyEngine
 
+    /// What's already up right now — the calendar shouldn't only be futures.
+    private struct TonightGlance {
+        let moonThumb: UIImage
+        let phaseName: String
+        let percent: Int
+        let planets: [String]
+    }
+    @State private var tonight: TonightGlance?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                if let tonight {
+                    Eyebrow(String(localized: "Tonight"))
+                    tonightCard(tonight)
+                }
                 if engine.events.isEmpty {
                     HStack(spacing: 10) {
                         ProgressView().tint(Theme.textTertiary)
@@ -1601,14 +1645,15 @@ struct EventsView: View {
                     .frame(maxWidth: .infinity)
                 } else {
                     if let next = engine.events.first {
-                        Eyebrow("Next in your sky")
+                        Eyebrow(String(localized: "Next in your sky"))
+                            .padding(.top, tonight == nil ? 0 : 12)
                         NavigationLink { EventDetailView(event: next) } label: {
                             heroCard(next)
                         }
                         .buttonStyle(.plain)
                     }
                     if engine.events.count > 1 {
-                        Eyebrow("The year ahead")
+                        Eyebrow(String(localized: "The year ahead"))
                             .padding(.top, 12)
                         VStack(spacing: 10) {
                             ForEach(engine.events.dropFirst()) { event in
@@ -1619,7 +1664,7 @@ struct EventsView: View {
                             }
                         }
                     }
-                    Text("Eclipse circumstances are computed for your exact location.")
+                    Text("Eclipses and conjunctions are computed for your exact location.")
                         .font(Theme.display(11, .regular))
                         .foregroundStyle(Theme.textTertiary)
                         .padding(.top, 6)
@@ -1631,6 +1676,103 @@ struct EventsView: View {
         .navigationTitle("Sky events")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
+        .task { await loadTonight() }
+    }
+
+    /// Moon phase + planets currently (or this evening) above the horizon.
+    private func loadTonight() async {
+        let lat = UserDefaults.standard.double(forKey: SkyDefaults.lastLat)
+        let lon = UserDefaults.standard.double(forKey: SkyDefaults.lastLon)
+        guard lat != 0 || lon != 0 else { return }
+        let (moon, planetsUp) = await Task.detached(priority: .userInitiated) {
+            () -> (Celestial.MoonState, [String]) in
+            let now = Date()
+            let moon = Celestial.moon(date: now, lat: lat, lon: lon)
+            // Probe the evening sky (or right now, if it's already dark).
+            var probe = now
+            if Celestial.sun(date: now, lat: lat, lon: lon).el > -3 {
+                var cal = Calendar(identifier: .gregorian)
+                cal.timeZone = TimeZone.current
+                probe = cal.date(bySettingHour: 22, minute: 30, second: 0, of: now) ?? now
+            }
+            let rank = ["Venus", "Jupiter", "Mars", "Saturn", "Mercury"]
+            let up = Celestial.planets(date: probe, lat: lat, lon: lon)
+                .filter { $0.el > 8 }
+                .map(\.name)
+                .sorted { (rank.firstIndex(of: $0) ?? 9) < (rank.firstIndex(of: $1) ?? 9) }
+            return (moon, up)
+        }.value
+        tonight = TonightGlance(
+            moonThumb: SkyArt.moonImage(fraction: moon.illumination, waxing: moon.waxing, diameter: 80),
+            phaseName: Self.phaseName(illumination: moon.illumination, waxing: moon.waxing),
+            percent: Int((moon.illumination * 100).rounded()),
+            planets: planetsUp)
+    }
+
+    private static func phaseName(illumination: Double, waxing: Bool) -> String {
+        switch illumination {
+        case ..<0.03:  return String(localized: "New moon")
+        case ..<0.45:  return waxing ? String(localized: "Waxing crescent") : String(localized: "Waning crescent")
+        case ..<0.55:  return waxing ? String(localized: "First quarter") : String(localized: "Last quarter")
+        case ..<0.97:  return waxing ? String(localized: "Waxing gibbous") : String(localized: "Waning gibbous")
+        default:       return String(localized: "Full moon")
+        }
+    }
+
+    private func tonightCard(_ glance: TonightGlance) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 14) {
+                Image(uiImage: glance.moonThumb)
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .shadow(color: .white.opacity(0.25), radius: 6)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(glance.phaseName)
+                        .font(Theme.display(16, .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("\(glance.percent)% lit")
+                        .font(Theme.display(12, .regular).monospacedDigit())
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                Spacer(minLength: 8)
+            }
+            Divider().overlay(.white.opacity(0.08))
+            HStack(spacing: 10) {
+                Image(systemName: "circle.circle")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 22)
+                Text(planetsLine(glance.planets))
+                    .font(Theme.display(13, .medium))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            if engine.issVisible {
+                HStack(spacing: 10) {
+                    Image(systemName: "diamond.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color(red: 0.5, green: 1.0, blue: 1.0))
+                        .frame(width: 22)
+                    Text("The ISS is crossing your sky right now")
+                        .font(Theme.display(13, .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                }
+            }
+        }
+        .padding(16)
+        .nightCard()
+    }
+
+    private func planetsLine(_ planets: [String]) -> String {
+        // The feed carries the English names (they double as lookup keys);
+        // display goes through the localized name table.
+        let names = planets.map(Celestial.localizedName)
+        switch names.count {
+        case 0:  return String(localized: "No naked-eye planets this evening")
+        case 1:  return String(localized: "\(names[0]) is up tonight")
+        default:
+            let head = names.dropLast().joined(separator: ", ")
+            return String(localized: "\(head) and \(names.last!) are up tonight")
+        }
     }
 
     /// The soonest event, full-bleed: its artwork with the facts resting on a
@@ -1650,7 +1792,7 @@ struct EventsView: View {
                     Spacer(minLength: 10)
                     Text(countdown(to: event.date))
                         .font(Theme.display(15, .bold).monospacedDigit())
-                        .foregroundStyle(event.kind == .eclipse ? Theme.gold : Theme.accent)
+                        .foregroundStyle(event.kind.tint)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -1662,8 +1804,7 @@ struct EventsView: View {
     }
 
     private func eventRow(_ event: SkyEvent) -> some View {
-        let isEclipse = event.kind == .eclipse
-        let tint = isEclipse ? Theme.gold : Theme.accent
+        let tint = event.kind.tint
         return HStack(spacing: 14) {
             // The ring fills as the event approaches — a glance says "soon".
             ZStack {
@@ -1695,9 +1836,9 @@ struct EventsView: View {
         .padding(14)
         .nightCard()
         .overlay {
-            if isEclipse {
+            if event.kind.isHeadline {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(tint.opacity(0.35), lineWidth: 1)
             }
         }
     }
@@ -1710,9 +1851,9 @@ struct EventsView: View {
 
     private func countdown(to date: Date) -> String {
         let days = date.timeIntervalSinceNow / 86_400
-        if days < 1 { return "today" }
-        if days < 60 { return "\(Int(days))d" }
-        return "\(Int(days / 30.44))mo"
+        if days < 1 { return String(localized: "today") }
+        if days < 60 { return String(localized: "\(Int(days))d") }
+        return String(localized: "\(Int(days / 30.44))mo")
     }
 }
 
@@ -1722,10 +1863,10 @@ struct CalibrationView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        SettingsScaffold(theme: .calibration, title: "Calibration",
+        SettingsScaffold(theme: .calibration, title: String(localized: "Calibration"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
                 VStack(alignment: .leading, spacing: 24) {
-                    section("Calibrate heading", trailing: nil) {
+                    section(String(localized: "Calibrate heading"), trailing: nil) {
                         Text("Sweep a full circle, then lock onto the Sun, Moon, or a plane you can see — the most accurate way to line the sky up with reality.")
                             .font(Theme.display(13, .regular))
                             .foregroundStyle(Theme.textSecondary)
@@ -1742,7 +1883,8 @@ struct CalibrationView: View {
                         }
                     }
 
-                    section("Auto-align", trailing: engine.autoAlignEnabled ? "On" : "Locked") {
+                    section(String(localized: "Auto-align"),
+                            trailing: engine.autoAlignEnabled ? String(localized: "On") : String(localized: "Locked")) {
                         Toggle("Follow the compass automatically", isOn: Binding(
                             get: { engine.autoAlignEnabled },
                             set: { on in if on { engine.resetToAutoAlign() } else { engine.autoAlignEnabled = false } }))
@@ -1755,7 +1897,8 @@ struct CalibrationView: View {
                     }
 
                     if engine.lidarSupported {
-                        section("Tracking", trailing: engine.lidarActive ? "LiDAR" : "Off") {
+                        section(String(localized: "Tracking"),
+                                trailing: engine.lidarActive ? "LiDAR" : String(localized: "Off")) {
                             Toggle("LiDAR tracking assist", isOn: $engine.lidarAssist)
                                 .tint(Theme.accentSoft)
                             Text("Uses the LiDAR scanner to keep the sky steady when the camera can't see much — a blank or night sky. Pro models only; toggle to compare.")
@@ -1764,7 +1907,7 @@ struct CalibrationView: View {
                         }
                     }
 
-                    section("Fine trim", trailing: String(format: "%.1f°", engine.headingOffsetDeg)) {
+                    section(String(localized: "Fine trim"), trailing: String(format: "%.1f°", engine.headingOffsetDeg)) {
                         Slider(value: $engine.headingOffsetDeg, in: -20...20, step: 0.5)
                             .tint(Theme.accent)
                         Text("Manual nudge if it's still a touch off after calibrating.")
@@ -1826,21 +1969,23 @@ struct CalibrationView: View {
 
     private var compassTitle: String {
         switch engine.compassQuality {
-        case .good: return "Compass: good"
-        case .fair: return "Compass: fair"
-        case .poor: return "Compass: poor"
-        case .unknown: return "Compass: calibrating…"
+        case .good: return String(localized: "Compass: good")
+        case .fair: return String(localized: "Compass: fair")
+        case .poor: return String(localized: "Compass: poor")
+        case .unknown: return String(localized: "Compass: calibrating…")
         }
     }
 
     private var compassHint: String {
         switch engine.compassQuality {
         case .poor, .fair:
-            return "Wave the phone in a figure-8 to recalibrate the compass."
+            return String(localized: "Wave the phone in a figure-8 to recalibrate the compass.")
         case .unknown:
-            return "Heading not available yet — only on device."
+            return String(localized: "Heading not available yet — only on device.")
         case .good:
-            return engine.headingAccuracyDeg >= 0 ? "Accurate to ±\(Int(engine.headingAccuracyDeg))°" : "Heading locked."
+            return engine.headingAccuracyDeg >= 0
+                ? String(localized: "Accurate to ±\(Int(engine.headingAccuracyDeg))°")
+                : String(localized: "Heading locked.")
         }
     }
 }
@@ -1896,43 +2041,48 @@ struct SkySettingsView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        SettingsScaffold(theme: .sky, title: "View & sky",
+        SettingsScaffold(theme: .sky, title: String(localized: "View & sky"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 10) {
-                    modeChip("AR sky", "camera.fill", active: engine.cameraPassthrough) {
+                    modeChip(String(localized: "AR sky"), "camera.fill", active: engine.cameraPassthrough) {
                         engine.cameraPassthrough = true
                         Analytics.log("Mode.selected", ["mode": "ar"])
                     }
-                    modeChip("Dark sky", "moon.stars.fill", active: !engine.cameraPassthrough) {
+                    modeChip(String(localized: "Dark sky"), "moon.stars.fill", active: !engine.cameraPassthrough) {
                         engine.cameraPassthrough = false
                         Analytics.log("Mode.selected", ["mode": "dark"])
                     }
                 }
 
                 VStack(spacing: 0) {
-                    SettingRow(title: "Night vision", icon: "eye.fill", isOn: $engine.nightVision,
-                               subtitle: "Deep red display — protects your dark adaptation")
+                    SettingRow(title: String(localized: "Night vision"), icon: "eye.fill", isOn: $engine.nightVision,
+                               subtitle: String(localized: "Deep red display — protects your dark adaptation"))
                 }
                 .padding(.vertical, 4)
                 .nightCard()
 
                 VStack(spacing: 0) {
-                    SettingRow(title: "Sun", icon: "sun.max.fill", isOn: $engine.showSun)
+                    SettingRow(title: String(localized: "Sun"), icon: "sun.max.fill", isOn: $engine.showSun)
                     settingsDivider
-                    SettingRow(title: "Moon", icon: "moon.fill", isOn: $engine.showMoon,
+                    SettingRow(title: String(localized: "Moon"), icon: "moon.fill", isOn: $engine.showMoon,
                                subtitle: moonSubtitle)
                     settingsDivider
-                    SettingRow(title: "Planets", icon: "circle.circle", isOn: $engine.showPlanets,
-                               subtitle: "Mercury through Saturn")
+                    SettingRow(title: String(localized: "Planets"), icon: "circle.circle", isOn: $engine.showPlanets,
+                               subtitle: String(localized: "Mercury through Saturn"))
                     settingsDivider
-                    SettingRow(title: "Stars", icon: "sparkles", isOn: $engine.showStars)
+                    SettingRow(title: String(localized: "Stars"), icon: "sparkles", isOn: $engine.showStars)
                     settingsDivider
-                    SettingRow(title: "ISS", icon: "diamond.fill", isOn: $engine.showISS,
-                               subtitle: engine.issVisible ? "Overhead now" : nil)
+                    if engine.showStars {
+                        SettingRow(title: String(localized: "Milky Way"), icon: "sparkle", isOn: $engine.showMilkyWay,
+                                   subtitle: String(localized: "A soft river of distant starlight"))
+                        settingsDivider
+                    }
+                    SettingRow(title: String(localized: "ISS"), icon: "diamond.fill", isOn: $engine.showISS,
+                               subtitle: engine.issVisible ? String(localized: "Overhead now") : nil)
                     settingsDivider
-                    SettingRow(title: "ISS pass alerts", icon: "bell.badge.fill", isOn: $engine.issAlerts,
-                               subtitle: "A nudge 10 minutes before it rises")
+                    SettingRow(title: String(localized: "ISS pass alerts"), icon: "bell.badge.fill", isOn: $engine.issAlerts,
+                               subtitle: String(localized: "A nudge 10 minutes before it rises"))
                 }
                 .padding(.vertical, 4)
                 .nightCard()
@@ -1967,7 +2117,9 @@ struct SkySettingsView: View {
     }
 
     private var moonSubtitle: String {
-        "\(Int((engine.moonIllumination * 100).rounded()))% · \(engine.moonWaxing ? "waxing" : "waning")"
+        let pct = Int((engine.moonIllumination * 100).rounded())
+        return engine.moonWaxing ? String(localized: "\(pct)% · waxing")
+                                 : String(localized: "\(pct)% · waning")
     }
 
     private var timeScrub: some View {
@@ -2001,26 +2153,26 @@ struct AircraftSettingsView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        SettingsScaffold(theme: .aircraft, title: "Aircraft",
+        SettingsScaffold(theme: .aircraft, title: String(localized: "Aircraft"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(spacing: 0) {
-                    SettingRow(title: "Aircraft", icon: "airplane", isOn: $engine.showAircraft,
-                               subtitle: engine.trafficCount > 0 ? "\(engine.trafficCount) overhead" : nil)
+                    SettingRow(title: String(localized: "Aircraft"), icon: "airplane", isOn: $engine.showAircraft,
+                               subtitle: engine.trafficCount > 0 ? String(localized: "\(engine.trafficCount) overhead") : nil)
                     settingsDivider
-                    SettingRow(title: "Naked-eye visible only", icon: "eye.fill",
+                    SettingRow(title: String(localized: "Naked-eye visible only"), icon: "eye.fill",
                                isOn: $engine.nakedEyeOnly,
-                               subtitle: "Hide distant planes you couldn't actually see")
+                               subtitle: String(localized: "Hide distant planes you couldn't actually see"))
                     settingsDivider
-                    SettingRow(title: "Aircraft on the ground", icon: "airplane.arrival",
+                    SettingRow(title: String(localized: "Aircraft on the ground"), icon: "airplane.arrival",
                                isOn: $engine.showGroundAircraft,
-                               subtitle: "Taxiing and parked planes")
+                               subtitle: String(localized: "Taxiing and parked planes"))
                     settingsDivider
-                    SettingRow(title: "Aircraft trails", icon: "wind", isOn: $engine.showTrails,
-                               subtitle: "Fading path behind each plane")
+                    SettingRow(title: String(localized: "Aircraft trails"), icon: "wind", isOn: $engine.showTrails,
+                               subtitle: String(localized: "Fading path behind each plane"))
                     settingsDivider
-                    SettingRow(title: "Sky sounds", icon: "speaker.wave.2.fill", isOn: $engine.soundOn,
-                               subtitle: "Hear flyovers in 3D — best with AirPods")
+                    SettingRow(title: String(localized: "Sky sounds"), icon: "speaker.wave.2.fill", isOn: $engine.soundOn,
+                               subtitle: String(localized: "Hear flyovers in 3D — best with AirPods"))
                 }
                 .padding(.vertical, 4)
                 .nightCard()
@@ -2092,12 +2244,12 @@ private struct PlaneColorLegend: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
 
-                legendRow(swatch: .dot(Color(white: 0.6)), title: "Gray plane",
-                          detail: "On the ground — taxiing or parked.")
-                legendRow(swatch: .heart, title: "Pink heart",
-                          detail: "A flight you've favorited.")
-                legendRow(swatch: .ring(Theme.gold), title: "Gold ring",
-                          detail: "The flight you're tracking right now.")
+                legendRow(swatch: .dot(Color(white: 0.6)), title: String(localized: "Gray plane"),
+                          detail: String(localized: "On the ground — taxiing or parked."))
+                legendRow(swatch: .heart, title: String(localized: "Pink heart"),
+                          detail: String(localized: "A flight you've favorited."))
+                legendRow(swatch: .ring(Theme.gold), title: String(localized: "Gold ring"),
+                          detail: String(localized: "The flight you're tracking right now."))
             }
             .padding(16)
             .nightCard()
@@ -2141,7 +2293,7 @@ struct DataSourceSettingsView: View {
     private var usingFR24: Bool { !engine.fr24ApiKey.isEmpty }
 
     var body: some View {
-        SettingsScaffold(theme: .dataSource, title: "Data source",
+        SettingsScaffold(theme: .dataSource, title: String(localized: "Data source"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -2200,24 +2352,24 @@ struct AccessibilityView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        SettingsScaffold(theme: .accessibility, title: "Accessibility",
+        SettingsScaffold(theme: .accessibility, title: String(localized: "Accessibility"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(spacing: 0) {
-                    SettingRow(title: "Hear & feel the sky", icon: "dot.radiowaves.left.and.right",
+                    SettingRow(title: String(localized: "Hear & feel the sky"), icon: "dot.radiowaves.left.and.right",
                                isOn: $engine.hearFeelSky,
-                               subtitle: "Find planes by sound and touch — eyes-free")
+                               subtitle: String(localized: "Find planes by sound and touch — eyes-free"))
                 }
                 .padding(.vertical, 4)
                 .nightCard()
 
-                accessibilityCard("Hear it", icon: "airpods") {
+                accessibilityCard(String(localized: "Hear it"), icon: "airpods") {
                     Text("Every nearby aircraft becomes a 3D-positioned engine hum — to your left, your right, above. Close your eyes, point toward the sound, and you're facing the plane. Best with AirPods for full spatial audio.")
                 }
-                accessibilityCard("Feel it", icon: "hand.tap") {
+                accessibilityCard(String(localized: "Feel it"), icon: "hand.tap") {
                     Text("As a plane nears the center of where you're pointing, the phone pulses — slow and soft when it's off to the side, fast and firm when you're aimed right at it. Sweep the sky and feel for the plane, no screen needed.")
                 }
-                accessibilityCard("For everyone", icon: "accessibility") {
+                accessibilityCard(String(localized: "For everyone"), icon: "accessibility") {
                     Text("Built for blind and low-vision skywatchers first — but anyone can find a plane without staring at the screen. Overhead also respects Reduce Motion, Dynamic Type, and works with VoiceOver.")
                 }
             }
@@ -2246,24 +2398,24 @@ struct AccessibilityView: View {
 struct AboutView: View {
     @Environment(\.openURL) private var openURL
     @State private var shareUsageStats = !Analytics.isOptedOut
-    private let feedbackEmail = "hemalmodi3@gmail.com"
+    private let feedbackEmail = AppInfo.feedbackEmail
 
     var body: some View {
-        SettingsScaffold(theme: .about, title: "About & privacy") {
+        SettingsScaffold(theme: .about, title: String(localized: "About & privacy")) {
             VStack(alignment: .leading, spacing: 22) {
-                aboutCard("What it is", icon: "sparkles") {
+                aboutCard(String(localized: "What it is"), icon: "sparkles") {
                     Text("Hold your phone up and Overhead labels the sky around you — live aircraft, the Sun, the Moon, the planets, stars, and the ISS, each placed at its real position in augmented reality.")
                 }
 
-                aboutCard("Reference only", icon: "exclamationmark.triangle") {
+                aboutCard(String(localized: "Reference only"), icon: "exclamationmark.triangle") {
                     Text("Overhead is a reference and educational tool, and we've worked hard to place everything as accurately as we can. Even so, we can't guarantee it: positions, routes, and identities come from public data that can be delayed, incomplete, or wrong, and many aircraft (parked, military, or not equipped) don't broadcast at all. Please don't use Overhead for navigation, safety, or any operational decision — we take no responsibility for the accuracy or completeness of what's shown.")
                 }
 
-                aboutCard("Best under open sky", icon: "location.north.line") {
+                aboutCard(String(localized: "Best under open sky"), icon: "location.north.line") {
                     Text("Overhead points the sky using your iPhone's compass and motion sensors, so it's happiest outdoors in the open. Magnetometers can read a few degrees off — and the structural steel, wiring, and electronics inside airports, terminals, and buildings can pull them well off — so indoors the whole sky may sit noticeably rotated, and near metal, cars, speakers, or a magnetic case too. Hold still, and if something looks off, tap a plane or the Sun to re-align (or run Calibration). Accuracy also drifts while you're walking or in a moving vehicle.")
                 }
 
-                aboutCard("Privacy", icon: "lock.shield") {
+                aboutCard(String(localized: "Privacy"), icon: "lock.shield") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("No account. No tracking. No ads.")
                             .font(Theme.display(13, .semibold))
@@ -2283,7 +2435,7 @@ struct AboutView: View {
                 }
 
                 Button {
-                    let subject = "Overhead feedback"
+                    let subject = String(localized: "\(AppInfo.name) feedback")
                     if let url = URL(string: "mailto:\(feedbackEmail)?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
                         openURL(url)
                     }
@@ -2293,7 +2445,7 @@ struct AboutView: View {
                 .buttonStyle(PrimaryButtonStyle())
 
                 Button {
-                    openURL(ReviewGate.writeReviewURL)
+                    openURL(AppInfo.writeReviewURL)
                 } label: {
                     Label("Rate Overhead on the App Store", systemImage: "star")
                 }
@@ -2331,13 +2483,13 @@ struct AirportSettingsView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
-        SettingsScaffold(theme: .airport, title: "Airports",
+        SettingsScaffold(theme: .airport, title: String(localized: "Airports"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(spacing: 0) {
-                    SettingRow(title: "Airports", icon: "airplane.arrival",
+                    SettingRow(title: String(localized: "Airports"), icon: "airplane.arrival",
                                isOn: $engine.showAirports,
-                               subtitle: "Nearby fields on the horizon")
+                               subtitle: String(localized: "Nearby fields on the horizon"))
                 }
                 .padding(.vertical, 4)
                 .nightCard()
@@ -2352,7 +2504,7 @@ struct AirportSettingsView: View {
 enum TimeScrub {
     /// "Now", "+2h 15m", "−45m" … from a minute offset.
     static func label(_ minutes: Double) -> String {
-        if abs(minutes) < 0.5 { return "Now" }
+        if abs(minutes) < 0.5 { return String(localized: "Now") }
         let sign = minutes >= 0 ? "+" : "−"
         let total = Int(abs(minutes).rounded())
         let h = total / 60, m = total % 60

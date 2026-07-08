@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -16,6 +17,24 @@ import FoundationModels
 private let gold = Theme.gold
 private let moonlight = Color(red: 0.96, green: 0.96, blue: 0.91)
 private let nightDisc = Color(red: 0.07, green: 0.08, blue: 0.12)
+private let copper = Color(red: 0.93, green: 0.52, blue: 0.35)
+
+extension SkyEvent.Kind {
+    /// One accent per event family — countdowns, progress rings, borders.
+    var tint: Color {
+        switch self {
+        case .eclipse: gold
+        case .lunarEclipse: copper
+        case .meteorShower: Theme.accent
+        case .fullMoon: moonlight
+        case .conjunction: Theme.accent
+        case .season: gold
+        }
+    }
+
+    /// Eclipses of either kind get the headline treatment.
+    var isHeadline: Bool { self == .eclipse || self == .lunarEclipse }
+}
 
 // MARK: - Handcrafted glyphs (list size)
 
@@ -54,6 +73,46 @@ struct EventGlyph: View {
                                      center: .topLeading, startRadius: 1, endRadius: 22))
                 .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 0.8))
                 .shadow(color: moonlight.opacity(0.5), radius: 4)
+        case .lunarEclipse:
+            // The moon deep in the umbra: copper disc, shadow across one limb.
+            ZStack {
+                Circle().fill(RadialGradient(colors: [copper, copper.opacity(0.55)],
+                                             center: UnitPoint(x: 0.35, y: 0.65),
+                                             startRadius: 1, endRadius: 20))
+                Circle().fill(nightDisc.opacity(0.65)).offset(x: 6, y: -8)
+            }
+            .clipShape(Circle())
+            .overlay(Circle().strokeBorder(copper.opacity(0.5), lineWidth: 0.8))
+            .shadow(color: copper.opacity(0.55), radius: 4)
+        case .conjunction:
+            // Two lanterns almost touching.
+            ZStack {
+                Circle().fill(gold)
+                    .frame(width: 11, height: 11)
+                    .offset(x: -4, y: 3)
+                    .shadow(color: gold.opacity(0.7), radius: 3)
+                Circle().fill(.white)
+                    .frame(width: 7, height: 7)
+                    .offset(x: 5, y: -5)
+                    .shadow(color: .white.opacity(0.7), radius: 3)
+            }
+        case .season:
+            // Half a sun resting on the horizon line.
+            Canvas { context, size in
+                let hy = size.height * 0.64
+                let c = CGPoint(x: size.width / 2, y: hy)
+                var disc = Path()
+                disc.addArc(center: c, radius: size.width * 0.30,
+                            startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+                disc.closeSubpath()
+                context.fill(disc, with: .color(Color(gold)))
+                var line = Path()
+                line.move(to: CGPoint(x: 1, y: hy))
+                line.addLine(to: CGPoint(x: size.width - 1, y: hy))
+                context.stroke(line, with: .color(.white.opacity(0.45)),
+                               style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+            }
+            .shadow(color: gold.opacity(0.5), radius: 3)
         }
     }
 }
@@ -156,6 +215,70 @@ struct EventHero: View {
                     Circle().fill(nightDisc.opacity(0.12)).frame(width: 16, height: 16).offset(x: -4, y: 22)
                 }
             }
+        case .lunarEclipse:
+            ZStack {
+                // Copper aura — sunset light bent through Earth's atmosphere.
+                Circle()
+                    .fill(RadialGradient(colors: [copper.opacity(0.45), .clear],
+                                         center: .center, startRadius: 35, endRadius: 105))
+                    .frame(width: 210, height: 210)
+                // The blood moon itself, lit from its lower limb.
+                Circle()
+                    .fill(RadialGradient(colors: [copper, Color(red: 0.45, green: 0.16, blue: 0.10)],
+                                         center: UnitPoint(x: 0.42, y: 0.78),
+                                         startRadius: 6, endRadius: 85))
+                    .frame(width: 104, height: 104)
+                // The umbra's soft edge still biting the upper limb.
+                Circle()
+                    .fill(RadialGradient(colors: [nightDisc.opacity(0.75), .clear],
+                                         center: .center, startRadius: 20, endRadius: 60))
+                    .frame(width: 120, height: 120)
+                    .offset(x: 22, y: -34)
+                    .blendMode(.multiply)
+            }
+        case .conjunction:
+            ZStack {
+                // The brighter lantern, gold with a wide halo…
+                Circle()
+                    .fill(RadialGradient(colors: [gold.opacity(0.55), .clear],
+                                         center: .center, startRadius: 3, endRadius: 60))
+                    .frame(width: 120, height: 120)
+                    .offset(x: -24, y: 12)
+                Circle().fill(gold)
+                    .frame(width: 17, height: 17)
+                    .offset(x: -24, y: 12)
+                // …and its companion just a finger's width away.
+                Circle()
+                    .fill(RadialGradient(colors: [.white.opacity(0.5), .clear],
+                                         center: .center, startRadius: 2, endRadius: 42))
+                    .frame(width: 84, height: 84)
+                    .offset(x: 26, y: -18)
+                Circle().fill(.white)
+                    .frame(width: 11, height: 11)
+                    .offset(x: 26, y: -18)
+            }
+        case .season:
+            ZStack(alignment: .center) {
+                // Glow pooling on the horizon.
+                Circle()
+                    .fill(RadialGradient(colors: [gold.opacity(0.5), .clear],
+                                         center: .center, startRadius: 8, endRadius: 95))
+                    .frame(width: 190, height: 190)
+                    .offset(y: 34)
+                // Half sun on the line.
+                Circle()
+                    .fill(LinearGradient(colors: [gold, gold.opacity(0.75)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .frame(width: 76, height: 76)
+                    .mask(Rectangle().frame(height: 38).offset(y: -19))
+                    .offset(y: 34)
+                // The horizon itself, with the land dark below.
+                VStack(spacing: 0) {
+                    Spacer()
+                    Rectangle().fill(.white.opacity(0.35)).frame(height: 1.2)
+                    Rectangle().fill(Theme.nightBottom.opacity(0.85)).frame(height: 61)
+                }
+            }
         }
     }
 }
@@ -184,12 +307,53 @@ enum EventNarrator {
     }
 }
 
+// MARK: - Event reminders
+
+/// One local notification per event, an hour before it peaks. The pending-
+/// request queue is the single source of truth — no shadow state to drift.
+enum EventReminder {
+    static func identifier(for event: SkyEvent) -> String {
+        "skyevent-\(Int(event.date.timeIntervalSince1970))"
+    }
+
+    static func isScheduled(_ event: SkyEvent) async -> Bool {
+        let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        return pending.contains { $0.identifier == identifier(for: event) }
+    }
+
+    /// Toggle the reminder; returns whether one is now scheduled.
+    static func toggle(_ event: SkyEvent) async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let id = identifier(for: event)
+        if await isScheduled(event) {
+            center.removePendingNotificationRequests(withIdentifiers: [id])
+            return false
+        }
+        let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        guard granted else { return false }
+        let fireAt = event.date.addingTimeInterval(-3600)
+        guard fireAt > Date() else { return false }
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "\(event.title) — one hour to go")
+        content.body = String(localized: "\(event.subtitle). Step outside and look up.")
+        content.sound = .default
+        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second],
+                                                    from: fireAt)
+        try? await center.add(UNNotificationRequest(
+            identifier: id, content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)))
+        Analytics.log("Event.reminderSet")
+        return true
+    }
+}
+
 // MARK: - Event detail
 
 struct EventDetailView: View {
     let event: SkyEvent
     @State private var narration: String?
     @State private var writing = true
+    @State private var reminderSet = false
 
     var body: some View {
         ScrollView {
@@ -204,7 +368,7 @@ struct EventDetailView: View {
                         Spacer()
                         Text(daysAway)
                             .font(Theme.display(14, .bold).monospacedDigit())
-                            .foregroundStyle(event.kind == .eclipse ? gold : Theme.accent)
+                            .foregroundStyle(event.kind.tint)
                     }
                     Text(event.subtitle)
                         .font(Theme.display(15, .medium))
@@ -235,6 +399,19 @@ struct EventDetailView: View {
                 .padding(16)
                 .nightCard()
 
+                // The bell button delivers on the bell icon: one tap and the
+                // sky comes to you an hour before it happens.
+                if event.date.timeIntervalSinceNow > 4000 {
+                    Button {
+                        Task { reminderSet = await EventReminder.toggle(event) }
+                    } label: {
+                        Label(reminderSet ? "Reminder set — an hour before" : "Remind me an hour before",
+                              systemImage: reminderSet ? "bell.fill" : "bell")
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .sensoryFeedback(.success, trigger: reminderSet) { _, new in new }
+                }
+
                 if event.kind == .eclipse {
                     HStack(spacing: 10) {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -254,6 +431,7 @@ struct EventDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
         .task {
+            reminderSet = await EventReminder.isScheduled(event)
             narration = await EventNarrator.describe(event)
             writing = false
         }
@@ -261,7 +439,7 @@ struct EventDetailView: View {
 
     private var daysAway: String {
         let days = event.date.timeIntervalSinceNow / 86_400
-        if days < 1 { return "today" }
-        return "in \(Int(days))d"
+        if days < 1 { return String(localized: "today") }
+        return String(localized: "in \(Int(days))d")
     }
 }

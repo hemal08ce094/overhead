@@ -1,0 +1,4833 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "" : {
+
+    },
+    "· %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "· %lld"
+          }
+        }
+      }
+    },
+    "%.0f nm from you" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "a %.0f nm de ti"
+          }
+        }
+      }
+    },
+    "%.1f° apart in the evening sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Separados %.1f° en el cielo de la tarde"
+          }
+        }
+      }
+    },
+    "%.1f° apart in the morning sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Separados %.1f° en el cielo de la mañana"
+          }
+        }
+      }
+    },
+    "%@ — one hour to go" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ — falta una hora"
+          }
+        }
+      }
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        }
+      }
+    },
+    "%@ · not overhead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · no sobre ti"
+          }
+        }
+      }
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ and %@ are up tonight" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ and %2$@ are up tonight"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ y %2$@ están visibles esta noche"
+          }
+        }
+      }
+    },
+    "%@ crosses the %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ crosses the %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cruza por delante de %2$@"
+          }
+        }
+      }
+    },
+    "%@ crossing the %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ crossing the %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cruzando por delante de %2$@"
+          }
+        }
+      }
+    },
+    "%@ feedback" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comentarios sobre %@"
+          }
+        }
+      }
+    },
+    "%@ flights spotted" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ vuelos avistados"
+          }
+        }
+      }
+    },
+    "%@ is up tonight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ está visible esta noche"
+          }
+        }
+      }
+    },
+    "%@ medal, earned" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medalla %@, conseguida"
+          }
+        }
+      }
+    },
+    "%@ medal, locked. %lld of %lld." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ medal, locked. %2$lld of %3$lld."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medalla %1$@, bloqueada. %2$lld de %3$lld."
+          }
+        }
+      }
+    },
+    "%@ medal, not yet earned. Drag to rotate." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medalla %@, aún no conseguida. Arrastra para girar."
+          }
+        }
+      }
+    },
+    "%@ medal. Drag to rotate." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medalla %@. Arrastra para girar."
+          }
+        }
+      }
+    },
+    "%@ meets %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ meets %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ se encuentra con %2$@"
+          }
+        }
+      }
+    },
+    "%@ nm to go" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ nm restantes"
+          }
+        }
+      }
+    },
+    "%@ nm to go · about %lld h %@ m" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ nm to go · about %2$lld h %3$@ m"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ nm restantes · unas %2$lld h %3$@ m"
+          }
+        }
+      }
+    },
+    "%@ nm to go · about %lld m" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ nm to go · about %2$lld m"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ nm restantes · unos %2$lld m"
+          }
+        }
+      }
+    },
+    "%@ peak" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máximo de %@"
+          }
+        }
+      }
+    },
+    "%@. Aligned %lld seconds ago. Fix alignment." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@. Aligned %2$lld seconds ago. Fix alignment."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@. Alineado hace %2$lld segundos. Corregir alineación."
+          }
+        }
+      }
+    },
+    "%@. Fix sky alignment." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@. Corregir la alineación del cielo."
+          }
+        }
+      }
+    },
+    "%@. Step outside and look up." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@. Sal al aire libre y mira arriba."
+          }
+        }
+      }
+    },
+    "%@'s full moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna llena de %@"
+          }
+        }
+      }
+    },
+    "%lld flight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld vuelo"
+          }
+        }
+      }
+    },
+    "%lld flights" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld vuelos"
+          }
+        }
+      }
+    },
+    "%lld flights to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld flights to %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld vuelos a %2$@"
+          }
+        }
+      }
+    },
+    "%lld night" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld noche"
+          }
+        }
+      }
+    },
+    "%lld nights" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld noches"
+          }
+        }
+      }
+    },
+    "%lld nm" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld nm"
+          }
+        }
+      }
+    },
+    "%lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld de %2$lld"
+          }
+        }
+      }
+    },
+    "%lld overhead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sobre ti"
+          }
+        }
+      }
+    },
+    "%lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "%lld%% · waning" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% · menguante"
+          }
+        }
+      }
+    },
+    "%lld%% · waxing" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% · creciente"
+          }
+        }
+      }
+    },
+    "%lld%% lit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% iluminada"
+          }
+        }
+      }
+    },
+    "%lld%% of the moon in shadow" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% de la luna en sombra"
+          }
+        }
+      }
+    },
+    "%lld%% of the sun covered, from where you are" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%% del sol cubierto, desde donde estás"
+          }
+        }
+      }
+    },
+    "%lldd" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lldd"
+          }
+        }
+      }
+    },
+    "%lldmo" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld mes"
+          }
+        }
+      }
+    },
+    "© %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "© %@"
+          }
+        }
+      }
+    },
+    "+12h" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+12h"
+          }
+        }
+      }
+    },
+    "−12h" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "−12h"
+          }
+        }
+      }
+    },
+    "5 TYPES" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5 TIPOS"
+          }
+        }
+      }
+    },
+    "A blood moon, from where you are" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una luna de sangre, desde donde estás"
+          }
+        }
+      }
+    },
+    "A flight number reaches any aircraft in the world — type it as printed on your ticket." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un número de vuelo localiza cualquier avión del mundo — escríbelo tal como aparece en tu tarjeta de embarque."
+          }
+        }
+      }
+    },
+    "A flight you've favorited." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un vuelo que marcaste como favorito."
+          }
+        }
+      }
+    },
+    "A global match needs the full flight number — e.g. %@." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una búsqueda global necesita el número de vuelo completo — p. ej. %@."
+          }
+        }
+      }
+    },
+    "A global match needs the full tail — e.g. %@." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una búsqueda global necesita la matrícula completa — p. ej. %@."
+          }
+        }
+      }
+    },
+    "A living reference — not a precision instrument." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una referencia viva — no un instrumento de precisión."
+          }
+        }
+      }
+    },
+    "A nudge 10 minutes before it rises" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un aviso 10 minutos antes de que salga"
+          }
+        }
+      }
+    },
+    "A plane's color is its altitude — warm orange down low, shifting to cyan up at cruise." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El color de un avión es su altitud: naranja cálido abajo, virando a cian en crucero."
+          }
+        }
+      }
+    },
+    "A soft river of distant starlight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un suave río de luz de estrellas lejanas"
+          }
+        }
+      }
+    },
+    "A supermoon — the year's biggest and brightest" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una superluna — la más grande y brillante del año"
+          }
+        }
+      }
+    },
+    "A tail number follows one specific airframe wherever it flies." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una matrícula sigue a un avión concreto allá donde vuele."
+          }
+        }
+      }
+    },
+    "About & privacy" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acerca de y privacidad"
+          }
+        }
+      }
+    },
+    "Accessibility" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accesibilidad"
+          }
+        }
+      }
+    },
+    "Accurate to ±%lld°" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precisión de ±%lld°"
+          }
+        }
+      }
+    },
+    "Achernar" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Achernar"
+          }
+        }
+      }
+    },
+    "Add to favorites" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a favoritos"
+          }
+        }
+      }
+    },
+    "AFTER 12" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TRAS LAS 12"
+          }
+        }
+      }
+    },
+    "Aim the center of your screen right at the Moon, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apunta el centro de la pantalla justo a la Luna y toca Fijar. O arrastra el cielo hasta poner un avión sobre su posición real y toca Hecho."
+          }
+        }
+      }
+    },
+    "Aim the center of your screen right at the Sun, then tap Lock. Or drag the sky to slide a plane onto its real position, and tap Done." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apunta el centro de la pantalla justo al Sol y toca Fijar. O arrastra el cielo hasta poner un avión sobre su posición real y toca Hecho."
+          }
+        }
+      }
+    },
+    "Aiming the sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apuntar el cielo"
+          }
+        }
+      }
+    },
+    "Aircraft" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviones"
+          }
+        }
+      }
+    },
+    "Aircraft on the ground" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviones en tierra"
+          }
+        }
+      }
+    },
+    "Aircraft trails" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estelas de aviones"
+          }
+        }
+      }
+    },
+    "airplanes.live (free)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "airplanes.live (gratuito)"
+          }
+        }
+      }
+    },
+    "Airports" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aeropuertos"
+          }
+        }
+      }
+    },
+    "Aldebaran" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aldebarán"
+          }
+        }
+      }
+    },
+    "All" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todos"
+          }
+        }
+      }
+    },
+    "Altair" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altair"
+          }
+        }
+      }
+    },
+    "Altitude" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altitud"
+          }
+        }
+      }
+    },
+    "An aircraft type finds every one aloft nearby — A388 is the A380." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un tipo de aeronave encuentra todas las que vuelan cerca — A388 es el A380."
+          }
+        }
+      }
+    },
+    "an unidentified aircraft" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "una aeronave no identificada"
+          }
+        }
+      }
+    },
+    "Annular solar eclipse" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eclipse solar anular"
+          }
+        }
+      }
+    },
+    "Antares" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antares"
+          }
+        }
+      }
+    },
+    "Anywhere" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo el mundo"
+          }
+        }
+      }
+    },
+    "AR sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cielo RA"
+          }
+        }
+      }
+    },
+    "AR sky · layers · sky time" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cielo RA · capas · tiempo del cielo"
+          }
+        }
+      }
+    },
+    "Arcturus" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arturo"
+          }
+        }
+      }
+    },
+    "Arriving at %@%@ now." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Arriving at %1$@%2$@ now."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Llegando a %1$@%2$@ ahora."
+          }
+        }
+      }
+    },
+    "As a plane nears the center of where you're pointing, the phone pulses — slow and soft when it's off to the side, fast and firm when you're aimed right at it. Sweep the sky and feel for the plane, no screen needed." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando un avión se acerca al centro de donde apuntas, el teléfono vibra — lento y suave si está a un lado, rápido y firme cuando apuntas justo hacia él. Barre el cielo y siente el avión, sin necesidad de pantalla."
+          }
+        }
+      }
+    },
+    "Auto-align" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alineación automática"
+          }
+        }
+      }
+    },
+    "Aviator" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviador"
+          }
+        }
+      }
+    },
+    "BA212 · 38,000 ft" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BA212 · 38.000 ft"
+          }
+        }
+      }
+    },
+    "Baseline range — high-altitude jets stay visible farther. Planes near the horizon are kept too. Turn the whole filter off to never hide a plane." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alcance base — los reactores a gran altitud siguen visibles más lejos. Los aviones cerca del horizonte también se conservan. Desactiva el filtro por completo para no ocultar nunca un avión."
+          }
+        }
+      }
+    },
+    "Bearing" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rumbo"
+          }
+        }
+      }
+    },
+    "Beaver Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna del Castor"
+          }
+        }
+      }
+    },
+    "Begin" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empezar"
+          }
+        }
+      }
+    },
+    "Best after midnight under a dark sky, away from city light." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor después de medianoche bajo un cielo oscuro, lejos de las luces de la ciudad."
+          }
+        }
+      }
+    },
+    "Best outdoors under open sky. The compass gets pulled off inside airports and buildings, so the sky can sit rotated there." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funciona mejor al aire libre, a cielo abierto. La brújula se desvía dentro de aeropuertos y edificios, así que allí el cielo puede verse girado."
+          }
+        }
+      }
+    },
+    "Best under open sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor a cielo abierto"
+          }
+        }
+      }
+    },
+    "Betelgeuse" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Betelgeuse"
+          }
+        }
+      }
+    },
+    "Buck Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna del Ciervo"
+          }
+        }
+      }
+    },
+    "Built for blind and low-vision skywatchers first — but anyone can find a plane without staring at the screen. Overhead also respects Reduce Motion, Dynamic Type, and works with VoiceOver." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pensado primero para observadores del cielo ciegos o con baja visión — pero cualquiera puede encontrar un avión sin mirar la pantalla. Overhead también respeta Reducir movimiento y el texto dinámico, y funciona con VoiceOver."
+          }
+        }
+      }
+    },
+    "Calibrate" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibrar"
+          }
+        }
+      }
+    },
+    "Calibrate heading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibrar el rumbo"
+          }
+        }
+      }
+    },
+    "Calibration" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibración"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        }
+      }
+    },
+    "Canopus" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canopus"
+          }
+        }
+      }
+    },
+    "Capella" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capella"
+          }
+        }
+      }
+    },
+    "Captain" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capitán"
+          }
+        }
+      }
+    },
+    "Capture a plane crossing the sun or the moon." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Captura un avión cruzando el sol o la luna."
+          }
+        }
+      }
+    },
+    "Capture the crossing" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Captura el cruce"
+          }
+        }
+      }
+    },
+    "Castor" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cástor"
+          }
+        }
+      }
+    },
+    "Catch the ISS passing overhead." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atrapa a la ISS pasando sobre ti."
+          }
+        }
+      }
+    },
+    "Center the real plane on screen and tap Lock to plane — its exact bearing snaps the sky into place. Or drag the sky until a plane sits where you see it, then tap Done." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Centra el avión real en pantalla y toca Fijar al avión — su rumbo exacto encaja el cielo en su sitio. O arrastra el cielo hasta que un avión quede donde lo ves y toca Hecho."
+          }
+        }
+      }
+    },
+    "Centre %@ — Lock to plane" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Centra %@ — Fijar al avión"
+          }
+        }
+      }
+    },
+    "Climbing · %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ascendiendo · %@"
+          }
+        }
+      }
+    },
+    "Close" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar"
+          }
+        }
+      }
+    },
+    "Close profile" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar perfil"
+          }
+        }
+      }
+    },
+    "Cold Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna Fría"
+          }
+        }
+      }
+    },
+    "Commander" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comandante"
+          }
+        }
+      }
+    },
+    "Community ADS-B — excellent over the US and Europe, but sparse over the Gulf, the Middle East, and oceans. Free and non-commercial." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ADS-B comunitario — excelente sobre EE. UU. y Europa, pero escaso sobre el Golfo, Oriente Medio y los océanos. Gratuito y no comercial."
+          }
+        }
+      }
+    },
+    "Compass looks off" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La brújula parece desviada"
+          }
+        }
+      }
+    },
+    "Compass: calibrating…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brújula: calibrando…"
+          }
+        }
+      }
+    },
+    "Compass: fair" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brújula: regular"
+          }
+        }
+      }
+    },
+    "Compass: good" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brújula: buena"
+          }
+        }
+      }
+    },
+    "Compass: poor" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brújula: mala"
+          }
+        }
+      }
+    },
+    "Constellation" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Constelación"
+          }
+        }
+      }
+    },
+    "Continue with demo sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar con cielo de demostración"
+          }
+        }
+      }
+    },
+    "Coordinates" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coordenadas"
+          }
+        }
+      }
+    },
+    "COUNTRIES" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PAÍSES"
+          }
+        }
+      }
+    },
+    "Counts the aircraft overhead and names the nearest one." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuenta los aviones sobre ti y nombra el más cercano."
+          }
+        }
+      }
+    },
+    "Cruising at FL%lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En crucero a FL%lld"
+          }
+        }
+      }
+    },
+    "Dark sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cielo oscuro"
+          }
+        }
+      }
+    },
+    "Dark sky · layers · sky time" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cielo oscuro · capas · tiempo del cielo"
+          }
+        }
+      }
+    },
+    "Data source" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuente de datos"
+          }
+        }
+      }
+    },
+    "Daylight overtakes the night" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La luz del día supera a la noche"
+          }
+        }
+      }
+    },
+    "December solstice" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solsticio de diciembre"
+          }
+        }
+      }
+    },
+    "Deep partial solar eclipse" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eclipse solar parcial profundo"
+          }
+        }
+      }
+    },
+    "Deep red display — protects your dark adaptation" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pantalla en rojo profundo — protege tu adaptación a la oscuridad"
+          }
+        }
+      }
+    },
+    "Delta Aquariids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delta Acuáridas"
+          }
+        }
+      }
+    },
+    "Demo sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cielo de demostración"
+          }
+        }
+      }
+    },
+    "Deneb" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deneb"
+          }
+        }
+      }
+    },
+    "Descending · %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descendiendo · %@"
+          }
+        }
+      }
+    },
+    "Dismiss compass hint" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descartar aviso de brújula"
+          }
+        }
+      }
+    },
+    "Dismiss medal banner" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descartar aviso de medalla"
+          }
+        }
+      }
+    },
+    "Dismiss re-align" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descartar realineación"
+          }
+        }
+      }
+    },
+    "Distance" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distancia"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hecho"
+          }
+        }
+      }
+    },
+    "Drag the sky left or right until a plane sits exactly where you see it in the air, then tap Done." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrastra el cielo a izquierda o derecha hasta que un avión quede exactamente donde lo ves en el aire, y toca Hecho."
+          }
+        }
+      }
+    },
+    "Drag to turn it over" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrastra para darle la vuelta"
+          }
+        }
+      }
+    },
+    "E" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E"
+          }
+        }
+      }
+    },
+    "Earned %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conseguida %@"
+          }
+        }
+      }
+    },
+    "Earth's shadow takes a dark bite out of the full moon. Perfectly safe to watch with bare eyes; binoculars make the shadow's edge crisp." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sombra de la Tierra le da un mordisco oscuro a la luna llena. Totalmente seguro a simple vista; unos binoculares hacen nítido el borde de la sombra."
+          }
+        }
+      }
+    },
+    "Eclipses and conjunctions are computed for your exact location." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los eclipses y conjunciones se calculan para tu ubicación exacta."
+          }
+        }
+      }
+    },
+    "Elevation" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elevación"
+          }
+        }
+      }
+    },
+    "Enable Camera" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar cámara"
+          }
+        }
+      }
+    },
+    "Enable Location" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar ubicación"
+          }
+        }
+      }
+    },
+    "ENE" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ENE"
+          }
+        }
+      }
+    },
+    "Enter the sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrar al cielo"
+          }
+        }
+      }
+    },
+    "ESE" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ESE"
+          }
+        }
+      }
+    },
+    "Eta Aquariids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eta Acuáridas"
+          }
+        }
+      }
+    },
+    "Every nearby aircraft becomes a 3D-positioned engine hum — to your left, your right, above. Close your eyes, point toward the sound, and you're facing the plane. Best with AirPods for full spatial audio." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada avión cercano se convierte en un zumbido de motor posicionado en 3D — a tu izquierda, a tu derecha, encima. Cierra los ojos, apunta hacia el sonido y estarás mirando al avión. Mejor con AirPods para audio espacial completo."
+          }
+        }
+      }
+    },
+    "Fading path behind each plane" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estela que se desvanece tras cada avión"
+          }
+        }
+      }
+    },
+    "Favorite flights" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelos favoritos"
+          }
+        }
+      }
+    },
+    "Favorites" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favoritos"
+          }
+        }
+      }
+    },
+    "Feedback goes to %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los comentarios van a %@"
+          }
+        }
+      }
+    },
+    "Feel it" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siéntelo"
+          }
+        }
+      }
+    },
+    "Find a flight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar un vuelo"
+          }
+        }
+      }
+    },
+    "Find planes by sound and touch — eyes-free" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encuentra aviones por sonido y tacto — sin mirar"
+          }
+        }
+      }
+    },
+    "Fine trim" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajuste fino"
+          }
+        }
+      }
+    },
+    "First Contact" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primer contacto"
+          }
+        }
+      }
+    },
+    "First quarter" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuarto creciente"
+          }
+        }
+      }
+    },
+    "FL%lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FL%lld"
+          }
+        }
+      }
+    },
+    "Flight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelo"
+          }
+        }
+      }
+    },
+    "Flightradar24" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flightradar24"
+          }
+        }
+      }
+    },
+    "Flightradar24 API token" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token de API de Flightradar24"
+          }
+        }
+      }
+    },
+    "FLIGHTS" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VUELOS"
+          }
+        }
+      }
+    },
+    "Flower Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna de las Flores"
+          }
+        }
+      }
+    },
+    "Focus" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foco"
+          }
+        }
+      }
+    },
+    "Follow the compass automatically" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir la brújula automáticamente"
+          }
+        }
+      }
+    },
+    "Fomalhaut" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fomalhaut"
+          }
+        }
+      }
+    },
+    "For everyone" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para todos"
+          }
+        }
+      }
+    },
+    "Full moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna llena"
+          }
+        }
+      }
+    },
+    "Geminids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemínidas"
+          }
+        }
+      }
+    },
+    "general emergency" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "emergencia general"
+          }
+        }
+      }
+    },
+    "Get a token at fr24api.flightradar24.com — free sandbox, or the $9/mo Explorer plan. Leave empty to use the free airplanes.live feed." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consigue un token en fr24api.flightradar24.com — sandbox gratuito o el plan Explorer de 9 $/mes. Déjalo vacío para usar la fuente gratuita de airplanes.live."
+          }
+        }
+      }
+    },
+    "Globetrotter" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trotamundos"
+          }
+        }
+      }
+    },
+    "Gold ring" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anillo dorado"
+          }
+        }
+      }
+    },
+    "Gray plane" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avión gris"
+          }
+        }
+      }
+    },
+    "Ground speed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velocidad sobre el suelo"
+          }
+        }
+      }
+    },
+    "Harvest Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna de la Cosecha"
+          }
+        }
+      }
+    },
+    "Heading is approximate" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El rumbo es aproximado"
+          }
+        }
+      }
+    },
+    "Heading is unreliable" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El rumbo no es fiable"
+          }
+        }
+      }
+    },
+    "Heading locked." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rumbo fijado."
+          }
+        }
+      }
+    },
+    "Heading looks good" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El rumbo se ve bien"
+          }
+        }
+      }
+    },
+    "Heading not available yet — only on device." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rumbo aún no disponible — solo en el dispositivo."
+          }
+        }
+      }
+    },
+    "Heading not yet known" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rumbo aún desconocido"
+          }
+        }
+      }
+    },
+    "Hear & feel the sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escucha y siente el cielo"
+          }
+        }
+      }
+    },
+    "Hear flyovers in 3D — best with AirPods" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escucha los vuelos en 3D — mejor con AirPods"
+          }
+        }
+      }
+    },
+    "Hear it" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escúchalo"
+          }
+        }
+      }
+    },
+    "HEAVIES" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PESADOS"
+          }
+        }
+      }
+    },
+    "Heavy Metal" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heavy Metal"
+          }
+        }
+      }
+    },
+    "Hidden" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultos"
+          }
+        }
+      }
+    },
+    "Hide distant planes you couldn't actually see" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oculta aviones lejanos que en realidad no podrías ver"
+          }
+        }
+      }
+    },
+    "High / cruising" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alto / en crucero"
+          }
+        }
+      }
+    },
+    "hijack alert" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "alerta de secuestro"
+          }
+        }
+      }
+    },
+    "Hold up your phone and see the planes,\nsun, moon and stars where they truly are." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levanta el teléfono y ve los aviones,\nel sol, la luna y las estrellas donde de verdad están."
+          }
+        }
+      }
+    },
+    "Hold up your phone and stand still, pointing it toward the sky." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levanta el teléfono y quédate quieto, apuntando hacia el cielo."
+          }
+        }
+      }
+    },
+    "Hold your phone up and Overhead labels the sky around you — live aircraft, the Sun, the Moon, the planets, stars, and the ISS, each placed at its real position in augmented reality." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Levanta el teléfono y Overhead etiqueta el cielo a tu alrededor — aviones en vivo, el Sol, la Luna, los planetas, las estrellas y la ISS, cada uno en su posición real en realidad aumentada."
+          }
+        }
+      }
+    },
+    "Holding your manual lock. Turn on to hand heading back to the compass." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manteniendo tu fijación manual. Actívalo para devolver el rumbo a la brújula."
+          }
+        }
+      }
+    },
+    "How it works · privacy · feedback" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo funciona · privacidad · comentarios"
+          }
+        }
+      }
+    },
+    "Hunter's Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna del Cazador"
+          }
+        }
+      }
+    },
+    "I couldn't reach the sky data just now — try again in a moment." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude acceder a los datos del cielo ahora mismo — inténtalo de nuevo en un momento."
+          }
+        }
+      }
+    },
+    "I just joined %@ — every plane, planet and star above me, labeled live in AR. 🛩️✨ Come look up with me." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acabo de unirme a %@ — cada avión, planeta y estrella sobre mí, etiquetados en vivo en RA. 🛩️✨ Ven a mirar el cielo conmigo."
+          }
+        }
+      }
+    },
+    "I'm a %@ in %@ — %lld flights spotted straight out of the sky above me. 🛩️✨ Think you can out-spot me?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "I'm a %1$@ in %2$@ — %3$lld flights spotted straight out of the sky above me. 🛩️✨ Think you can out-spot me?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soy %1$@ en %2$@ — %3$lld vuelos avistados directamente en el cielo sobre mí. 🛩️✨ ¿Crees que puedes superarme?"
+          }
+        }
+      }
+    },
+    "ICAO / IATA" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ICAO / IATA"
+          }
+        }
+      }
+    },
+    "If a plane sits a little off, tap it — or the Sun — to snap north back into place." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si un avión queda un poco desplazado, tócalo — o al Sol — para reajustar el norte."
+          }
+        }
+      }
+    },
+    "in %lldd" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en %lldd"
+          }
+        }
+      }
+    },
+    "In view" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A la vista"
+          }
+        }
+      }
+    },
+    "In view now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A la vista ahora"
+          }
+        }
+      }
+    },
+    "ISS" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ISS"
+          }
+        }
+      }
+    },
+    "ISS pass alerts" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alertas de pasos de la ISS"
+          }
+        }
+      }
+    },
+    "ISS pass in 10 minutes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paso de la ISS en 10 minutos"
+          }
+        }
+      }
+    },
+    "Jump to next ISS pass" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir al próximo paso de la ISS"
+          }
+        }
+      }
+    },
+    "June solstice" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solsticio de junio"
+          }
+        }
+      }
+    },
+    "Jupiter" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Júpiter"
+          }
+        }
+      }
+    },
+    "Labels" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiquetas"
+          }
+        }
+      }
+    },
+    "Landing now at %@%@. The filed route above is likely a different leg of this flight, or out of date." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Landing now at %1$@%2$@. The filed route above is likely a different leg of this flight, or out of date."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aterrizando ahora en %1$@%2$@. La ruta declarada arriba probablemente sea otro tramo de este vuelo, o esté desactualizada."
+          }
+        }
+      }
+    },
+    "Last quarter" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuarto menguante"
+          }
+        }
+      }
+    },
+    "Legend" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyenda"
+          }
+        }
+      }
+    },
+    "Leonids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leónidas"
+          }
+        }
+      }
+    },
+    "Level at %lld ft" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nivelado a %lld ft"
+          }
+        }
+      }
+    },
+    "LiDAR tracking assist" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asistencia de seguimiento LiDAR"
+          }
+        }
+      }
+    },
+    "Live position via airplanes.live · route via adsbdb · photos via planespotters.net" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posición en vivo vía airplanes.live · ruta vía adsbdb · fotos vía planespotters.net"
+          }
+        }
+      }
+    },
+    "Location" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicación"
+          }
+        }
+      }
+    },
+    "Lock it in" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fíjalo"
+          }
+        }
+      }
+    },
+    "Locked" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fijado"
+          }
+        }
+      }
+    },
+    "Look %@ · %lld° up" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Look %1$@ · %2$lld° up"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mira al %1$@ · %2$lld° arriba"
+          }
+        }
+      }
+    },
+    "Low" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bajo"
+          }
+        }
+      }
+    },
+    "Lyrids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Líridas"
+          }
+        }
+      }
+    },
+    "Major airports within 150 nautical miles are pinned at their true bearing with their IATA code. Tap one in the sky for details." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los aeropuertos principales a menos de 150 millas náuticas se fijan en su rumbo real con su código IATA. Toca uno en el cielo para ver detalles."
+          }
+        }
+      }
+    },
+    "Manual nudge if it's still a touch off after calibrating." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajuste manual si aún queda un poco desviado tras calibrar."
+          }
+        }
+      }
+    },
+    "March equinox" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equinoccio de marzo"
+          }
+        }
+      }
+    },
+    "Mars" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marte"
+          }
+        }
+      }
+    },
+    "Maximum at this exact spot. Never look at the sun without proper eclipse glasses." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máximo en este punto exacto. Nunca mires al sol sin gafas de eclipse homologadas."
+          }
+        }
+      }
+    },
+    "Medal earned" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medalla conseguida"
+          }
+        }
+      }
+    },
+    "Medal earned: %@. Opens your medals." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medalla conseguida: %@. Abre tus medallas."
+          }
+        }
+      }
+    },
+    "Medals" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medallas"
+          }
+        }
+      }
+    },
+    "Mercury" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mercurio"
+          }
+        }
+      }
+    },
+    "Mercury through Saturn" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De Mercurio a Saturno"
+          }
+        }
+      }
+    },
+    "Milky Way" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vía Láctea"
+          }
+        }
+      }
+    },
+    "Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna"
+          }
+        }
+      }
+    },
+    "N" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "N"
+          }
+        }
+      }
+    },
+    "Naked-eye visible only" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo visibles a simple vista"
+          }
+        }
+      }
+    },
+    "Navigator" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Navegante"
+          }
+        }
+      }
+    },
+    "NE" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NE"
+          }
+        }
+      }
+    },
+    "Nearby" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca"
+          }
+        }
+      }
+    },
+    "Nearby fields on the horizon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aeródromos cercanos en el horizonte"
+          }
+        }
+      }
+    },
+    "Never look at the sun without certified eclipse glasses — at any phase of a partial eclipse." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nunca mires al sol sin gafas de eclipse certificadas — en ninguna fase de un eclipse parcial."
+          }
+        }
+      }
+    },
+    "New moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna nueva"
+          }
+        }
+      }
+    },
+    "Next in your sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próximo en tu cielo"
+          }
+        }
+      }
+    },
+    "Night overtakes the daylight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La noche supera a la luz del día"
+          }
+        }
+      }
+    },
+    "Night Owl" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noctámbulo"
+          }
+        }
+      }
+    },
+    "Night vision" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visión nocturna"
+          }
+        }
+      }
+    },
+    "NNE" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NNE"
+          }
+        }
+      }
+    },
+    "NNW" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NNO"
+          }
+        }
+      }
+    },
+    "No %@ match for “%@”." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No %1$@ match for “%2$@”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ningún resultado de %1$@ para “%2$@”."
+          }
+        }
+      }
+    },
+    "No account. No tracking. No ads." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin cuenta. Sin rastreo. Sin anuncios."
+          }
+        }
+      }
+    },
+    "No connection. Showing only %@. Show all planes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin conexión. Mostrando solo %@. Mostrar todos los aviones."
+          }
+        }
+      }
+    },
+    "No connection. Showing sky only." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin conexión. Mostrando solo el cielo."
+          }
+        }
+      }
+    },
+    "No naked-eye planets this evening" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ningún planeta a simple vista esta noche"
+          }
+        }
+      }
+    },
+    "Not now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora no"
+          }
+        }
+      }
+    },
+    "Not yet earned — drag to spin" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no conseguida — arrastra para girar"
+          }
+        }
+      }
+    },
+    "Now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora"
+          }
+        }
+      }
+    },
+    "NOW" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AHORA"
+          }
+        }
+      }
+    },
+    "NW" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NO"
+          }
+        }
+      }
+    },
+    "Observer" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observador"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivado"
+          }
+        }
+      }
+    },
+    "On" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado"
+          }
+        }
+      }
+    },
+    "On approach · %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En aproximación · %@"
+          }
+        }
+      }
+    },
+    "on ground" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en tierra"
+          }
+        }
+      }
+    },
+    "On the ground" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En tierra"
+          }
+        }
+      }
+    },
+    "On the ground — taxiing or parked." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En tierra — rodando o estacionado."
+          }
+        }
+      }
+    },
+    "Only %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %@"
+          }
+        }
+      }
+    },
+    "Only %@ — no connection" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo %@ — sin conexión"
+          }
+        }
+      }
+    },
+    "Open Overhead once so I can learn where your sky is." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre Overhead una vez para que pueda saber dónde está tu cielo."
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Ajustes"
+          }
+        }
+      }
+    },
+    "Orionids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oriónidas"
+          }
+        }
+      }
+    },
+    "Overhead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead"
+          }
+        }
+      }
+    },
+    "Overhead is a reference and educational tool, and we've worked hard to place everything as accurately as we can. Even so, we can't guarantee it: positions, routes, and identities come from public data that can be delayed, incomplete, or wrong, and many aircraft (parked, military, or not equipped) don't broadcast at all. Please don't use Overhead for navigation, safety, or any operational decision — we take no responsibility for the accuracy or completeness of what's shown." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead es una herramienta educativa y de referencia, y hemos trabajado mucho para situarlo todo con la mayor precisión posible. Aun así, no podemos garantizarla: las posiciones, rutas e identidades provienen de datos públicos que pueden llegar con retraso, incompletos o erróneos, y muchas aeronaves (estacionadas, militares o sin el equipo necesario) no transmiten en absoluto. No uses Overhead para navegación, seguridad ni ninguna decisión operativa — no asumimos responsabilidad alguna por la exactitud o integridad de lo que se muestra."
+          }
+        }
+      }
+    },
+    "Overhead now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobre ti ahora"
+          }
+        }
+      }
+    },
+    "Overhead points the sky using your iPhone's compass and motion sensors, so it's happiest outdoors in the open. Magnetometers can read a few degrees off — and the structural steel, wiring, and electronics inside airports, terminals, and buildings can pull them well off — so indoors the whole sky may sit noticeably rotated, and near metal, cars, speakers, or a magnetic case too. Hold still, and if something looks off, tap a plane or the Sun to re-align (or run Calibration). Accuracy also drifts while you're walking or in a moving vehicle." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead orienta el cielo con la brújula y los sensores de movimiento de tu iPhone, así que donde mejor funciona es al aire libre, en espacio abierto. Los magnetómetros pueden desviarse unos grados — y el acero estructural, el cableado y la electrónica de aeropuertos, terminales y edificios pueden desviarlos mucho más — de modo que en interiores todo el cielo puede verse notablemente girado, y también cerca de metal, coches, altavoces o una funda magnética. Quédate quieto y, si algo se ve mal, toca un avión o el Sol para realinear (o ejecuta la Calibración). La precisión también deriva mientras caminas o vas en un vehículo en movimiento."
+          }
+        }
+      }
+    },
+    "Overhead uses your location to compute exactly where each aircraft and celestial object sits above you." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead usa tu ubicación para calcular exactamente dónde está cada avión y objeto celeste sobre ti."
+          }
+        }
+      }
+    },
+    "Overhead. %@. Opens tiers and medals." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead. %@. Abre rangos y medallas."
+          }
+        }
+      }
+    },
+    "Partial lunar eclipse" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eclipse lunar parcial"
+          }
+        }
+      }
+    },
+    "Partial solar eclipse" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eclipse solar parcial"
+          }
+        }
+      }
+    },
+    "Paste your FR24 token" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pega tu token de FR24"
+          }
+        }
+      }
+    },
+    "Perseids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perseidas"
+          }
+        }
+      }
+    },
+    "Pink heart" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corazón rosa"
+          }
+        }
+      }
+    },
+    "Pink Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna Rosa"
+          }
+        }
+      }
+    },
+    "Plane Chaser" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cazador de aviones"
+          }
+        }
+      }
+    },
+    "Planets" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planetas"
+          }
+        }
+      }
+    },
+    "Pointing at the Moon — Lock" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apuntando a la Luna — Fijar"
+          }
+        }
+      }
+    },
+    "Pointing at the Sun — Lock" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apuntando al Sol — Fijar"
+          }
+        }
+      }
+    },
+    "Polaris" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polaris"
+          }
+        }
+      }
+    },
+    "Pollux" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pólux"
+          }
+        }
+      }
+    },
+    "Position data airplanes.live · routes adsbdb · photos planespotters.net\nAll stats live on this device only." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posiciones airplanes.live · rutas adsbdb · fotos planespotters.net\nTodas las estadísticas viven solo en este dispositivo."
+          }
+        }
+      }
+    },
+    "Positions come from public data and your compass, so treat it as a guide, not gospel." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las posiciones vienen de datos públicos y de tu brújula: tómalo como una guía, no como una verdad absoluta."
+          }
+        }
+      }
+    },
+    "Privacy" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacidad"
+          }
+        }
+      }
+    },
+    "Procyon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proción"
+          }
+        }
+      }
+    },
+    "Profile" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil"
+          }
+        }
+      }
+    },
+    "Quadrantids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuadrántidas"
+          }
+        }
+      }
+    },
+    "Queen of the Skies" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reina de los Cielos"
+          }
+        }
+      }
+    },
+    "radio failure" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "fallo de radio"
+          }
+        }
+      }
+    },
+    "Rate Overhead on the App Store" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valora Overhead en el App Store"
+          }
+        }
+      }
+    },
+    "Re-align" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Realinear"
+          }
+        }
+      }
+    },
+    "Reading the year ahead…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyendo el año que viene…"
+          }
+        }
+      }
+    },
+    "Recalibrate heading · point at the Sun" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalibrar rumbo · apunta al Sol"
+          }
+        }
+      }
+    },
+    "Recalibrate now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalibrar ahora"
+          }
+        }
+      }
+    },
+    "Reference only" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo como referencia"
+          }
+        }
+      }
+    },
+    "Regulus" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Régulo"
+          }
+        }
+      }
+    },
+    "Remind me an hour before" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avísame una hora antes"
+          }
+        }
+      }
+    },
+    "Reminder set — an hour before" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recordatorio creado — una hora antes"
+          }
+        }
+      }
+    },
+    "Remove favorite" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar favorito"
+          }
+        }
+      }
+    },
+    "Remove from favorites" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de favoritos"
+          }
+        }
+      }
+    },
+    "Rigel" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rigel"
+          }
+        }
+      }
+    },
+    "Rises %@ and climbs to %lld° — open Overhead to watch it cross." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rises %1$@ and climbs to %2$lld° — open Overhead to watch it cross."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sale %1$@ y sube hasta %2$lld° — abre Overhead para verla cruzar."
+          }
+        }
+      }
+    },
+    "Rises near sunset and stays up all night. %@ is the traditional name for %@'s full moon." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rises near sunset and stays up all night. %1$@ is the traditional name for %2$@'s full moon."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sale cerca del atardecer y permanece toda la noche. %1$@ es el nombre tradicional de la luna llena de %2$@."
+          }
+        }
+      }
+    },
+    "Rotorhead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loco por los rotores"
+          }
+        }
+      }
+    },
+    "S" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        }
+      }
+    },
+    "Satellite-backed global coverage, including the Gulf and oceans. Billed per call, so the app polls gently (about every 8 seconds)." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cobertura global con respaldo satelital, incluidos el Golfo y los océanos. Se factura por consulta, así que la app consulta con calma (cada 8 segundos aproximadamente)."
+          }
+        }
+      }
+    },
+    "Saturn" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saturno"
+          }
+        }
+      }
+    },
+    "Scanning the sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escaneando el cielo"
+          }
+        }
+      }
+    },
+    "Scanning the sky. %lld aircraft overhead." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escaneando el cielo. %lld aviones sobre ti."
+          }
+        }
+      }
+    },
+    "Scrub the sky forward or back to preview the sun, moon, stars and ISS at another time." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desliza el cielo hacia delante o atrás para ver el sol, la luna, las estrellas y la ISS en otro momento."
+          }
+        }
+      }
+    },
+    "SE" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SE"
+          }
+        }
+      }
+    },
+    "Search by" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar por"
+          }
+        }
+      }
+    },
+    "Searching anywhere…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando en todo el mundo…"
+          }
+        }
+      }
+    },
+    "See through to the real sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mira a través, hacia el cielo real"
+          }
+        }
+      }
+    },
+    "September equinox" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equinoccio de septiembre"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes"
+          }
+        }
+      }
+    },
+    "Share anonymous usage statistics" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compartir estadísticas de uso anónimas"
+          }
+        }
+      }
+    },
+    "Share feedback" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviar comentarios"
+          }
+        }
+      }
+    },
+    "Share your tier" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparte tu rango"
+          }
+        }
+      }
+    },
+    "Show all" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar todos"
+          }
+        }
+      }
+    },
+    "Showing only %@. Show all planes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrando solo %@. Mostrar todos los aviones."
+          }
+        }
+      }
+    },
+    "Shown on the horizon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se muestran en el horizonte"
+          }
+        }
+      }
+    },
+    "Sirius" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sirio"
+          }
+        }
+      }
+    },
+    "Skip — use dark sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omitir — usar cielo oscuro"
+          }
+        }
+      }
+    },
+    "Skip to lock" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar a fijar"
+          }
+        }
+      }
+    },
+    "Sky events" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eventos del cielo"
+          }
+        }
+      }
+    },
+    "Sky events. %@ within two days." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eventos del cielo. %@ en menos de dos días."
+          }
+        }
+      }
+    },
+    "Sky only — no connection" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo cielo — sin conexión"
+          }
+        }
+      }
+    },
+    "Sky sounds" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonidos del cielo"
+          }
+        }
+      }
+    },
+    "Sky time" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiempo del cielo"
+          }
+        }
+      }
+    },
+    "Sky time shifted %@. Return to now." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiempo del cielo desplazado %@. Volver al presente."
+          }
+        }
+      }
+    },
+    "Sky Tracker" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rastreador del cielo"
+          }
+        }
+      }
+    },
+    "Sky Watcher" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vigía del cielo"
+          }
+        }
+      }
+    },
+    "Snow Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna de Nieve"
+          }
+        }
+      }
+    },
+    "Solstice — \"sun stands still.\" The sun pauses at its extreme height before turning back, and sunrise and sunset drift the other way for the next six months." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solsticio — «el sol se detiene». El sol se pausa en su altura extrema antes de dar la vuelta, y el amanecer y el atardecer derivan en sentido contrario durante los próximos seis meses."
+          }
+        }
+      }
+    },
+    "Spica" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espiga"
+          }
+        }
+      }
+    },
+    "Spot 1,000 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 1.000 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 2,500 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 2.500 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 5,000 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 5.000 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 10 flights after midnight." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 10 vuelos después de medianoche."
+          }
+        }
+      }
+    },
+    "Spot 10 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 10 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 25 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 25 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 25 widebodies." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 25 aviones de fuselaje ancho."
+          }
+        }
+      }
+    },
+    "Spot 50 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 50 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 100 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 100 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 200 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 200 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 350 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 350 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 500 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 500 vuelos."
+          }
+        }
+      }
+    },
+    "Spot 750 flights." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista 750 vuelos."
+          }
+        }
+      }
+    },
+    "Spot a Boeing 747." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista un Boeing 747."
+          }
+        }
+      }
+    },
+    "Spot a helicopter." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista un helicóptero."
+          }
+        }
+      }
+    },
+    "Spot an Airbus A380 — the biggest airliner flying." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista un Airbus A380 — el avión comercial más grande en vuelo."
+          }
+        }
+      }
+    },
+    "Spot five different widebody types." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista cinco tipos distintos de fuselaje ancho."
+          }
+        }
+      }
+    },
+    "Spot flights bound for 10 different countries." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista vuelos con destino a 10 países distintos."
+          }
+        }
+      }
+    },
+    "Spot your first aircraft in the sky." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avista tu primer avión en el cielo."
+          }
+        }
+      }
+    },
+    "Spotter" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spotter"
+          }
+        }
+      }
+    },
+    "Spotter's Wings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alas de spotter"
+          }
+        }
+      }
+    },
+    "Squawk" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squawk"
+          }
+        }
+      }
+    },
+    "Squawk codes are what pilots dial for ATC — 7700 is a declared emergency." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los códigos squawk son los que los pilotos marcan para el control aéreo — 7700 es una emergencia declarada."
+          }
+        }
+      }
+    },
+    "Squawking %@ — %@. This aircraft has declared an emergency." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Squawking %1$@ — %2$@. This aircraft has declared an emergency."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squawk %1$@ — %2$@. Esta aeronave ha declarado una emergencia."
+          }
+        }
+      }
+    },
+    "SSE" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSE"
+          }
+        }
+      }
+    },
+    "SSW" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSO"
+          }
+        }
+      }
+    },
+    "Star Sailor" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marinero de las estrellas"
+          }
+        }
+      }
+    },
+    "Stars" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estrellas"
+          }
+        }
+      }
+    },
+    "Stop tracking" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dejar de seguir"
+          }
+        }
+      }
+    },
+    "Strawberry Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna de Fresa"
+          }
+        }
+      }
+    },
+    "Sturgeon Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna del Esturión"
+          }
+        }
+      }
+    },
+    "Sun" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sol"
+          }
+        }
+      }
+    },
+    "Superjumbo" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Superjumbo"
+          }
+        }
+      }
+    },
+    "SW" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SO"
+          }
+        }
+      }
+    },
+    "Sweep a full circle, then lock onto the Sun, Moon, or a plane you can see — the most accurate way to line the sky up with reality." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre un círculo completo y luego fija el Sol, la Luna o un avión que veas — la forma más precisa de alinear el cielo con la realidad."
+          }
+        }
+      }
+    },
+    "Sweep slowly in a full circle" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre despacio un círculo completo"
+          }
+        }
+      }
+    },
+    "Tail" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matrícula"
+          }
+        }
+      }
+    },
+    "Tap the heart on any flight to keep it here. Favorites get a pink mark in the sky." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca el corazón en cualquier vuelo para guardarlo aquí. Los favoritos llevan una marca rosa en el cielo."
+          }
+        }
+      }
+    },
+    "Taxiing and parked planes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviones rodando y estacionados"
+          }
+        }
+      }
+    },
+    "The camera lets Overhead place aircraft and stars onto the live sky in augmented reality. You can also use a low-power dark-sky mode." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cámara permite a Overhead colocar aviones y estrellas sobre el cielo real en realidad aumentada. También puedes usar un modo de cielo oscuro de bajo consumo."
+          }
+        }
+      }
+    },
+    "The flight you're tracking right now." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El vuelo que estás siguiendo ahora mismo."
+          }
+        }
+      }
+    },
+    "The full moon slides into Earth's shadow and glows copper-red — every sunrise and sunset on Earth, cast onto the moon at once. Perfectly safe to watch with bare eyes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La luna llena se desliza dentro de la sombra de la Tierra y brilla en rojo cobrizo — todos los amaneceres y atardeceres de la Tierra, proyectados a la vez sobre la luna. Totalmente seguro a simple vista."
+          }
+        }
+      }
+    },
+    "The ISS is crossing your sky right now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La ISS está cruzando tu cielo ahora mismo"
+          }
+        }
+      }
+    },
+    "The longest day of the year" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El día más largo del año"
+          }
+        }
+      }
+    },
+    "The nearest is %@ about %lld nautical miles away." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The nearest is %1$@ about %2$lld nautical miles away."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El más cercano es %1$@, a unas %2$lld millas náuticas."
+          }
+        }
+      }
+    },
+    "The nearest is %@, a %@, about %lld nautical miles away." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The nearest is %1$@, a %2$@, about %3$lld nautical miles away."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El más cercano es %1$@, un %2$@, a unas %3$lld millas náuticas."
+          }
+        }
+      }
+    },
+    "The shortest day of the year" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El día más corto del año"
+          }
+        }
+      }
+    },
+    "The sky follows the compass and self-corrects as you pan." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El cielo sigue la brújula y se corrige solo mientras giras."
+          }
+        }
+      }
+    },
+    "The sky right now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El cielo ahora mismo"
+          }
+        }
+      }
+    },
+    "The sun crosses the celestial equator, and day and night run nearly equal everywhere on Earth. From here on, days stretch longer until the solstice." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El sol cruza el ecuador celeste, y el día y la noche duran casi lo mismo en toda la Tierra. A partir de aquí, los días se alargan hasta el solsticio."
+          }
+        }
+      }
+    },
+    "The sun crosses the celestial equator, and day and night run nearly equal everywhere on Earth. From here on, nights draw longer until the solstice." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El sol cruza el ecuador celeste, y el día y la noche duran casi lo mismo en toda la Tierra. A partir de aquí, las noches se alargan hasta el solsticio."
+          }
+        }
+      }
+    },
+    "The year ahead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El año por delante"
+          }
+        }
+      }
+    },
+    "There are %lld aircraft above you." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay %lld aviones sobre ti."
+          }
+        }
+      }
+    },
+    "There is one aircraft above you." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay un avión sobre ti."
+          }
+        }
+      }
+    },
+    "This full moon lands near perigee, the moon's closest point to Earth — noticeably bigger and brighter, especially just after moonrise." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta luna llena cae cerca del perigeo, el punto más cercano de la luna a la Tierra — notablemente más grande y brillante, sobre todo justo después de salir."
+          }
+        }
+      }
+    },
+    "This will switch on the camera so you can lock onto the Sun or a plane." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto encenderá la cámara para que puedas fijar el Sol o un avión."
+          }
+        }
+      }
+    },
+    "Tiers" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rangos"
+          }
+        }
+      }
+    },
+    "Tiers & Medals" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rangos y medallas"
+          }
+        }
+      }
+    },
+    "today" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hoy"
+          }
+        }
+      }
+    },
+    "Tonight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta noche"
+          }
+        }
+      }
+    },
+    "Top of the ladder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cima de la escalera"
+          }
+        }
+      }
+    },
+    "Total lunar eclipse" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eclipse lunar total"
+          }
+        }
+      }
+    },
+    "Total solar eclipse" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eclipse solar total"
+          }
+        }
+      }
+    },
+    "Track" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir"
+          }
+        }
+      }
+    },
+    "Track this flight" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir este vuelo"
+          }
+        }
+      }
+    },
+    "Tracking" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siguiendo"
+          }
+        }
+      }
+    },
+    "Transit Hunter" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cazador de tránsitos"
+          }
+        }
+      }
+    },
+    "Try" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prueba"
+          }
+        }
+      }
+    },
+    "Turn your whole body, keeping the phone raised at the sky. This recalibrates the compass and learns true north." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gira todo el cuerpo con el teléfono en alto hacia el cielo. Esto recalibra la brújula y aprende el norte verdadero."
+          }
+        }
+      }
+    },
+    "Two planets share one small patch of sky — a line-of-sight coincidence hundreds of millions of kilometres deep. Find the brighter one first; its companion sits right beside it." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dos planetas comparten un pequeño trozo de cielo — una coincidencia de perspectiva con cientos de millones de kilómetros de profundidad. Encuentra primero el más brillante; su compañero está justo al lado."
+          }
+        }
+      }
+    },
+    "Type" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo"
+          }
+        }
+      }
+    },
+    "Up to %lld meteors per hour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hasta %lld meteoros por hora"
+          }
+        }
+      }
+    },
+    "Ursids" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Úrsidas"
+          }
+        }
+      }
+    },
+    "Use free feed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar fuente gratuita"
+          }
+        }
+      }
+    },
+    "Use this token" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar este token"
+          }
+        }
+      }
+    },
+    "Uses the LiDAR scanner to keep the sky steady when the camera can't see much — a blank or night sky. Pro models only; toggle to compare." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa el escáner LiDAR para mantener el cielo estable cuando la cámara ve poco — un cielo vacío o nocturno. Solo modelos Pro; actívalo y desactívalo para comparar."
+          }
+        }
+      }
+    },
+    "Vega" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vega"
+          }
+        }
+      }
+    },
+    "Venus" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Venus"
+          }
+        }
+      }
+    },
+    "View & sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vista y cielo"
+          }
+        }
+      }
+    },
+    "Visibility, trails, labels, sound" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visibilidad, estelas, etiquetas, sonido"
+          }
+        }
+      }
+    },
+    "Visible range" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alcance visible"
+          }
+        }
+      }
+    },
+    "Voyager" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viajero"
+          }
+        }
+      }
+    },
+    "W" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O"
+          }
+        }
+      }
+    },
+    "Waning crescent" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna menguante"
+          }
+        }
+      }
+    },
+    "Waning gibbous" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gibosa menguante"
+          }
+        }
+      }
+    },
+    "Wave the phone in a figure-8 to recalibrate the compass." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mueve el teléfono dibujando un 8 para recalibrar la brújula."
+          }
+        }
+      }
+    },
+    "Waxing crescent" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna creciente"
+          }
+        }
+      }
+    },
+    "Waxing gibbous" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gibosa creciente"
+          }
+        }
+      }
+    },
+    "Welcome back — re-align the sky?" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hola de nuevo — ¿realineamos el cielo?"
+          }
+        }
+      }
+    },
+    "What it is" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué es"
+          }
+        }
+      }
+    },
+    "What the colors mean" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué significan los colores"
+          }
+        }
+      }
+    },
+    "What's Flying Over Me" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué vuela sobre mí"
+          }
+        }
+      }
+    },
+    "What's overhead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué hay sobre ti"
+          }
+        }
+      }
+    },
+    "Where everyone begins" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Donde todos empiezan"
+          }
+        }
+      }
+    },
+    "Widebody Collector" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coleccionista de fuselaje ancho"
+          }
+        }
+      }
+    },
+    "WNW" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ONO"
+          }
+        }
+      }
+    },
+    "Wolf Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna del Lobo"
+          }
+        }
+      }
+    },
+    "Worm Moon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luna del Gusano"
+          }
+        }
+      }
+    },
+    "Writing with on-device intelligence…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redactando con inteligencia en el dispositivo…"
+          }
+        }
+      }
+    },
+    "Written on this device by Apple Intelligence." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escrito en este dispositivo por Apple Intelligence."
+          }
+        }
+      }
+    },
+    "WSW" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OSO"
+          }
+        }
+      }
+    },
+    "YOU" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TÚ"
+          }
+        }
+      }
+    },
+    "Your location places the sky around you, and is sent to public flight services like airplanes.live to fetch the aircraft near you — never linked to an account, logged by us, or used to track you. Favorites and stats live only on this device.\n\nTo improve the app, Overhead may collect anonymous usage statistics — which features get used, never who you are, where you are, or what you looked at. You can turn this off below.\n\nAircraft data comes from public feeds: airplanes.live (positions), adsbdb (routes), planespotters.net (photos), CelesTrak (orbits). Those services have their own terms." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu ubicación sitúa el cielo a tu alrededor y se envía a servicios públicos de vuelos como airplanes.live para obtener los aviones cercanos — nunca se vincula a una cuenta, nunca la registramos ni se usa para rastrearte. Los favoritos y las estadísticas viven solo en este dispositivo.\n\nPara mejorar la app, Overhead puede recopilar estadísticas de uso anónimas — qué funciones se usan, nunca quién eres, dónde estás ni qué miraste. Puedes desactivarlo abajo.\n\nLos datos de aeronaves provienen de fuentes públicas: airplanes.live (posiciones), adsbdb (rutas), planespotters.net (fotos), CelesTrak (órbitas). Esos servicios tienen sus propios términos."
+          }
+        }
+      }
+    },
+    "Your place under the sky" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu lugar bajo el cielo"
+          }
+        }
+      }
+    },
+    "Your sky is quiet right now — no aircraft within forty nautical miles." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu cielo está tranquilo ahora mismo — ningún avión en cuarenta millas náuticas."
+          }
+        }
+      }
+    },
+    "Your tier" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu rango"
+          }
+        }
+      }
+    },
+    "Your tier: %@. Learn about tiers and medals." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu rango: %@. Conoce los rangos y medallas."
+          }
+        }
+      }
+    },
+    "Your tier: %@. Opens tiers and medals." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu rango: %@. Abre rangos y medallas."
+          }
+        }
+      }
+    },
+    "Zoomed to %@ times. Reset zoom." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom de %@ aumentos. Restablecer zoom."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.2"
+}
