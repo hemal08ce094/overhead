@@ -81,7 +81,8 @@ struct MedalAssembly: View {
             TimelineView(.animation) { timeline in
                 Canvas { ctx, size in
                     let p = timeline.date.timeIntervalSince(start) / duration
-                    guard p < 1.08 else { return }
+                    // The slowest-staggered dot finishes its release at 1.18.
+                    guard p < 1.20 else { return }
                     let side = min(size.width, size.height)
                     let cx = size.width / 2, cy = size.height / 2
                     let span = side * 0.94                 // emblem square on screen
@@ -104,20 +105,30 @@ struct MedalAssembly: View {
                         let u = min(max((p - delay) / (0.78 - delay), 0), 1)
                         let e = 1 - pow(1 - u, 3)
 
+                        // Release: while the metal fades up beneath, each dot
+                        // loosens on its own stagger, drifts a touch outward
+                        // and dims along a smoothstep — a hand-off through a
+                        // long cross-dissolve, never a cut.
+                        let rel = min(max((p - 0.72 - r0 * 0.10) / 0.36, 0), 1)
+                        let relE = rel * rel * (3 - 2 * rel)
+
                         // Swirl in: born far out on a rotated angle, spiral
                         // decays onto the target. Alternate handedness.
                         let swirl = (1.4 + r1 * 1.6) * (i % 2 == 0 ? 1 : -1)
                         let born = side * (0.55 + r2 * 0.45)
                         let radius = tRadius + (born - tRadius) * (1 - e)
+                                   + relE * (5 + r1 * 11)
                         let angle = tAngle + swirl * (1 - e)
-                        // Formed dots breathe just a little, like the sky.
-                        let shimmer = e * sin(timeline.date.timeIntervalSinceReferenceDate * (1.5 + r3) + r1 * 6.28)
+                        // Formed dots breathe just a little, like the sky —
+                        // stilling as they let go.
+                        let shimmer = e * (1 - relE)
+                            * sin(timeline.date.timeIntervalSinceReferenceDate * (1.5 + r3) + r1 * 6.28)
                         let x = cx + cos(angle) * radius + shimmer
                         let y = cy + sin(angle) * radius + shimmer * 0.6
 
-                        // In fast, out slow: release after the metal shows.
-                        var a = min(u * 4, 1) * (0.35 + 0.55 * r3)
-                        if p > 0.86 { a *= max(0, 1 - (p - 0.86) / 0.22) }
+                        // In fast, out slow — the smoothstep has no hard edge
+                        // at either end of the dissolve.
+                        let a = min(u * 4, 1) * (0.35 + 0.55 * r3) * (1 - relE)
 
                         let spark = i % 6 == 0
                         let s = (spark ? 1.4 : 1.1) + r2 * 1.7
@@ -145,6 +156,7 @@ struct AssembledMedal3D: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var revealed = false
+    @State private var finished = false
 
     var body: some View {
         ZStack {
@@ -152,16 +164,28 @@ struct AssembledMedal3D: View {
                         cameraDistance: cameraDistance, hero: hero, locked: locked)
                 .opacity(revealed ? 1 : 0)
                 .scaleEffect(revealed ? 1 : 0.94)
-            MedalAssembly(medal: medal)
+            if !finished {
+                MedalAssembly(medal: medal)
+            }
         }
         .task {
-            guard !reduceMotion else { revealed = true; return }
+            guard !reduceMotion else { revealed = true; finished = true; return }
             revealed = false
-            // The metal surfaces just before the dots let go (assembly holds
-            // until ~0.86 of its 1.5 s), so the emblem hands off seamlessly.
-            try? await Task.sleep(for: .seconds(0.95))
+            finished = false
+            // A long cross-dissolve: the metal starts rising while the dots
+            // are still formed (their staggered release runs 0.72–1.18 of the
+            // 1.5 s assembly), so for most of a second both are on screen and
+            // neither side ever cuts.
+            try? await Task.sleep(for: .seconds(0.75))
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.5)) { revealed = true }
+            withAnimation(.easeInOut(duration: 0.9)) { revealed = true }
+            // Once the last dot is gone (1.20 × 1.5 s), drop the overlay from
+            // the hierarchy so its TimelineView stops ticking — the medal page
+            // is a place people linger (drag to spin), and an empty canvas
+            // re-evaluated at 120 Hz is pure battery burn.
+            try? await Task.sleep(for: .seconds(1.10))
+            guard !Task.isCancelled else { return }
+            finished = true
         }
     }
 }

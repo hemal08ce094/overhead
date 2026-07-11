@@ -30,7 +30,9 @@ struct StarDissolve: View {
             }
             .allowsHitTesting(false)
         } else {
-            TimelineView(.animation) { timeline in
+            // 30 fps is plenty for slow-drifting motes, and quarters the
+            // redraw work — this runs on top of a live AR session.
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                 Canvas { ctx, _ in
                     draw(in: &ctx, at: timeline.date.timeIntervalSinceReferenceDate, frozen: false)
                 }
