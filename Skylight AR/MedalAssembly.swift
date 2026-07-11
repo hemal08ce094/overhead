@@ -69,6 +69,9 @@ private enum EmblemPoints {
 /// it renders nothing once finished.
 struct MedalAssembly: View {
     let medal: Medal
+    /// Must match the MedalView3D underneath: sets where its engraved face
+    /// lands on screen, so the particle emblem forms exactly in register.
+    var cameraDistance: Float = 2.8
     var duration: Double = 1.5
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -85,7 +88,13 @@ struct MedalAssembly: View {
                     guard p < 1.20 else { return }
                     let side = min(size.width, size.height)
                     let cx = size.width / 2, cy = size.height / 2
-                    let span = side * 0.94                 // emblem square on screen
+                    // Project the medal face onto the screen so the particle
+                    // emblem lands exactly on the engraving underneath: the
+                    // disc's cap (radius 0.97, front face at z 0.07) through
+                    // SceneKit's default 60° vertical FOV at cameraDistance.
+                    // The emblem texture spans the cap's bounding square.
+                    let viewPlane = 2 * tan(Double.pi / 6) * Double(cameraDistance - 0.07)
+                    let span = size.height * (2 * 0.97) / viewPlane
 
                     for (i, tp) in targets.enumerated() {
                         var h = UInt64(i) &* 0x9E3779B97F4A7C15
@@ -156,35 +165,41 @@ struct AssembledMedal3D: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var revealed = false
+    @State private var spinning = false
     @State private var finished = false
 
     var body: some View {
         ZStack {
+            // Held face-on and still while the dots melt onto the engraving —
+            // no scale, no rotation, so the two emblems stay in register.
+            // The reveal spin fires only after the hand-off.
             MedalView3D(medal: medal, award: award,
-                        cameraDistance: cameraDistance, hero: hero, locked: locked)
+                        cameraDistance: cameraDistance, hero: hero, locked: locked,
+                        spinning: spinning)
                 .opacity(revealed ? 1 : 0)
-                .scaleEffect(revealed ? 1 : 0.94)
             if !finished {
-                MedalAssembly(medal: medal)
+                MedalAssembly(medal: medal, cameraDistance: cameraDistance)
             }
         }
         .task {
-            guard !reduceMotion else { revealed = true; finished = true; return }
+            guard !reduceMotion else { revealed = true; spinning = true; finished = true; return }
             revealed = false
+            spinning = false
             finished = false
-            // A long cross-dissolve: the metal starts rising while the dots
-            // are still formed (their staggered release runs 0.72–1.18 of the
-            // 1.5 s assembly), so for most of a second both are on screen and
-            // neither side ever cuts.
-            try? await Task.sleep(for: .seconds(0.75))
+            // The strike: dots form the emblem, the still, face-on metal
+            // rises beneath them exactly in register (release runs 0.72–1.18
+            // of the 1.5 s assembly), the dots melt into the engraving —
+            // and only then does the medal come alive with its reveal spin.
+            try? await Task.sleep(for: .seconds(0.95))
             guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut(duration: 0.9)) { revealed = true }
-            // Once the last dot is gone (1.20 × 1.5 s), drop the overlay from
-            // the hierarchy so its TimelineView stops ticking — the medal page
+            withAnimation(.easeInOut(duration: 0.75)) { revealed = true }
+            // Last dot fades at 1.20 × 1.5 s; spin on its heels, then drop
+            // the overlay so its TimelineView stops ticking — the medal page
             // is a place people linger (drag to spin), and an empty canvas
             // re-evaluated at 120 Hz is pure battery burn.
-            try? await Task.sleep(for: .seconds(1.10))
+            try? await Task.sleep(for: .seconds(0.90))
             guard !Task.isCancelled else { return }
+            spinning = true
             finished = true
         }
     }

@@ -453,6 +453,10 @@ struct MedalView3D: UIViewRepresentable {
     var hero: Bool = true
     /// Unearned: the same medal struck as a colourless blank — still spinnable.
     var locked: Bool = false
+    /// False holds a hero medal face-on and still; flipping it true fires the
+    /// reveal spin. Lets the particle assembly hand off onto a stationary,
+    /// in-register engraving before the medal comes alive.
+    var spinning: Bool = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeUIView(context: Context) -> SCNView {
@@ -468,9 +472,11 @@ struct MedalView3D: UIViewRepresentable {
         if reduceMotion {
             spinner.eulerAngles.y = 0
         } else if hero {
-            // Reveal: a fast turn that eases into the endless idle rotation.
-            context.coordinator.idleSpeed = 0.3
-            context.coordinator.startSpin(initialVelocity: -6.8)
+            if spinning {
+                // Reveal: a fast turn that eases into the endless idle rotation.
+                context.coordinator.beginRevealSpin()
+            }
+            // else: hold face-on; updateUIView fires the spin when told.
         } else {
             // Avatar reveal: one graceful turn that lands face-on and stops.
             spinner.eulerAngles.y = -2 * .pi * 0.9
@@ -489,7 +495,11 @@ struct MedalView3D: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ view: SCNView, context: Context) {}
+    func updateUIView(_ view: SCNView, context: Context) {
+        if spinning && hero && !reduceMotion {
+            context.coordinator.beginRevealSpin()
+        }
+    }
 
     static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
         coordinator.stopSpin()
@@ -502,11 +512,21 @@ struct MedalView3D: UIViewRepresentable {
         /// The slow perpetual turn the medal relaxes back to. 0 (avatar,
         /// Reduce Motion) means flings settle on the nearest face instead.
         var idleSpeed: Float = 0
+        private var revealSpun = false
         private var velocity: Float = 0
         private var startY: Float = 0
         private var dragging = false
         private var lastTime: CFTimeInterval = 0
         private var link: CADisplayLink?
+
+        /// The hero reveal: one fast turn easing into the perpetual idle
+        /// rotation. Idempotent — updateUIView may ask repeatedly.
+        func beginRevealSpin() {
+            guard !revealSpun else { return }
+            revealSpun = true
+            idleSpeed = 0.3
+            startSpin(initialVelocity: -6.8)
+        }
 
         func startSpin(initialVelocity: Float) {
             velocity = initialVelocity
