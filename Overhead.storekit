@@ -1,0 +1,40 @@
+{
+  "identifier" : "3B9A2E70-0000-4000-8000-OVERHEADPRO1",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "39.99",
+      "familyShareable" : true,
+      "internalID" : "6789810706",
+      "localizations" : [
+        {
+          "description" : "The sky's power tools — yours forever.",
+          "displayName" : "Overhead Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "overhead.pro.lifetime",
+      "referenceName" : "Overhead Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6782262384",
+    "_developerTeamID" : "542W8Z2VM3",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

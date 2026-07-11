@@ -1,6 +1,36 @@
-# Monetization — Overhead Pro (DRAFT for review)
+# Monetization — Overhead Pro
 
-Status: **draft, not implemented.** Decisions marked ⚖️ need Hemal's sign-off.
+Status: **Phase 1 implemented (2026-07-11)** — lifetime unlock, code + ASC
+product live in PREPARE_FOR_SUBMISSION. Subscription remains a later option
+(§3). Prerequisites still open: Paid Applications agreement (Hemal),
+airplanes.live permission (Hemal).
+
+## 0. What exists now (Phase 1 — lifetime only)
+
+| Piece | Where | Notes |
+|---|---|---|
+| Product | ASC IAP id `6789810706`, productId `overhead.pro.lifetime` | NON_CONSUMABLE, family-sharable, **$39.99 USA base**, all 175 territories, en-US metadata + review note + review screenshot |
+| Entitlement | `Skylight AR/ProStore.swift` (`ProStore.shared.isPro`) | StoreKit 2, no server; mirrored to App Group key `pro.entitled` for widgets/watch |
+| Paywall | `PaywallView` in ProStore.swift | Pushed from Profile → Settings → Overhead Pro; sheet from feature gates; `-shot paywall` for screenshots |
+| Copy | `ProCatalog` (same file) | ALL paywall text in one editable block |
+| Gates | Time Machine (View & sky, below Sky time) · "Preview in your sky" (event detail) | Free keeps the ±12 h scrub; Pro gets any-date picker + event time-jump |
+| Testing | `Overhead.storekit` + shared scheme | Run from Xcode → purchases work in sim; `-forcePro YES` launch arg fakes ownership (DEBUG) |
+
+**How to change things (the configurable bits):**
+- **Price**: App Store Connect → Overhead → Monetization → In-App Purchases →
+  Overhead Pro Lifetime → Price. Takes effect without an app update. (Also
+  update `Overhead.storekit` + the DEBUG fallback string in PaywallView so
+  sim/screenshots match.)
+- **Copy / feature rows**: `ProCatalog` in `ProStore.swift`.
+- **Store name/description**: ASC → the IAP's en-US localization
+  (display name ≤30 chars, description ≤45 chars).
+- **Product ID**: `AppInfo.proLifetimeID` — never change once live.
+- **Add subscription later**: same `ProStore`, add IDs to the entitlement
+  check; paywall grows a second option. Nothing gets thrown away.
+
+**Before the IAP can be submitted:** Paid Applications agreement + banking/tax
+must be Active in ASC (Business section). The IAP submits alongside the next
+app version that contains the paywall build.
 
 ## 1. Recommendation in one paragraph
 

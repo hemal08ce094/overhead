@@ -351,9 +351,14 @@ enum EventReminder {
 
 struct EventDetailView: View {
     let event: SkyEvent
+    /// Present when opened from the events sheet — enables the Pro
+    /// "preview in your sky" time jump. Nil elsewhere hides the button.
+    var engine: SkyEngine? = nil
     @State private var narration: String?
     @State private var writing = true
     @State private var reminderSet = false
+    @State private var skySet = false
+    @State private var showPaywall = false
 
     var body: some View {
         ScrollView {
@@ -410,6 +415,32 @@ struct EventDetailView: View {
                     }
                     .buttonStyle(PrimaryButtonStyle())
                     .sensoryFeedback(.success, trigger: reminderSet) { _, new in new }
+                }
+
+                // Pro: time-travel the AR sky to this event's exact moment.
+                if let engine, abs(event.date.timeIntervalSinceNow) < 366 * 86_400 {
+                    Button {
+                        if ProStore.shared.isPro {
+                            engine.skyTimeOffsetMin = event.date.timeIntervalSinceNow / 60
+                            skySet = true
+                            Analytics.log("Event.previewInSky", ["kind": "\(event.kind)"])
+                        } else {
+                            showPaywall = true
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Label(skySet ? "Sky set — close this sheet and look up"
+                                         : "Preview in your sky",
+                                  systemImage: skySet ? "checkmark" : "clock.arrow.2.circlepath")
+                            if !ProStore.shared.isPro { ProChip() }
+                        }
+                    }
+                    .buttonStyle(GhostButtonStyle())
+                    .sensoryFeedback(.success, trigger: skySet) { _, new in new }
+                    .sheet(isPresented: $showPaywall) {
+                        NavigationStack { PaywallView(source: "eventPreview") }
+                            .preferredColorScheme(.dark)
+                    }
                 }
 
                 if event.kind == .eclipse {

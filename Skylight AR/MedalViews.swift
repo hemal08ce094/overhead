@@ -687,14 +687,17 @@ struct MedalsOverviewView: View {
                 // Your standing, in metal.
                 VStack(spacing: 10) {
                     if let featured {
-                        MedalView3D(medal: featured,
-                                    award: engine.medals.earned[featured.id],
-                                    cameraDistance: 2.7)
+                        // Every arrival earns the moment: star-motes swirl
+                        // in, draw the engraving, and the metal surfaces.
+                        AssembledMedal3D(medal: featured,
+                                         award: engine.medals.earned[featured.id],
+                                         cameraDistance: 2.7)
                             .frame(height: 240)
+                            .id(featured.id)
                     } else if let first = MedalCatalog.medal("first") {
                         // Nothing earned yet: the first medal as a blank —
                         // spin it, want it.
-                        MedalView3D(medal: first, award: nil, cameraDistance: 2.7, locked: true)
+                        AssembledMedal3D(medal: first, award: nil, cameraDistance: 2.7, locked: true)
                             .frame(height: 240)
                     }
                     Text(engine.spotterTier.name)
@@ -833,8 +836,8 @@ struct MedalDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                MedalView3D(medal: medal, award: award, cameraDistance: 2.8,
-                            locked: award == nil)
+                AssembledMedal3D(medal: medal, award: award, cameraDistance: 2.8,
+                                 locked: award == nil)
                     .frame(height: 380)
                     .padding(.top, 8)
                 Text(award != nil ? "Drag to turn it over" : "Not yet earned — drag to spin")

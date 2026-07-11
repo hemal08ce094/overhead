@@ -5,6 +5,12 @@
       "comment" : "Bundle display name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -12,6 +18,24 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overhead"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Overhead"
@@ -23,6 +47,12 @@
       "comment" : "Bundle name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skylight AR"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -30,6 +60,24 @@
           }
         },
         "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skylight AR"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skylight AR"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skylight AR"
+          }
+        },
+        "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Skylight AR"
@@ -41,6 +89,12 @@
       "comment" : "Privacy - Camera Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt Flugzeuge und Himmelsobjekte in AR."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -52,6 +106,24 @@
             "state" : "translated",
             "value" : "Ve aviones y objetos del cielo en RA."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche les avions et les objets célestes en réalité augmentée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vedi aerei e oggetti celesti in AR."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "航空機と天体をARで表示します。"
+          }
         }
       }
     },
@@ -59,6 +131,12 @@
       "comment" : "Privacy - Location When In Use Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Platziert Flugzeuge und Himmel an deiner tatsächlichen Position."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -69,6 +147,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sitúa los aviones y el cielo en tu posición real."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Positionne les avions et le ciel à votre position réelle."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posiziona aerei e cielo nella tua posizione reale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "航空機と天体をあなたの実際の位置に合わせて表示します。"
           }
         }
       }

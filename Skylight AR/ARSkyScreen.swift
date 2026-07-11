@@ -34,6 +34,7 @@ struct ARSkyScreen: View {
     @State private var showAircraftDetail = false
     #if DEBUG
     @State private var showMedals = false
+    @State private var showPaywallShot = false
     #endif
 
     var body: some View {
@@ -166,6 +167,10 @@ struct ARSkyScreen: View {
         .sheet(isPresented: $showMedals) {
             NavigationStack { MedalsOverviewView(engine: engine) }
         }
+        .sheet(isPresented: $showPaywallShot) {
+            NavigationStack { PaywallView(source: "shot") }
+                .preferredColorScheme(.dark)
+        }
         .onAppear {
             switch ShotScreen.current {
             case .events: showEvents = true
@@ -173,6 +178,7 @@ struct ARSkyScreen: View {
             case .search: showSearch = true
             case .medals: showMedals = true
             case .viewsky: showProfile = true   // ProfileView auto-pushes View & sky
+            case .paywall: showPaywallShot = true
             default: break
             }
         }
@@ -1408,6 +1414,15 @@ struct ProfileIdentityCard: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .contentShape(Rectangle())
+            // The medal sheds a quiet stream of star-motes across the card —
+            // the tier metal dissolving into night sky. Born at the medal's
+            // trailing edge (it spans x 14–80, vertically centered), tinted
+            // by the rank's finish, drifting behind the name.
+            .background {
+                StarDissolve(emitter: CGRect(x: 64, y: 20, width: 14, height: 46),
+                             tint: MedalArt.colors(engine.spotterTier.finish).thumbLight)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+            }
             // Clear glass, not frosted: the airliner and solar system fly
             // directly behind this card, and their light should bend through.
             .glassEffect(.clear, in: .rect(cornerRadius: 22))
@@ -1526,6 +1541,13 @@ struct ProfileView: View {
                         settingsLink(String(localized: "Accessibility"), icon: "accessibility",
                                      subtitle: String(localized: "Hear & feel the sky")) {
                             AccessibilityView(engine: engine)
+                        }
+                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink(ProCatalog.title, icon: "sparkles",
+                                     subtitle: ProStore.shared.isPro
+                                        ? String(localized: "Unlocked — thank you")
+                                        : String(localized: "Time Machine · event previews · lifetime")) {
+                            PaywallView(source: "settings")
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
                         settingsLink(String(localized: "About & privacy"), icon: "info.circle",
@@ -1647,7 +1669,7 @@ struct EventsView: View {
                     if let next = engine.events.first {
                         Eyebrow(String(localized: "Next in your sky"))
                             .padding(.top, tonight == nil ? 0 : 12)
-                        NavigationLink { EventDetailView(event: next) } label: {
+                        NavigationLink { EventDetailView(event: next, engine: engine) } label: {
                             heroCard(next)
                         }
                         .buttonStyle(.plain)
@@ -1657,7 +1679,7 @@ struct EventsView: View {
                             .padding(.top, 12)
                         VStack(spacing: 10) {
                             ForEach(engine.events.dropFirst()) { event in
-                                NavigationLink { EventDetailView(event: event) } label: {
+                                NavigationLink { EventDetailView(event: event, engine: engine) } label: {
                                     eventRow(event)
                                 }
                                 .buttonStyle(.plain)
@@ -2039,6 +2061,7 @@ private var settingsDivider: some View {
 /// View mode + celestial layers + sky time.
 struct SkySettingsView: View {
     @Bindable var engine: SkyEngine
+    @State private var showPaywall = false
 
     var body: some View {
         SettingsScaffold(theme: .sky, title: String(localized: "View & sky"),
@@ -2095,7 +2118,13 @@ struct SkySettingsView: View {
                 }
 
                 timeScrub
+
+                timeMachine
             }
+        }
+        .sheet(isPresented: $showPaywall) {
+            NavigationStack { PaywallView(source: "timeMachine") }
+                .preferredColorScheme(.dark)
         }
     }
 
@@ -2133,7 +2162,11 @@ struct SkySettingsView: View {
                     .font(Theme.display(15, .semibold).monospacedDigit())
                     .foregroundStyle(Theme.accent)
             }
-            Slider(value: $engine.skyTimeOffsetMin, in: -720...720, step: 5).tint(Theme.accent)
+            // Clamped proxy: a Time Machine jump can sit far outside the
+            // slider's ±12 h — grabbing the slider pulls back into range.
+            Slider(value: Binding(get: { max(-720, min(720, engine.skyTimeOffsetMin)) },
+                                  set: { engine.skyTimeOffsetMin = $0 }),
+                   in: -720...720, step: 5).tint(Theme.accent)
             HStack {
                 Text("−12h").font(.caption2).foregroundStyle(Theme.textTertiary)
                 Spacer()
@@ -2144,6 +2177,60 @@ struct SkySettingsView: View {
             Text("Scrub the sky forward or back to preview the sun, moon, stars and ISS at another time.")
                 .font(Theme.display(12, .regular))
                 .foregroundStyle(Theme.textSecondary)
+        }
+    }
+
+    /// Pro: the sky on any date — eclipse day, a shower's peak, any night.
+    @ViewBuilder private var timeMachine: some View {
+        if ProStore.shared.isPro {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Text("Time Machine")
+                        .font(Theme.display(16, .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    ProChip()
+                    Spacer()
+                }
+                DatePicker("Sky date",
+                           selection: Binding(
+                               get: { Date().addingTimeInterval(engine.skyTimeOffsetMin * 60) },
+                               set: { engine.skyTimeOffsetMin = $0.timeIntervalSinceNow / 60 }),
+                           in: Date().addingTimeInterval(-366 * 86_400)...Date().addingTimeInterval(366 * 86_400))
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .tint(Theme.accent)
+                Text("Set the whole sky to any date within a year — stand under an eclipse before it happens. (Aircraft stay live; the ISS needs fresh orbit data, so far dates show it approximately.)")
+                    .font(Theme.display(12, .regular))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        } else {
+            Button { showPaywall = true } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "clock.arrow.2.circlepath")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Theme.gold)
+                        .frame(width: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 8) {
+                            Text("Time Machine")
+                                .font(Theme.display(16, .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            ProChip()
+                        }
+                        Text("Jump the sky to any date — eclipse day, shower peaks, any night.")
+                            .font(Theme.display(12, .regular))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .padding(14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .nightCard()
         }
     }
 }
@@ -2502,12 +2589,17 @@ struct AirportSettingsView: View {
 }
 
 enum TimeScrub {
-    /// "Now", "+2h 15m", "−45m" … from a minute offset.
+    /// "Now", "+2h 15m", "−45m", "+32d 4h" … from a minute offset.
     static func label(_ minutes: Double) -> String {
         if abs(minutes) < 0.5 { return String(localized: "Now") }
         let sign = minutes >= 0 ? "+" : "−"
         let total = Int(abs(minutes).rounded())
         let h = total / 60, m = total % 60
+        // Time Machine territory: day-scale offsets read as days, not hours.
+        if h >= 48 {
+            let d = h / 24, rh = h % 24
+            return rh > 0 ? "\(sign)\(d)d \(rh)h" : "\(sign)\(d)d"
+        }
         if h > 0 && m > 0 { return "\(sign)\(h)h \(m)m" }
         if h > 0 { return "\(sign)\(h)h" }
         return "\(sign)\(m)m"

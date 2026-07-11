@@ -25,11 +25,24 @@ enum AppInfo {
     /// never rate-limited (unlike the in-app system prompt).
     static let writeReviewURL = URL(string: "https://apps.apple.com/app/id\(appStoreID)?action=write-review")!
 
+    // MARK: Overhead Pro
+
+    /// The one-time unlock. The ID must stay stable forever once live; the
+    /// price lives in App Store Connect and can be changed there any time
+    /// without an app update (Monetization → In-App Purchases → price).
+    static let proLifetimeID = "overhead.pro.lifetime"
+
+    /// Shared container, read by widgets/watch for the Pro entitlement mirror.
+    static let appGroupID = "group.hemal.Skylight-AR"
+
     // MARK: Web + contact
 
     /// Marketing site / referral landing page (hosted on Lovable for now —
     /// swap once a custom domain is attached).
-    static let websiteURL = URL(string: "https://immaculate-display-copy.lovable.app")!
+    static let websiteURL = URL(string: "https://celestial-beacon-site.lovable.app")!
+
+    /// Terms of Use — covers the Overhead Pro purchase (published 2026-07-11).
+    static let termsURL = URL(string: "https://celestial-beacon-site.lovable.app/terms")!
 
     static let feedbackEmail = "hemalmodi3@gmail.com"
 

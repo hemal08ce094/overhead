@@ -13,7 +13,7 @@ import Foundation
 
 enum ShotScreen: String {
     case onboard0, onboard1, onboard2
-    case sky, events, profile, search, medals, viewsky, spotlight
+    case sky, events, profile, search, medals, viewsky, spotlight, paywall
 
     /// Reads the `-shot <name>` launch argument (parsed into UserDefaults).
     static var current: ShotScreen? {
