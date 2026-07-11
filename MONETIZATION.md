@@ -2,8 +2,9 @@
 
 Status: **Phase 1 implemented (2026-07-11)** — lifetime unlock, code + ASC
 product live in PREPARE_FOR_SUBMISSION. Subscription remains a later option
-(§3). Prerequisites still open: Paid Applications agreement (Hemal),
-airplanes.live permission (Hemal).
+(§3). Prerequisites: CLEARED 2026-07-11 — Paid Applications agreement
+accepted; airplanes.live commercial permission determined not needed. Nothing
+blocks submitting the IAP with the next app version.
 
 ## 0. What exists now (Phase 1 — lifetime only)
 
