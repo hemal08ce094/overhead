@@ -570,6 +570,26 @@ final class SkyScene {
         issNode.isHidden = true
     }
 
+    // MARK: Tappable bodies
+
+    /// Every celestial mark currently in the sky, for the tap handler's
+    /// nearest-glyph search — same forgiving selection planes get.
+    func tappableBodies() -> [(body: SelectedBody, node: SCNNode)] {
+        var out: [(SelectedBody, SCNNode)] = []
+        if !sunNode.isHidden { out.append((SelectedBody(kind: .sun, name: "Sun"), sunNode)) }
+        if !moonNode.isHidden { out.append((SelectedBody(kind: .moon, name: "Moon"), moonNode)) }
+        for (name, node) in planetNodes where !node.isHidden {
+            out.append((SelectedBody(kind: .planet, name: name), node))
+        }
+        for (name, node) in starSpriteNodes where !node.isHidden {
+            let cat = StarCatalog.namedStars.first { $0.name == name }
+            out.append((SelectedBody(kind: .star, name: name,
+                                     ra: cat?.ra ?? 0, dec: cat?.dec ?? 0), node))
+        }
+        if !issNode.isHidden { out.append((SelectedBody(kind: .iss, name: "ISS"), issNode)) }
+        return out
+    }
+
     // MARK: Update
 
     func update(date: Date, lat: Double, lon: Double, offset: Double, mirror: Bool, forceStars: Bool) {

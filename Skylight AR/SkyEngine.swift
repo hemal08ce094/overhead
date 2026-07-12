@@ -229,6 +229,7 @@ final class SkyEngine {
     var selected: SelectedAircraft?
     var selectedPhoto: PlanePhoto?
     var selectedAirport: SelectedAirport?
+    var selectedBody: SelectedBody?
     /// Current pinch-zoom factor (1 = no zoom), mirrored from the controller.
     var zoomFactor: Double = 1
     /// Compass heading accuracy in degrees; < 0 means unknown.

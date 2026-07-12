@@ -150,6 +150,9 @@ struct ARSkyScreen: View {
         .sheet(item: Bindable(engine).selectedAirport) { airport in
             AirportDetailSheet(airport: airport)
         }
+        .sheet(item: Bindable(engine).selectedBody) { body in
+            BodyDetailSheet(body_: body, engine: engine)
+        }
         // Tapping a plane opens the full sheet directly — no intermediate card.
         .onChange(of: engine.selected == nil) { _, deselected in
             showAircraftDetail = !deselected

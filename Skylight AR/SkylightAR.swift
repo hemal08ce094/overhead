@@ -1987,9 +1987,31 @@ final class ARSkyViewController: UIViewController {
             // Forgiving fallback: planes are tiny and moving, so grab the closest
             // glyph within a comfortable thumb radius rather than demanding a precise hit.
             select(hex: nearest.hex)
+        } else if let body = nearestBody(to: point, within: 40) {
+            // Sun, moon, planets, named stars, the ISS — the sky answers taps.
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            engine?.selectedBody = body
         } else {
             deselect()
         }
+    }
+
+    /// The on-screen-closest celestial mark to `point`, within `threshold`.
+    private func nearestBody(to point: CGPoint, within threshold: CGFloat) -> SelectedBody? {
+        var best: SelectedBody?
+        var bestDistance = threshold
+        for (body, node) in sky?.tappableBodies() ?? [] {
+            let projected = sceneView.projectPoint(node.worldPosition)
+            guard projected.z > 0, projected.z < 1 else { continue }
+            let dx = CGFloat(projected.x) - point.x
+            let dy = CGFloat(projected.y) - point.y
+            let distance = (dx * dx + dy * dy).squareRoot()
+            if distance < bestDistance {
+                bestDistance = distance
+                best = body
+            }
+        }
+        return best
     }
 
     /// The on-screen-closest aircraft glyph to `point`, within `threshold` points.
