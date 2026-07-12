@@ -26,11 +26,24 @@ struct OnboardingView: View {
     @State private var appear = false
     /// Increments on every advance; each value plays one mote burst.
     @State private var burst = 0
+    /// The reticle in the scene locks ~1.2 s into act 3 — one crisp tap.
+    @State private var reticleSnapped = false
+    /// Set on finish: the scene dissolves into motes as the sky arrives.
+    @State private var finaleStart: Date?
 
     var body: some View {
         ZStack {
             Theme.skyGradient.ignoresSafeArea()
-            Starfield().ignoresSafeArea().opacity(0.75)
+            // One continuous night behind all three beats — the same plane
+            // flies from the promise into the viewfinder.
+            OnboardingScene(act: page, finaleStart: finaleStart)
+                .ignoresSafeArea()
+            // Legibility scrim: the spectacle stays behind the words.
+            LinearGradient(colors: [.clear, Theme.nightBottom.opacity(0.55)],
+                           startPoint: UnitPoint(x: 0.5, y: 0.45),
+                           endPoint: .bottom)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
 
             content
                 .padding(.horizontal, 34)
@@ -45,6 +58,15 @@ struct OnboardingView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sensoryFeedback(.impact(weight: .medium), trigger: reticleSnapped) { _, new in new }
+        .onChange(of: page) { _, new in
+            reticleSnapped = false
+            guard new == 2 else { return }
+            Task {   // the scene's reticle lands ~1.2 s into the act
+                try? await Task.sleep(for: .seconds(1.2))
+                if page == 2 { reticleSnapped = true }
+            }
+        }
         .onAppear { animateIn() }
         // Advance automatically once a step's permission resolves.
         .onChange(of: permissions.location) { _, _ in
@@ -120,7 +142,8 @@ struct OnboardingView: View {
 
     private var cameraStep: some View {
         VStack(spacing: 0) {
-            Spacer()
+            // The viewfinder scene owns the top third of this beat.
+            Spacer(minLength: 210)
             Text(verbatim: "3 · 3").kicker
             Text("See through to the real sky")
                 .font(Theme.display(32, .semibold))
@@ -173,9 +196,11 @@ struct OnboardingView: View {
     }
 
     private func finish() {
-        burst += 1
+        // The finale: words fade, the whole night dissolves into star-motes,
+        // and the real sky is already arriving beneath them.
+        finaleStart = Date()
         withAnimation(.easeIn(duration: 0.28)) { appear = false }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { onFinished() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { onFinished() }
     }
 
     private func openSettings() {
