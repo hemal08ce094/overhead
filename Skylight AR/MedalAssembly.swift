@@ -75,7 +75,13 @@ struct MedalAssembly: View {
     var duration: Double = 1.5
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var start = Date()
+    /// Anchors t=0 to the FIRST FRAME the timeline actually delivers, not to
+    /// view creation: a medal's first-ever open pays for SceneKit scene build
+    /// + two Sobel normal maps on the main thread, and a clock started before
+    /// that hitch would skip straight past the swirl-in. Reference type so
+    /// recording the anchor inside Canvas doesn't dirty SwiftUI state.
+    private final class Clock { var start: Date? }
+    @State private var clock = Clock()
 
     var body: some View {
         if !reduceMotion {
@@ -83,6 +89,8 @@ struct MedalAssembly: View {
             let tint = MedalArt.colors(medal.finish).thumbLight
             TimelineView(.animation) { timeline in
                 Canvas { ctx, size in
+                    let start = clock.start ?? timeline.date
+                    if clock.start == nil { clock.start = timeline.date }
                     let p = timeline.date.timeIntervalSince(start) / duration
                     // The slowest-staggered dot finishes its release at 1.18.
                     guard p < 1.20 else { return }
@@ -182,23 +190,24 @@ struct AssembledMedal3D: View {
             }
         }
         .task {
+            // .task re-fires every time the view re-appears (pop back from a
+            // push, scroll return). The strike plays once per identity; a run
+            // interrupted mid-flight settles straight to the final state so
+            // nothing replays against an expired particle clock.
+            guard !finished else { return }
             guard !reduceMotion else { revealed = true; spinning = true; finished = true; return }
-            revealed = false
-            spinning = false
-            finished = false
             // The strike: dots form the emblem, the still, face-on metal
             // rises beneath them exactly in register (release runs 0.72–1.18
             // of the 1.5 s assembly), the dots melt into the engraving —
             // and only then does the medal come alive with its reveal spin.
             try? await Task.sleep(for: .seconds(0.95))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { revealed = true; spinning = true; finished = true; return }
             withAnimation(.easeInOut(duration: 0.75)) { revealed = true }
             // Last dot fades at 1.20 × 1.5 s; spin on its heels, then drop
             // the overlay so its TimelineView stops ticking — the medal page
             // is a place people linger (drag to spin), and an empty canvas
             // re-evaluated at 120 Hz is pure battery burn.
             try? await Task.sleep(for: .seconds(0.90))
-            guard !Task.isCancelled else { return }
             spinning = true
             finished = true
         }
