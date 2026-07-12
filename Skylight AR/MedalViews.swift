@@ -638,9 +638,10 @@ struct MedalThumb: View {
                 lineWidth: earnedMedal ? rim : 1.5)
 
             if !earnedMedal, fraction > 0 {
+                // The arc fills in the metal being earned, not interface blue.
                 Circle()
                     .trim(from: 0, to: fraction)
-                    .stroke(Theme.accent.opacity(0.85),
+                    .stroke(light.opacity(0.9),
                             style: StrokeStyle(lineWidth: max(2, size * 0.04), lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .padding(1)
@@ -648,6 +649,8 @@ struct MedalThumb: View {
         }
         .frame(width: size, height: size)
         .shadow(color: earnedMedal ? dark.opacity(0.6) : .clear, radius: size * 0.125, y: size * 0.06)
+        // Earned metal casts its own light — a jewel-case glow in the finish.
+        .shadow(color: earnedMedal ? light.opacity(0.35) : .clear, radius: size * 0.22)
         .accessibilityLabel(earnedMedal
             ? "\(medal.name) medal, earned"
             : "\(medal.name) medal, locked. \(progress) of \(target).")
@@ -746,8 +749,8 @@ struct MedalsOverviewView: View {
                             .background {
                                 Circle()
                                     .fill(RadialGradient(
-                                        colors: [MedalArt.colors(featured.finish).thumbLight.opacity(0.26), .clear],
-                                        center: .center, startRadius: 12, endRadius: 150))
+                                        colors: [MedalArt.colors(featured.finish).thumbLight.opacity(0.34), .clear],
+                                        center: .center, startRadius: 12, endRadius: 160))
                                     .blur(radius: 16)
                                     .allowsHitTesting(false)
                             }
@@ -859,7 +862,23 @@ struct MedalsOverviewView: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer(minLength: 8)
-                if isCurrent {
+                tierTrailing(tier, reached: reached, isCurrent: isCurrent)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .contentShape(Rectangle())
+            // Each rung is lit by its own metal: a wash that pours in from
+            // the medal's side, full-strength once you've reached it.
+            .background {
+                let light = MedalArt.colors(tier.finish).thumbLight
+                LinearGradient(colors: [light.opacity(reached ? 0.14 : 0.05), .clear],
+                               startPoint: .leading, endPoint: UnitPoint(x: 0.65, y: 0.5))
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private func tierTrailing(_ tier: SpotterTier, reached: Bool, isCurrent: Bool) -> some View {
+        if isCurrent {
                     // Struck in your own metal, not interface blue.
                     Text("YOU")
                         .font(Theme.display(10, .bold))
@@ -875,16 +894,11 @@ struct MedalsOverviewView: View {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(MedalArt.colors(tier.finish).thumbLight)
-                } else {
-                    Text("\(engine.statFlightsSpotted)/\(tier.threshold)")
-                        .font(Theme.display(12, .semibold).monospacedDigit())
-                        .foregroundStyle(Theme.textTertiary)
-                }
-            }
-            .padding(.horizontal, 12).padding(.vertical, 10)
-            .contentShape(Rectangle())
+        } else {
+            Text("\(engine.statFlightsSpotted)/\(tier.threshold)")
+                .font(Theme.display(12, .semibold).monospacedDigit())
+                .foregroundStyle(Theme.textTertiary)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -905,6 +919,18 @@ struct MedalDetailView: View {
                                  locked: award == nil)
                     .frame(height: 380)
                     .padding(.top, 8)
+                    // Earned metal is displayed in its own light; blanks sit
+                    // in a faint neutral spot so the case still reads lit.
+                    .background {
+                        let tint = award != nil
+                            ? MedalArt.colors(medal.finish).thumbLight
+                            : Color.white
+                        Circle()
+                            .fill(RadialGradient(colors: [tint.opacity(award != nil ? 0.30 : 0.08), .clear],
+                                                 center: .center, startRadius: 20, endRadius: 210))
+                            .blur(radius: 18)
+                            .allowsHitTesting(false)
+                    }
                 Text(award != nil ? "Drag to turn it over" : "Not yet earned — drag to spin")
                     .font(Theme.display(11, .medium))
                     .foregroundStyle(Theme.textTertiary)
