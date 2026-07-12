@@ -17699,6 +17699,74 @@
           }
         }
       }
+    },
+    "Best outdoors, under open sky. If a plane sits a little off, tap it to snap everything into place.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mejor al aire libre, bajo cielo abierto. Si un avión aparece algo desplazado, tócalo para encajar todo en su sitio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idéal dehors, sous un ciel dégagé. Si un avion semble un peu décalé, touchez-le pour tout remettre en place."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am besten draußen unter freiem Himmel. Sitzt ein Flugzeug etwas daneben, tippe es an, um alles einzurasten."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meglio all'aperto, sotto il cielo. Se un aereo appare un po' spostato, toccalo per rimettere tutto a posto."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屋外の開けた空の下が最適。飛行機が少しずれて見えたら、タップして位置を合わせよう。"
+          }
+        }
+      }
+    },
+    "Every flight you spot counts — you begin as an Observer.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada vuelo que avistas cuenta: empiezas como Observador."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque vol repéré compte — vous débutez comme Observateur."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder gesichtete Flug zählt — du beginnst als Observer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni volo che avvisti conta: inizi come Osservatore."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "見つけたフライトはすべてカウント。まずはオブザーバーから。"
+          }
+        }
+      }
     }
   },
   "version": "1.2"

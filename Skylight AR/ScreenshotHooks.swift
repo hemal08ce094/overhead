@@ -26,8 +26,7 @@ enum ShotScreen: String {
         switch self {
         case .onboard0: return 0
         case .onboard1: return 1
-        case .onboard2: return 2
-        case .onboard3: return 3
+        case .onboard2, .onboard3: return 2   // three beats since the redesign
         default: return nil
         }
     }
