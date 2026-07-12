@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 // MARK: - UIKit bridge
 
@@ -2069,13 +2070,25 @@ struct SkySettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 10) {
                     modeChip(String(localized: "AR sky"), "camera.fill", active: engine.cameraPassthrough) {
-                        engine.cameraPassthrough = true
-                        Analytics.log("Mode.selected", ["mode": "ar"])
+                        // Without camera access AR mode would just show the
+                        // dark dome pretending to be a broken feed — be
+                        // honest and route to Settings instead.
+                        if AVCaptureDevice.authorizationStatus(for: .video) == .authorized {
+                            engine.cameraPassthrough = true
+                            Analytics.log("Mode.selected", ["mode": "ar"])
+                        } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
                     }
                     modeChip(String(localized: "Dark sky"), "moon.stars.fill", active: !engine.cameraPassthrough) {
                         engine.cameraPassthrough = false
                         Analytics.log("Mode.selected", ["mode": "dark"])
                     }
+                }
+                if AVCaptureDevice.authorizationStatus(for: .video) != .authorized {
+                    Text("AR sky needs camera access — tap AR sky to open Settings.")
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textTertiary)
                 }
 
                 VStack(spacing: 0) {

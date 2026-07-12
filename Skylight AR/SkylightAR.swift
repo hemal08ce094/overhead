@@ -16,6 +16,7 @@ import Foundation
 import SceneKit
 import ARKit
 import CoreLocation
+import CoreMotion
 import AVFoundation
 import SatelliteKit
 import simd
@@ -839,6 +840,66 @@ final class ARSkyViewController: UIViewController {
             && AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     }
 
+    private var cameraAuthorized: Bool {
+        AVCaptureDevice.authorizationStatus(for: .video) == .authorized
+    }
+
+    // MARK: Motion sky (camera permission denied)
+
+    /// With no camera access ARKit can't track, so the dark sky is driven by
+    /// CoreMotion instead: device attitude rotates our own camera node at the
+    /// dome's centre. `alignNorth` keeps working unchanged — it only reads
+    /// `pointOfView`, and CLHeading consensus aligns worldNode exactly as in
+    /// AR mode. Tap-to-align, the ±20° trim, everything downstream is common.
+    private let motionManager = CMMotionManager()
+    private var motionCameraNode: SCNNode?
+    private var arPointOfView: SCNNode?
+    private var motionActive = false
+
+    private func startMotionSky() {
+        guard !motionActive, motionManager.isDeviceMotionAvailable else { return }
+        motionActive = true
+        engine?.lidarActive = false
+        let camNode = motionCameraNode ?? {
+            let node = SCNNode()
+            node.camera = SCNCamera()
+            node.position = SCNVector3(0, 0, 0)
+            sceneView.scene.rootNode.addChildNode(node)
+            motionCameraNode = node
+            return node
+        }()
+        camNode.camera?.zNear = 0.1
+        camNode.camera?.zFar = 1500
+        if arPointOfView == nil { arPointOfView = sceneView.pointOfView }
+        sceneView.pointOfView = camNode
+        sceneView.preferredFramesPerSecond = 60
+
+        // Z-vertical reference; yaw starts arbitrary and the CLHeading
+        // consensus turns worldNode to true north, same as AR mode.
+        let frames = CMMotionManager.availableAttitudeReferenceFrames()
+        let frame: CMAttitudeReferenceFrame =
+            frames.contains(.xArbitraryCorrectedZVertical) ? .xArbitraryCorrectedZVertical
+                                                           : .xArbitraryZVertical
+        motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
+        motionManager.startDeviceMotionUpdates(using: frame, to: .main) { [weak self] dm, _ in
+            guard let self, self.motionActive, let dm else { return }
+            // CoreMotion's reference (X forward, Z up) → SceneKit camera
+            // (Y up, looking down −Z): tilt the frame −90° about X, then
+            // apply the device attitude. The proven dark-mode transform.
+            let q = dm.attitude.quaternion
+            let dq = simd_quatf(ix: Float(q.x), iy: Float(q.y), iz: Float(q.z), r: Float(q.w))
+            let refToWorld = simd_quatf(angle: -.pi / 2, axis: simd_float3(1, 0, 0))
+            self.motionCameraNode?.simdOrientation = refToWorld * dq
+        }
+    }
+
+    private func stopMotionSky() {
+        guard motionActive else { return }
+        motionActive = false
+        motionManager.stopDeviceMotionUpdates()
+        if let ar = arPointOfView { sceneView.pointOfView = ar }
+    }
+
     /// Which video tier the running session was configured with, so
     /// `applyBackground()` can re-run only when the mode actually changed.
     private var videoFormatIsLowRes = false
@@ -851,6 +912,14 @@ final class ARSkyViewController: UIViewController {
             // Simulator / unsupported device: keep the dark scene, no crash.
             return
         }
+        guard cameraAuthorized else {
+            // No camera access: an ARKit session would sit frameless with
+            // tracking dead and the sky frozen. Drive the same sky from
+            // CoreMotion instead — dark-sky mode, fully alive.
+            startMotionSky()
+            return
+        }
+        stopMotionSky()   // permission may have just been granted in Settings
         let config = ARWorldTrackingConfiguration()
         config.worldAlignment = .gravity
         // Spike: LiDAR-assisted tracking. On Pro models the depth mesh keeps world
@@ -1054,6 +1123,7 @@ final class ARSkyViewController: UIViewController {
 
     private func pauseEverything() {
         sceneView.session.pause()
+        stopMotionSky()
         stopDisplayLink()
         pollTask?.cancel()
         pollTask = nil
@@ -2262,6 +2332,15 @@ extension ARSkyViewController: CLLocationManagerDelegate {
             observerLocation = CLLocation(latitude: 37.6213, longitude: -122.3790)
             engine?.usingDemoLocation = true
             engine?.loadEventsIfNeeded(lat: 37.6213, lon: -122.3790)
+        case .notDetermined:
+            // The ask was skipped (or hasn't happened yet): stand in the demo
+            // sky meanwhile instead of a dead screen. A later grant replaces
+            // it with the real location through the authorized branch above.
+            if observerLocation == nil {
+                observerLocation = CLLocation(latitude: 37.6213, longitude: -122.3790)
+                engine?.usingDemoLocation = true
+                engine?.loadEventsIfNeeded(lat: 37.6213, lon: -122.3790)
+            }
         default:
             break
         }

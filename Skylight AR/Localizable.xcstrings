@@ -480,6 +480,41 @@
         }
       }
     },
+    "%@ flights": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Flüge"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ vuelos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ vols"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ voli"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@機"
+          }
+        }
+      }
+    },
     "%@ flights spotted": {
       "localizations": {
         "de": {
@@ -1304,6 +1339,40 @@
         }
       }
     },
+    "%lld percent": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Prozent"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld por ciento"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld pour cent"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld per cento"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldパーセント"
+          }
+        }
+      }
+    },
     "%lld/%lld": {
       "localizations": {
         "de": {
@@ -1889,6 +1958,7 @@
       }
     },
     "A living reference — not a precision instrument.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2365,6 +2435,7 @@
       }
     },
     "Aiming the sky": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2496,6 +2567,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "航跡"
+          }
+        }
+      }
+    },
+    "Airline Collector": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airline-Sammler"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coleccionista de aerolíneas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collectionneur de compagnies"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collezionista di compagnie"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "航空会社コレクター"
+          }
+        }
+      }
+    },
+    "AIRLINES": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIRLINES"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AEROLÍNEAS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COMPAGNIES"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "COMPAGNIE"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "航空会社"
           }
         }
       }
@@ -3119,6 +3258,7 @@
       }
     },
     "BA212 · 38,000 ft": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3254,6 +3394,40 @@
         }
       }
     },
+    "BEFORE 7": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VOR 7 UHR"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ANTES DE 7"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AVANT 7 H"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PRIMA DELLE 7"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "午前7時前"
+          }
+        }
+      }
+    },
     "Begin": {
       "localizations": {
         "de": {
@@ -3323,6 +3497,7 @@
       }
     },
     "Best outdoors under open sky. The compass gets pulled off inside airports and buildings, so the sky can sit rotated there.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3352,6 +3527,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "開けた屋外での使用が最適です。空港や建物の中ではコンパスが乱れやすく、空全体が回転してずれることがあります。"
+          }
+        }
+      }
+    },
+    "Best outdoors, under open sky. If a plane sits a little off, tap it to snap everything into place.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am besten draußen unter freiem Himmel. Sitzt ein Flugzeug etwas daneben, tippe es an, um alles einzurasten."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mejor al aire libre, bajo cielo abierto. Si un avión aparece algo desplazado, tócalo para encajar todo en su sitio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idéal dehors, sous un ciel dégagé. Si un avion semble un peu décalé, touchez-le pour tout remettre en place."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meglio all'aperto, sotto il cielo. Se un aereo appare un po' spostato, toccalo per rimettere tutto a posto."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屋外の開けた空の下が最適。飛行機が少しずれて見えたら、タップして位置を合わせよう。"
           }
         }
       }
@@ -3424,6 +3633,40 @@
         }
       }
     },
+    "BOEING": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BOEING"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BOEING"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BOEING"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BOEING"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボーイング"
+          }
+        }
+      }
+    },
     "Buck Moon": {
       "localizations": {
         "de": {
@@ -3488,6 +3731,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "まず視覚障害・ロービジョンの空好きのために作られました — でも誰でも、画面を見つめずに飛行機を見つけられます。Overheadは「視差効果を減らす」やDynamic Typeにも配慮し、VoiceOverでも使えます。"
+          }
+        }
+      }
+    },
+    "Busy Sky": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voller Himmel"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cielo concurrido"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ciel chargé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cielo affollato"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "にぎわう空"
           }
         }
       }
@@ -3934,6 +4211,40 @@
         }
       }
     },
+    "Century of Heavies": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hundert Heavies"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Centenar de pesados"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Centaine de gros-porteurs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cento widebody"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヘビー100機"
+          }
+        }
+      }
+    },
     "Climbing · %@": {
       "localizations": {
         "de": {
@@ -4342,6 +4653,41 @@
         }
       }
     },
+    "Continue": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continua"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続ける"
+          }
+        }
+      }
+    },
     "Continue with demo sky": {
       "localizations": {
         "de": {
@@ -4512,6 +4858,40 @@
         }
       }
     },
+    "Daily Ritual": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tägliches Ritual"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritual diario"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rituel quotidien"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rituale quotidiano"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "毎日の習慣"
+          }
+        }
+      }
+    },
     "Dark sky": {
       "localizations": {
         "de": {
@@ -4614,6 +4994,40 @@
         }
       }
     },
+    "Dawn Patrol": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Morgenpatrouille"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patrulla del alba"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patrouille de l'aube"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pattuglia dell'alba"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "夜明けのパトロール"
+          }
+        }
+      }
+    },
     "Daylight overtakes the night": {
       "localizations": {
         "de": {
@@ -4644,6 +5058,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "昼が夜を追い越します"
+          }
+        }
+      }
+    },
+    "DAYS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TAGE"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DÍAS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JOURS"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GIORNI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日間"
           }
         }
       }
@@ -5124,6 +5572,40 @@
         }
       }
     },
+    "Dreamliner": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dreamliner"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dreamliner"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dreamliner"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dreamliner"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドリームライナー"
+          }
+        }
+      }
+    },
     "E": {
       "localizations": {
         "de": {
@@ -5154,6 +5636,41 @@
           "stringUnit": {
             "state": "translated",
             "value": "東"
+          }
+        }
+      }
+    },
+    "Each plane you spot climbs you through twelve tiers, every one struck as a medal. Find your standing in Profile.": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jedes gesichtete Flugzeug bringt dich durch zwölf Ränge, jeder als Medaille geprägt. Deinen Stand findest du im Profil."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada avión que avistas te hace subir por doce rangos, cada uno acuñado como una medalla. Consulta tu posición en Perfil."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque avion repéré vous fait gravir douze rangs, chacun frappé comme une médaille. Retrouvez votre position dans Profil."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni aereo che avvisti ti fa salire attraverso dodici livelli, ognuno coniato come una medaglia. Trova la tua posizione nel Profilo."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "飛行機を見つけるたびに12のティアを昇格。各ティアはメダルとして刻印されます。プロフィールで確認できます。"
           }
         }
       }
@@ -5397,6 +5914,7 @@
       }
     },
     "Enter the sky": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5494,6 +6012,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "みずがめ座η流星群"
+          }
+        }
+      }
+    },
+    "Every flight counts": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder Flug zählt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada vuelo cuenta"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque vol compte"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni volo conta"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのフライトが数えられる"
+          }
+        }
+      }
+    },
+    "Every flight you spot counts — you begin as an Observer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder gesichtete Flug zählt — du beginnst als Observer."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada vuelo que avistas cuenta: empiezas como Observador."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque vol repéré compte — vous débutez comme Observateur."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni volo che avvisti conta: inizi come Osservatore."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "見つけたフライトはすべてカウント。まずはオブザーバーから。"
           }
         }
       }
@@ -5838,6 +6425,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "ファーストコンタクト"
+          }
+        }
+      }
+    },
+    "First Light": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erstes Licht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primera luz"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Première lueur"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prima luce"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初日の光"
           }
         }
       }
@@ -6216,6 +6837,40 @@
         }
       }
     },
+    "Four Engines": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vier Triebwerke"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuatro motores"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quatre moteurs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quattro motori"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4発機"
+          }
+        }
+      }
+    },
     "Full moon": {
       "localizations": {
         "de": {
@@ -6416,6 +7071,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "金のリング"
+          }
+        }
+      }
+    },
+    "Graveyard Shift": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nachtschicht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turno de noche"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Équipe de nuit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turno di notte"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深夜シフト"
           }
         }
       }
@@ -7067,6 +7756,7 @@
       }
     },
     "Hold up your phone and stand still, pointing it toward the sky.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -7379,6 +8069,7 @@
       }
     },
     "If a plane sits a little off, tap it — or the Sun — to snap north back into place.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -7612,6 +8303,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "ISSが10分後に通過"
+          }
+        }
+      }
+    },
+    "JAN 1": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. JAN"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 ENE"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1ER JANV"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 GEN"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1月1日"
           }
         }
       }
@@ -7966,6 +8691,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "LiDARトラッキング補助"
+          }
+        }
+      }
+    },
+    "LIGHT AIRCRAFT": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LEICHTFLUGZEUGE"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AVIONETAS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AVIONS LÉGERS"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VELIVOLI LEGGERI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "軽飛行機"
+          }
+        }
+      }
+    },
+    "Little Wings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kleine Flügel"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alas pequeñas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Petites ailes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Piccole ali"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小さな翼"
           }
         }
       }
@@ -9682,6 +10475,40 @@
         }
       }
     },
+    "ONE DAY": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EIN TAG"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UN DÍA"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UN JOUR"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UN GIORNO"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日で"
+          }
+        }
+      }
+    },
     "One-time purchase · Yours forever · Family Sharing included": {
       "comment": "A footnote for the Overhead Pro paywall.",
       "isCommentAutoGenerated": true
@@ -10507,6 +11334,7 @@
       }
     },
     "Positions come from public data and your compass, so treat it as a guide, not gospel.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -10650,6 +11478,74 @@
         }
       }
     },
+    "Progress to next tier": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortschritt zum nächsten Rang"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progreso hacia el siguiente rango"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progression vers le rang suivant"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progresso verso il livello successivo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次のティアへの進捗"
+          }
+        }
+      }
+    },
+    "Propliner": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Propliner"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turbohélice"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turbopropulseur"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turboelica"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロップライナー"
+          }
+        }
+      }
+    },
     "Quadrantids": {
       "localizations": {
         "de": {
@@ -10680,6 +11576,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "しぶんぎ座流星群"
+          }
+        }
+      }
+    },
+    "QUADS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 TRIEBWERKE"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 MOTORES"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 MOTEURS"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 MOTORI"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4発"
           }
         }
       }
@@ -12450,6 +13380,40 @@
         }
       }
     },
+    "Spot 5 four-engine aircraft.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte 5 vierstrahlige Flugzeuge."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista 5 aeronaves cuatrimotoras."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez 5 avions quadrimoteurs."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista 5 velivoli quadrimotori."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4発機を5機見つけよう。"
+          }
+        }
+      }
+    },
     "Spot 5,000 flights.": {
       "localizations": {
         "de": {
@@ -12518,6 +13482,40 @@
         }
       }
     },
+    "Spot 10 flights before 7 in the morning.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte 10 Flüge vor 7 Uhr morgens."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista 10 vuelos antes de las 7 de la mañana."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez 10 vols avant 7 heures du matin."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista 10 voli prima delle 7 del mattino."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "午前7時前に10機見つけよう。"
+          }
+        }
+      }
+    },
     "Spot 10 flights.": {
       "localizations": {
         "de": {
@@ -12548,6 +13546,108 @@
           "stringUnit": {
             "state": "translated",
             "value": "フライトを10機発見する。"
+          }
+        }
+      }
+    },
+    "Spot 10 light general-aviation aircraft.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte 10 leichte Flugzeuge der allgemeinen Luftfahrt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista 10 aeronaves ligeras de aviación general."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez 10 avions légers d'aviation générale."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista 10 velivoli leggeri dell'aviazione generale."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小型のGA機を10機見つけよう。"
+          }
+        }
+      }
+    },
+    "Spot 15 different aircraft types.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte 15 verschiedene Flugzeugtypen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista 15 tipos de aeronaves diferentes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez 15 types d'avions différents."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista 15 tipi di velivoli diversi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "15種類の機種を見つけよう。"
+          }
+        }
+      }
+    },
+    "Spot 20 flights in a single day.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte 20 Flüge an einem einzigen Tag."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista 20 vuelos en un solo día."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez 20 vols en une seule journée."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista 20 voli in un solo giorno."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日で20機見つけよう。"
           }
         }
       }
@@ -12620,6 +13720,40 @@
         }
       }
     },
+    "Spot 50 flights after midnight.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte 50 Flüge nach Mitternacht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista 50 vuelos después de medianoche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez 50 vols après minuit."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista 50 voli dopo mezzanotte."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深夜0時以降に50機見つけよう。"
+          }
+        }
+      }
+    },
     "Spot 50 flights.": {
       "localizations": {
         "de": {
@@ -12684,6 +13818,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "フライトを100機発見する。"
+          }
+        }
+      }
+    },
+    "Spot 100 widebodies.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte 100 Großraumflugzeuge."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista 100 aviones de fuselaje ancho."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez 100 gros-porteurs."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista 100 widebody."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワイドボディ機を100機見つけよう。"
           }
         }
       }
@@ -12858,6 +14026,108 @@
         }
       }
     },
+    "Spot a Boeing 777.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte eine Boeing 777."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista un Boeing 777."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez un Boeing 777."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista un Boeing 777."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボーイング777を見つけよう。"
+          }
+        }
+      }
+    },
+    "Spot a Boeing 787 Dreamliner.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte eine Boeing 787 Dreamliner."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista un Boeing 787 Dreamliner."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez un Boeing 787 Dreamliner."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista un Boeing 787 Dreamliner."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボーイング787ドリームライナーを見つけよう。"
+          }
+        }
+      }
+    },
+    "Spot a flight on New Year's Day.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte einen Flug am Neujahrstag."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista un vuelo el día de Año Nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez un vol le jour de l'An."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista un volo a Capodanno."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元日にフライトを見つけよう。"
+          }
+        }
+      }
+    },
     "Spot a helicopter.": {
       "localizations": {
         "de": {
@@ -12892,6 +14162,40 @@
         }
       }
     },
+    "Spot a turboprop airliner.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte ein Turboprop-Verkehrsflugzeug."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista un avión turbohélice."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez un avion de ligne à turbopropulseurs."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista un aereo di linea a turboelica."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターボプロップ旅客機を見つけよう。"
+          }
+        }
+      }
+    },
     "Spot an Airbus A380 — the biggest airliner flying.": {
       "localizations": {
         "de": {
@@ -12922,6 +14226,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "現役最大の旅客機、エアバスA380を発見する。"
+          }
+        }
+      }
+    },
+    "Spot an outsize freighter — a Beluga, Dreamlifter or Antonov 124.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte einen XXL-Frachter — Beluga, Dreamlifter oder Antonow 124."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista un carguero gigante: un Beluga, Dreamlifter o Antonov 124."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez un cargo hors normes — Beluga, Dreamlifter ou Antonov 124."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista un cargo fuori misura: un Beluga, Dreamlifter o Antonov 124."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ベルーガ、ドリームリフター、アントノフ124などの特大貨物機を見つけよう。"
           }
         }
       }
@@ -12990,6 +14328,108 @@
           "stringUnit": {
             "state": "translated",
             "value": "10の国へ向かうフライトを発見する。"
+          }
+        }
+      }
+    },
+    "Spot flights bound for 25 different countries.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte Flüge in 25 verschiedene Länder."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista vuelos con destino a 25 países diferentes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez des vols à destination de 25 pays différents."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista voli diretti in 25 paesi diversi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "25か国行きのフライトを見つけよう。"
+          }
+        }
+      }
+    },
+    "Spot flights from 20 different airlines.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte Flüge von 20 verschiedenen Airlines."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista vuelos de 20 aerolíneas diferentes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez des vols de 20 compagnies différentes."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista voli di 20 compagnie aeree diverse."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "20社の航空会社のフライトを見つけよう。"
+          }
+        }
+      }
+    },
+    "Spot flights on 7 different days.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichte Flüge an 7 verschiedenen Tagen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avista vuelos en 7 días diferentes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repérez des vols sur 7 jours différents."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvista voli in 7 giorni diversi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7日間フライトを見つけよう。"
           }
         }
       }
@@ -14699,6 +16139,40 @@
         }
       }
     },
+    "Triple Seven": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Triple Seven"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Triple siete"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Triple sept"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Triplo sette"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トリプルセブン"
+          }
+        }
+      }
+    },
     "Try": {
       "localizations": {
         "de": {
@@ -14825,6 +16299,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tipo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "機種"
+          }
+        }
+      }
+    },
+    "Type Collector": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typensammler"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coleccionista de tipos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collectionneur de types"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collezionista di tipi"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "機種コレクター"
+          }
+        }
+      }
+    },
+    "TYPES": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TYPEN"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TIPOS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TYPES"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TIPI"
           }
         },
         "ja": {
@@ -15452,6 +16994,40 @@
         }
       }
     },
+    "Whale Watcher": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wal-Beobachter"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avistador de ballenas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guetteur de baleines"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvistatore di balene"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホエールウォッチャー"
+          }
+        }
+      }
+    },
     "What it is": {
       "localizations": {
         "de": {
@@ -15588,6 +17164,41 @@
         }
       }
     },
+    "where everyone begins": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wo alle beginnen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "donde todos empiezan"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "où tout le monde commence"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dove tutti iniziano"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "誰もがここから"
+          }
+        }
+      }
+    },
     "Where everyone begins": {
       "localizations": {
         "de": {
@@ -15720,6 +17331,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "ウルフムーン"
+          }
+        }
+      }
+    },
+    "World Tour": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weltreise"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vuelta al mundo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tour du monde"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giro del mondo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "世界一周"
           }
         }
       }
@@ -16136,1634 +17781,36 @@
         }
       }
     },
-    "Every flight counts": {
+    "AR sky needs camera access — tap AR sky to open Settings.": {
       "localizations": {
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cada vuelo cuenta"
+            "value": "El cielo AR necesita acceso a la cámara: toca «Cielo AR» para abrir Ajustes."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chaque vol compte"
+            "value": "Le ciel AR nécessite l'accès à la caméra — touchez « Ciel AR » pour ouvrir Réglages."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Jeder Flug zählt"
+            "value": "AR-Himmel braucht Kamerazugriff — tippe auf „AR-Himmel“, um die Einstellungen zu öffnen."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ogni volo conta"
+            "value": "Il cielo AR richiede l'accesso alla fotocamera: tocca «Cielo AR» per aprire Impostazioni."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "すべてのフライトが数えられる"
-          }
-        }
-      }
-    },
-    "Each plane you spot climbs you through twelve tiers, every one struck as a medal. Find your standing in Profile.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cada avión que avistas te hace subir por doce rangos, cada uno acuñado como una medalla. Consulta tu posición en Perfil."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chaque avion repéré vous fait gravir douze rangs, chacun frappé comme une médaille. Retrouvez votre position dans Profil."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jedes gesichtete Flugzeug bringt dich durch zwölf Ränge, jeder als Medaille geprägt. Deinen Stand findest du im Profil."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ogni aereo che avvisti ti fa salire attraverso dodici livelli, ognuno coniato come una medaglia. Trova la tua posizione nel Profilo."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "飛行機を見つけるたびに12のティアを昇格。各ティアはメダルとして刻印されます。プロフィールで確認できます。"
-          }
-        }
-      }
-    },
-    "where everyone begins": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "donde todos empiezan"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "où tout le monde commence"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "wo alle beginnen"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dove tutti iniziano"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "誰もがここから"
-          }
-        }
-      }
-    },
-    "%@ flights": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ vuelos"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ vols"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ Flüge"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ voli"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@機"
-          }
-        }
-      }
-    },
-    "Continue": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continuar"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continuer"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Weiter"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continua"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "続ける"
-          }
-        }
-      }
-    },
-    "Progress to next tier": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Progreso hacia el siguiente rango"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Progression vers le rang suivant"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fortschritt zum nächsten Rang"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Progresso verso il livello successivo"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "次のティアへの進捗"
-          }
-        }
-      }
-    },
-    "%lld percent": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld por ciento"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld pour cent"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Prozent"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld per cento"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lldパーセント"
-          }
-        }
-      }
-    },
-    "Propliner": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turbohélice"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turbopropulseur"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Propliner"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turboelica"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "プロップライナー"
-          }
-        }
-      }
-    },
-    "Spot a turboprop airliner.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista un avión turbohélice."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez un avion de ligne à turbopropulseurs."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte ein Turboprop-Verkehrsflugzeug."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista un aereo di linea a turboelica."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ターボプロップ旅客機を見つけよう。"
-          }
-        }
-      }
-    },
-    "Little Wings": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alas pequeñas"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Petites ailes"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kleine Flügel"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Piccole ali"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小さな翼"
-          }
-        }
-      }
-    },
-    "Spot 10 light general-aviation aircraft.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista 10 aeronaves ligeras de aviación general."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez 10 avions légers d'aviation générale."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte 10 leichte Flugzeuge der allgemeinen Luftfahrt."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista 10 velivoli leggeri dell'aviazione generale."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小型のGA機を10機見つけよう。"
-          }
-        }
-      }
-    },
-    "LIGHT AIRCRAFT": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AVIONETAS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AVIONS LÉGERS"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "LEICHTFLUGZEUGE"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "VELIVOLI LEGGERI"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "軽飛行機"
-          }
-        }
-      }
-    },
-    "First Light": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Primera luz"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Première lueur"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Erstes Licht"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prima luce"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "初日の光"
-          }
-        }
-      }
-    },
-    "Spot a flight on New Year's Day.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista un vuelo el día de Año Nuevo."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez un vol le jour de l'An."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte einen Flug am Neujahrstag."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista un volo a Capodanno."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "元日にフライトを見つけよう。"
-          }
-        }
-      }
-    },
-    "JAN 1": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 ENE"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1ER JANV"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1. JAN"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 GEN"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1月1日"
-          }
-        }
-      }
-    },
-    "Dawn Patrol": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Patrulla del alba"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Patrouille de l'aube"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Morgenpatrouille"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pattuglia dell'alba"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "夜明けのパトロール"
-          }
-        }
-      }
-    },
-    "Spot 10 flights before 7 in the morning.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista 10 vuelos antes de las 7 de la mañana."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez 10 vols avant 7 heures du matin."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte 10 Flüge vor 7 Uhr morgens."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista 10 voli prima delle 7 del mattino."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "午前7時前に10機見つけよう。"
-          }
-        }
-      }
-    },
-    "BEFORE 7": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ANTES DE 7"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AVANT 7 H"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "VOR 7 UHR"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PRIMA DELLE 7"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "午前7時前"
-          }
-        }
-      }
-    },
-    "Busy Sky": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cielo concurrido"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ciel chargé"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Voller Himmel"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cielo affollato"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "にぎわう空"
-          }
-        }
-      }
-    },
-    "Spot 20 flights in a single day.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista 20 vuelos en un solo día."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez 20 vols en une seule journée."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte 20 Flüge an einem einzigen Tag."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista 20 voli in un solo giorno."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1日で20機見つけよう。"
-          }
-        }
-      }
-    },
-    "ONE DAY": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "UN DÍA"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "UN JOUR"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "EIN TAG"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "UN GIORNO"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1日で"
-          }
-        }
-      }
-    },
-    "Daily Ritual": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ritual diario"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rituel quotidien"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tägliches Ritual"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rituale quotidiano"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "毎日の習慣"
-          }
-        }
-      }
-    },
-    "Spot flights on 7 different days.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista vuelos en 7 días diferentes."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez des vols sur 7 jours différents."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte Flüge an 7 verschiedenen Tagen."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista voli in 7 giorni diversi."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "7日間フライトを見つけよう。"
-          }
-        }
-      }
-    },
-    "DAYS": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "DÍAS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "JOURS"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TAGE"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GIORNI"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "日間"
-          }
-        }
-      }
-    },
-    "Triple Seven": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Triple siete"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Triple sept"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Triple Seven"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Triplo sette"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "トリプルセブン"
-          }
-        }
-      }
-    },
-    "Spot a Boeing 777.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista un Boeing 777."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez un Boeing 777."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte eine Boeing 777."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista un Boeing 777."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ボーイング777を見つけよう。"
-          }
-        }
-      }
-    },
-    "BOEING": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BOEING"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BOEING"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BOEING"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "BOEING"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ボーイング"
-          }
-        }
-      }
-    },
-    "Dreamliner": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dreamliner"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dreamliner"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dreamliner"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dreamliner"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ドリームライナー"
-          }
-        }
-      }
-    },
-    "Spot a Boeing 787 Dreamliner.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista un Boeing 787 Dreamliner."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez un Boeing 787 Dreamliner."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte eine Boeing 787 Dreamliner."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista un Boeing 787 Dreamliner."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ボーイング787ドリームライナーを見つけよう。"
-          }
-        }
-      }
-    },
-    "Four Engines": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuatro motores"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quatre moteurs"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vier Triebwerke"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quattro motori"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4発機"
-          }
-        }
-      }
-    },
-    "Spot 5 four-engine aircraft.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista 5 aeronaves cuatrimotoras."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez 5 avions quadrimoteurs."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte 5 vierstrahlige Flugzeuge."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista 5 velivoli quadrimotori."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4発機を5機見つけよう。"
-          }
-        }
-      }
-    },
-    "QUADS": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4 MOTORES"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4 MOTEURS"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4 TRIEBWERKE"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4 MOTORI"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "4発"
-          }
-        }
-      }
-    },
-    "Type Collector": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Coleccionista de tipos"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Collectionneur de types"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Typensammler"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Collezionista di tipi"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "機種コレクター"
-          }
-        }
-      }
-    },
-    "Spot 15 different aircraft types.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista 15 tipos de aeronaves diferentes."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez 15 types d'avions différents."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte 15 verschiedene Flugzeugtypen."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista 15 tipi di velivoli diversi."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "15種類の機種を見つけよう。"
-          }
-        }
-      }
-    },
-    "TYPES": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TIPOS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TYPES"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TYPEN"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TIPI"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "機種"
-          }
-        }
-      }
-    },
-    "Airline Collector": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Coleccionista de aerolíneas"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Collectionneur de compagnies"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Airline-Sammler"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Collezionista di compagnie"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "航空会社コレクター"
-          }
-        }
-      }
-    },
-    "Spot flights from 20 different airlines.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista vuelos de 20 aerolíneas diferentes."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez des vols de 20 compagnies différentes."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte Flüge von 20 verschiedenen Airlines."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista voli di 20 compagnie aeree diverse."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "20社の航空会社のフライトを見つけよう。"
-          }
-        }
-      }
-    },
-    "AIRLINES": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AEROLÍNEAS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "COMPAGNIES"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AIRLINES"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "COMPAGNIE"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "航空会社"
-          }
-        }
-      }
-    },
-    "Whale Watcher": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avistador de ballenas"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Guetteur de baleines"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wal-Beobachter"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvistatore di balene"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ホエールウォッチャー"
-          }
-        }
-      }
-    },
-    "Spot an outsize freighter — a Beluga, Dreamlifter or Antonov 124.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista un carguero gigante: un Beluga, Dreamlifter o Antonov 124."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez un cargo hors normes — Beluga, Dreamlifter ou Antonov 124."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte einen XXL-Frachter — Beluga, Dreamlifter oder Antonow 124."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista un cargo fuori misura: un Beluga, Dreamlifter o Antonov 124."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ベルーガ、ドリームリフター、アントノフ124などの特大貨物機を見つけよう。"
-          }
-        }
-      }
-    },
-    "World Tour": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vuelta al mundo"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tour du monde"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Weltreise"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Giro del mondo"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "世界一周"
-          }
-        }
-      }
-    },
-    "Spot flights bound for 25 different countries.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista vuelos con destino a 25 países diferentes."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez des vols à destination de 25 pays différents."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte Flüge in 25 verschiedene Länder."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista voli diretti in 25 paesi diversi."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "25か国行きのフライトを見つけよう。"
-          }
-        }
-      }
-    },
-    "Century of Heavies": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Centenar de pesados"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Centaine de gros-porteurs"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hundert Heavies"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cento widebody"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ヘビー100機"
-          }
-        }
-      }
-    },
-    "Spot 100 widebodies.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista 100 aviones de fuselaje ancho."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez 100 gros-porteurs."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte 100 Großraumflugzeuge."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista 100 widebody."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ワイドボディ機を100機見つけよう。"
-          }
-        }
-      }
-    },
-    "Graveyard Shift": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turno de noche"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Équipe de nuit"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nachtschicht"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turno di notte"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "深夜シフト"
-          }
-        }
-      }
-    },
-    "Spot 50 flights after midnight.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avista 50 vuelos después de medianoche."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repérez 50 vols après minuit."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichte 50 Flüge nach Mitternacht."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avvista 50 voli dopo mezzanotte."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "深夜0時以降に50機見つけよう。"
-          }
-        }
-      }
-    },
-    "Best outdoors, under open sky. If a plane sits a little off, tap it to snap everything into place.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mejor al aire libre, bajo cielo abierto. Si un avión aparece algo desplazado, tócalo para encajar todo en su sitio."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Idéal dehors, sous un ciel dégagé. Si un avion semble un peu décalé, touchez-le pour tout remettre en place."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Am besten draußen unter freiem Himmel. Sitzt ein Flugzeug etwas daneben, tippe es an, um alles einzurasten."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meglio all'aperto, sotto il cielo. Se un aereo appare un po' spostato, toccalo per rimettere tutto a posto."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "屋外の開けた空の下が最適。飛行機が少しずれて見えたら、タップして位置を合わせよう。"
-          }
-        }
-      }
-    },
-    "Every flight you spot counts — you begin as an Observer.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cada vuelo que avistas cuenta: empiezas como Observador."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chaque vol repéré compte — vous débutez comme Observateur."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jeder gesichtete Flug zählt — du beginnst als Observer."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ogni volo che avvisti conta: inizi come Osservatore."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "見つけたフライトはすべてカウント。まずはオブザーバーから。"
+            "value": "ARスカイにはカメラへのアクセスが必要です。「ARスカイ」をタップして設定を開いてください。"
           }
         }
       }
