@@ -79,6 +79,7 @@ struct OnboardingView: View {
             }
             Button("Begin") { advance() }
                 .buttonStyle(PrimaryButtonStyle())
+                .starLit()
                 .padding(.top, 12)
                 .padding(.horizontal, 24)
         }
@@ -143,6 +144,7 @@ struct OnboardingView: View {
                 .padding(.horizontal, 6)
                 Button("Continue") { advance() }
                     .buttonStyle(PrimaryButtonStyle())
+                    .starLit()
                     .padding(.top, 4)
             }
         }
@@ -199,6 +201,7 @@ struct OnboardingView: View {
                 }
                 Button("Enter the sky") { finish() }
                     .buttonStyle(PrimaryButtonStyle())
+                    .starLit()
                     .padding(.top, 2)
             }
         }
@@ -244,6 +247,111 @@ struct OnboardingView: View {
     }
 }
 
+// MARK: - Star-lit primary button
+
+/// The onboarding CTA's signature: a small gold comet orbits the button's
+/// rim — a bright head, a star-mote tail fading along the capsule edge, and
+/// sparkles shed outward as it goes. Pure function of time (no state, no
+/// allocations); Reduce Motion shows a still, faint sprinkle on the rim.
+private struct CometRim: View {
+    var tint: Color = Theme.gold
+    var lap: Double = 3.2
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Canvas margin beyond the button, so glow and sparkles clear its edge.
+    static let margin: CGFloat = 26
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduceMotion)) { tl in
+            let t = reduceMotion ? 1.7 : tl.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in draw(ctx, size, t, frozen: reduceMotion) }
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// Point + outward normal at parameter u (0…1) around a capsule's rim.
+    private func rim(_ u: CGFloat, _ rect: CGRect) -> (p: CGPoint, normal: CGFloat) {
+        let r = rect.height / 2
+        let straight = max(0, rect.width - rect.height)
+        let cap = .pi * r
+        let total = 2 * straight + 2 * cap
+        var s = (u - floor(u)) * total
+
+        if s < straight {                                    // top edge, →
+            return (CGPoint(x: rect.minX + r + s, y: rect.minY), -.pi / 2)
+        }
+        s -= straight
+        if s < cap {                                         // right cap
+            let a = -CGFloat.pi / 2 + s / r
+            let c = CGPoint(x: rect.maxX - r, y: rect.midY)
+            return (CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r), a)
+        }
+        s -= cap
+        if s < straight {                                    // bottom edge, ←
+            return (CGPoint(x: rect.maxX - r - s, y: rect.maxY), .pi / 2)
+        }
+        s -= straight
+        let a = CGFloat.pi / 2 + s / r                       // left cap
+        let c = CGPoint(x: rect.minX + r, y: rect.midY)
+        return (CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r), a)
+    }
+
+    private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, frozen: Bool) {
+        let m = Self.margin
+        let rect = CGRect(x: m, y: m, width: size.width - 2 * m, height: size.height - 2 * m)
+        guard rect.width > rect.height, rect.height > 8 else { return }
+        let headU = CGFloat((t / lap).truncatingRemainder(dividingBy: 1))
+
+        // Tail: samples trailing the head along the rim, dimming and thinning.
+        let tail = 34
+        for k in 0..<tail {
+            let f = 1 - Double(k) / Double(tail)             // 1 at head → 0
+            let (p, _) = rim(headU - CGFloat(k) * 0.006, rect)
+            let a = frozen ? 0.25 * f : pow(f, 1.5) * 0.95
+            let s = 0.8 + 2.4 * f
+            ctx.fill(Path(ellipseIn: CGRect(x: p.x - s / 2, y: p.y - s / 2, width: s, height: s)),
+                     with: .color((k < 3 ? Color.white : tint).opacity(a)))
+        }
+
+        guard !frozen else { return }
+
+        // Head glow — the comet's coma.
+        let (hp, _) = rim(headU, rect)
+        ctx.fill(Path(ellipseIn: CGRect(x: hp.x - 9, y: hp.y - 9, width: 18, height: 18)),
+                 with: .radialGradient(Gradient(colors: [tint.opacity(0.55), .clear]),
+                                       center: hp, startRadius: 1, endRadius: 9))
+
+        // Sparkles shed outward as it passes — born where the head WAS, then
+        // drifting off the rim and fading. Whole life derived from the clock.
+        for j in 0..<12 {
+            var h = UInt64(j) &* 0x9E3779B97F4A7C15
+            func rnd() -> Double {
+                h ^= h >> 12; h ^= h << 25; h ^= h >> 27
+                return Double((h &* 2685821657736338717) >> 40) / Double(1 << 24)
+            }
+            let r0 = rnd(), r1 = rnd(), r2 = rnd()
+            let lifeDur = 0.9 + r0 * 0.8
+            let life = ((t / lifeDur) + r1).truncatingRemainder(dividingBy: 1)
+            // Where was the head when this sparkle was born?
+            let birthU = CGFloat(((t - life * lifeDur) / lap).truncatingRemainder(dividingBy: 1))
+            let (bp, n) = rim(birthU, rect)
+            let dist = CGFloat(life) * (8 + CGFloat(r2) * 16)
+            let p = CGPoint(x: bp.x + cos(n) * dist, y: bp.y + sin(n) * dist)
+            let a = sin(.pi * life) * (0.35 + 0.45 * r2)
+            let s = 1.0 + r0 * 1.6
+            ctx.fill(Path(ellipseIn: CGRect(x: p.x - s / 2, y: p.y - s / 2, width: s, height: s)),
+                     with: .color((j % 3 == 0 ? Color.white : tint).opacity(a)))
+        }
+    }
+}
+
+extension View {
+    /// The orbiting-comet rim on a primary control. Onboarding's "come this way".
+    func starLit() -> some View {
+        overlay { CometRim().padding(-CometRim.margin) }
+    }
+}
+
 // MARK: - Priming card
 
 private struct PrimingCard<Hero: View>: View {
@@ -276,6 +384,7 @@ private struct PrimingCard<Hero: View>: View {
                     .lineSpacing(3)
                 Button(primary, action: action)
                     .buttonStyle(PrimaryButtonStyle())
+                    .starLit()
                     .padding(.top, 4)
                 Button(skipTitle, action: skipAction)
                     .buttonStyle(GhostButtonStyle())

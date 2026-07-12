@@ -24,7 +24,7 @@ private enum EmblemPoints {
 
     /// Unit-square points (0…1) covering the emblem's bright pixels, plus a
     /// guaranteed rim ring. Capped so the Canvas stays cheap.
-    static func points(for medal: Medal, cap: Int = 750) -> [CGPoint] {
+    static func points(for medal: Medal, cap: Int = 980) -> [CGPoint] {
         if let hit = cache[medal.id] { return hit }
         var pts: [CGPoint] = []
 
@@ -54,8 +54,8 @@ private enum EmblemPoints {
         }
         // The rim ring, explicit — the engraved circle is one pixel wide and
         // samples too sparsely to read as a rim on its own.
-        for i in 0..<110 {
-            let a = Double(i) / 110 * 2 * .pi
+        for i in 0..<140 {
+            let a = Double(i) / 140 * 2 * .pi
             pts.append(CGPoint(x: 0.5 + cos(a) * 0.41, y: 0.5 + sin(a) * 0.41))
         }
         cache[medal.id] = pts
@@ -72,7 +72,7 @@ struct MedalAssembly: View {
     /// Must match the MedalView3D underneath: sets where its engraved face
     /// lands on screen, so the particle emblem forms exactly in register.
     var cameraDistance: Float = 2.8
-    var duration: Double = 1.5
+    var duration: Double = 1.65
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Anchors t=0 to the FIRST FRAME the timeline actually delivers, not to
@@ -147,8 +147,8 @@ struct MedalAssembly: View {
                         // at either end of the dissolve.
                         let a = min(u * 4, 1) * (0.35 + 0.55 * r3) * (1 - relE)
 
-                        let spark = i % 6 == 0
-                        let s = (spark ? 1.4 : 1.1) + r2 * 1.7
+                        let spark = i % 5 == 0
+                        let s = (spark ? 1.5 : 1.1) + r2 * 1.8
                         ctx.fill(Path(ellipseIn: CGRect(x: x - s / 2, y: y - s / 2, width: s, height: s)),
                                  with: .color((spark ? Color.white : tint).opacity(a)))
                     }
@@ -198,16 +198,16 @@ struct AssembledMedal3D: View {
             guard !reduceMotion else { revealed = true; spinning = true; finished = true; return }
             // The strike: dots form the emblem, the still, face-on metal
             // rises beneath them exactly in register (release runs 0.72–1.18
-            // of the 1.5 s assembly), the dots melt into the engraving —
+            // of the 1.65 s assembly), the dots melt into the engraving —
             // and only then does the medal come alive with its reveal spin.
-            try? await Task.sleep(for: .seconds(0.95))
+            try? await Task.sleep(for: .seconds(1.05))
             guard !Task.isCancelled else { revealed = true; spinning = true; finished = true; return }
-            withAnimation(.easeInOut(duration: 0.75)) { revealed = true }
-            // Last dot fades at 1.20 × 1.5 s; spin on its heels, then drop
+            withAnimation(.easeInOut(duration: 0.8)) { revealed = true }
+            // Last dot fades at 1.20 × 1.65 s; spin on its heels, then drop
             // the overlay so its TimelineView stops ticking — the medal page
             // is a place people linger (drag to spin), and an empty canvas
             // re-evaluated at 120 Hz is pure battery burn.
-            try? await Task.sleep(for: .seconds(0.90))
+            try? await Task.sleep(for: .seconds(0.95))
             spinning = true
             finished = true
         }

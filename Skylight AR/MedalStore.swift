@@ -139,6 +139,61 @@ enum MedalCatalog {
         Medal(id: "starsailor", name: String(localized: "Star Sailor"),
               requirement: String(localized: "Catch the ISS passing overhead."),
               finish: .steel, emblem: .issStreak, caption: "ISS", target: 1),
+
+        // The expanded shelf: every one earnable from what a spot already
+        // tells us — type, category, callsign, time, destination.
+        Medal(id: "props", name: String(localized: "Propliner"),
+              requirement: String(localized: "Spot a turboprop airliner."),
+              finish: .bronze, emblem: .symbol("fanblades.fill"), caption: nil, target: 1),
+        Medal(id: "lightwings", name: String(localized: "Little Wings"),
+              requirement: String(localized: "Spot 10 light general-aviation aircraft."),
+              finish: .bronze, emblem: .symbol("paperplane.fill"),
+              caption: String(localized: "LIGHT AIRCRAFT"), target: 10),
+        Medal(id: "newyear", name: String(localized: "First Light"),
+              requirement: String(localized: "Spot a flight on New Year's Day."),
+              finish: .bronze, emblem: .symbol("sparkles"), caption: String(localized: "JAN 1"), target: 1),
+        Medal(id: "earlybird", name: String(localized: "Dawn Patrol"),
+              requirement: String(localized: "Spot 10 flights before 7 in the morning."),
+              finish: .steel, emblem: .symbol("sunrise.fill"),
+              caption: String(localized: "BEFORE 7"), target: 10),
+        Medal(id: "busysky", name: String(localized: "Busy Sky"),
+              requirement: String(localized: "Spot 20 flights in a single day."),
+              finish: .steel, emblem: .count(20), caption: String(localized: "ONE DAY"), target: 20),
+        Medal(id: "ritual", name: String(localized: "Daily Ritual"),
+              requirement: String(localized: "Spot flights on 7 different days."),
+              finish: .steel, emblem: .symbol("calendar"), caption: String(localized: "DAYS"), target: 7),
+        Medal(id: "triple7", name: String(localized: "Triple Seven"),
+              requirement: String(localized: "Spot a Boeing 777."),
+              finish: .silver, emblem: .count(777), caption: String(localized: "BOEING"), target: 1),
+        Medal(id: "dreamliner", name: String(localized: "Dreamliner"),
+              requirement: String(localized: "Spot a Boeing 787 Dreamliner."),
+              finish: .silver, emblem: .symbol("airplane"), caption: "787", target: 1),
+        Medal(id: "quadjet", name: String(localized: "Four Engines"),
+              requirement: String(localized: "Spot 5 four-engine aircraft."),
+              finish: .silver, emblem: .symbol("circle.grid.2x2.fill"),
+              caption: String(localized: "QUADS"), target: 5),
+        Medal(id: "typecollector", name: String(localized: "Type Collector"),
+              requirement: String(localized: "Spot 15 different aircraft types."),
+              finish: .gold, emblem: .symbol("square.grid.3x3.fill"),
+              caption: String(localized: "TYPES"), target: 15),
+        Medal(id: "liverycollector", name: String(localized: "Airline Collector"),
+              requirement: String(localized: "Spot flights from 20 different airlines."),
+              finish: .gold, emblem: .symbol("tag.fill"),
+              caption: String(localized: "AIRLINES"), target: 20),
+        Medal(id: "whale", name: String(localized: "Whale Watcher"),
+              requirement: String(localized: "Spot an outsize freighter — a Beluga, Dreamlifter or Antonov 124."),
+              finish: .gold, emblem: .symbol("fish.fill"), caption: nil, target: 1),
+        Medal(id: "continental", name: String(localized: "World Tour"),
+              requirement: String(localized: "Spot flights bound for 25 different countries."),
+              finish: .night, emblem: .symbol("globe.americas.fill"),
+              caption: String(localized: "COUNTRIES"), target: 25),
+        Medal(id: "heavycentury", name: String(localized: "Century of Heavies"),
+              requirement: String(localized: "Spot 100 widebodies."),
+              finish: .night, emblem: .count(100), caption: String(localized: "HEAVIES"), target: 100),
+        Medal(id: "graveyard", name: String(localized: "Graveyard Shift"),
+              requirement: String(localized: "Spot 50 flights after midnight."),
+              finish: .night, emblem: .symbol("moon.zzz.fill"),
+              caption: String(localized: "AFTER 12"), target: 50),
     ]
 
     static func medal(_ id: String) -> Medal? { all.first { $0.id == id } }
@@ -184,6 +239,38 @@ enum MedalCatalog {
         return widebodyPrefixes.contains { t.hasPrefix($0) }
     }
 
+    /// Turboprop airliners and workhorses.
+    static let propPrefixes = ["AT4", "AT7", "DH8", "DHC", "SF34", "SW4", "E120", "D328",
+                               "JS31", "JS41", "F50", "L410", "BE20", "B190", "PC12",
+                               "TBM", "C208", "AN2"]
+
+    /// Light general-aviation singles and twins.
+    static let gaPrefixes = ["C150", "C152", "C162", "C172", "C177", "C182", "C206", "C210",
+                             "P28", "PA18", "PA24", "PA32", "PA34", "PA44", "SR20", "SR22",
+                             "DA20", "DA40", "DA42", "DA62", "BE33", "BE35", "BE36", "BE58",
+                             "M20", "RV4", "RV6", "RV7", "RV8", "RV9", "RV1", "AA5", "C42"]
+
+    /// Four-engine aircraft still flying. (No "C17"-style prefixes — they'd
+    /// swallow the C172.)
+    static let quadPrefixes = ["A38", "B74", "A34", "IL96", "IL86", "IL76", "A124", "AN12", "A400"]
+
+    /// The outsize freighters people cross town for.
+    static let whalePrefixes = ["A3ST", "A337", "BLCF", "A124", "A225", "AN22"]
+
+    static func isProp(_ t: String) -> Bool { propPrefixes.contains { t.hasPrefix($0) } }
+    static func isGA(_ t: String) -> Bool { gaPrefixes.contains { t.hasPrefix($0) } }
+    static func isQuad(_ t: String) -> Bool { quadPrefixes.contains { t.hasPrefix($0) } }
+    static func isWhale(_ t: String) -> Bool { whalePrefixes.contains { t.hasPrefix($0) } }
+
+    /// "BAW123" → "BAW": the operator's ICAO code, when the callsign has one.
+    static func airlineCode(from callsign: String?) -> String? {
+        guard let c = callsign?.trimmingCharacters(in: .whitespaces).uppercased(),
+              c.count >= 4 else { return nil }
+        let code = String(c.prefix(3))
+        guard code.allSatisfy(\.isLetter), c.dropFirst(3).first?.isNumber == true else { return nil }
+        return code
+    }
+
     static func isHelicopter(type: String?, category: String?) -> Bool {
         if category?.uppercased() == "A7" { return true }
         guard let t = type?.uppercased() else { return false }
@@ -209,6 +296,46 @@ final class MedalStore {
         var transitCaptured = false
         var issCaught = false
         var seeded = false
+        // Expanded shelf (2026-07). Every new field decodes with a default so
+        // existing stored blobs load untouched.
+        var earlyCount = 0
+        var gaCount = 0
+        var propSeen = false
+        var triple7Seen = false
+        var dreamlinerSeen = false
+        var whaleSeen = false
+        var newYearSeen = false
+        var quadCount = 0
+        var typesSeen: Set<String> = []
+        var airlines: Set<String> = []
+        var daysActive: Set<String> = []
+        var dayKey = ""
+        var dayCount = 0
+        var bestDay = 0
+
+        init() {}
+
+        // Custom decode: every field optional-with-default, so adding medals
+        // never invalidates a spotter's saved progress.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            func v<T: Decodable>(_ k: CodingKeys, _ d: T) -> T {
+                ((try? c.decodeIfPresent(T.self, forKey: k)) ?? nil) ?? d
+            }
+            earned = v(.earned, [:]); widebodyTypes = v(.widebodyTypes, [])
+            widebodyCount = v(.widebodyCount, 0); nightCount = v(.nightCount, 0)
+            countries = v(.countries, []); superjumboSeen = v(.superjumboSeen, false)
+            queenSeen = v(.queenSeen, false); rotorSeen = v(.rotorSeen, false)
+            transitCaptured = v(.transitCaptured, false); issCaught = v(.issCaught, false)
+            seeded = v(.seeded, false)
+            earlyCount = v(.earlyCount, 0); gaCount = v(.gaCount, 0)
+            propSeen = v(.propSeen, false); triple7Seen = v(.triple7Seen, false)
+            dreamlinerSeen = v(.dreamlinerSeen, false); whaleSeen = v(.whaleSeen, false)
+            newYearSeen = v(.newYearSeen, false); quadCount = v(.quadCount, 0)
+            typesSeen = v(.typesSeen, []); airlines = v(.airlines, [])
+            daysActive = v(.daysActive, []); dayKey = v(.dayKey, "")
+            dayCount = v(.dayCount, 0); bestDay = v(.bestDay, 0)
+        }
     }
 
     private var state = State() { didSet { persist() } }
@@ -254,13 +381,23 @@ final class MedalStore {
             "starsailor": MedalAward(date: ago(12), detail: nil),
             "nightowl":   MedalAward(date: ago(9),  detail: nil),
         ]
-        let state = State(earned: earned,
-                          widebodyTypes: ["A388", "B77W", "A359", "B789"],
-                          widebodyCount: 22,
-                          nightCount: 12,
-                          countries: ["AE", "GB", "US", "DE", "SG", "JP", "FR"],
-                          superjumboSeen: true, queenSeen: true, rotorSeen: true,
-                          transitCaptured: false, issCaught: true, seeded: true)
+        var state = State()
+        state.earned = earned
+        state.widebodyTypes = ["A388", "B77W", "A359", "B789"]
+        state.widebodyCount = 22
+        state.nightCount = 12
+        state.countries = ["AE", "GB", "US", "DE", "SG", "JP", "FR"]
+        state.superjumboSeen = true; state.queenSeen = true; state.rotorSeen = true
+        state.issCaught = true; state.seeded = true
+        // The new shelf, mid-collection — believable and hungry.
+        state.propSeen = true; state.triple7Seen = true; state.dreamlinerSeen = true
+        state.earlyCount = 6; state.gaCount = 4; state.quadCount = 3
+        state.typesSeen = ["A388", "B77W", "A359", "B789", "A320", "A321", "B738",
+                           "E190", "AT76", "DH8D", "B744"]
+        state.airlines = ["UAE", "BAW", "UAL", "DLH", "SIA", "QFA", "AFR", "ETD",
+                          "QTR", "THY", "KLM", "SWR"]
+        state.daysActive = Set((1...5).map { "2026-07-0\($0)" })
+        state.bestDay = 14
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: key)
         }
@@ -279,14 +416,35 @@ final class MedalStore {
 
     func recordSpot(totalSpots: Int, type: String?, category: String?,
                     callsign: String?, at date: Date = Date()) {
-        if let t = type?.uppercased(), CatalogCheck.widebody(t) {
-            state.widebodyTypes.insert(t)
-            state.widebodyCount += 1
+        if let t = type?.uppercased(), !t.isEmpty {
+            state.typesSeen.insert(t)
+            if CatalogCheck.widebody(t) {
+                state.widebodyTypes.insert(t)
+                state.widebodyCount += 1
+            }
+            if t.hasPrefix("A38") { state.superjumboSeen = true }
+            if t.hasPrefix("B74") { state.queenSeen = true }
+            if t.hasPrefix("B77") { state.triple7Seen = true }
+            if t.hasPrefix("B78") { state.dreamlinerSeen = true }
+            if MedalCatalog.isProp(t) { state.propSeen = true }
+            if MedalCatalog.isGA(t) { state.gaCount += 1 }
+            if MedalCatalog.isQuad(t) { state.quadCount += 1 }
+            if MedalCatalog.isWhale(t) { state.whaleSeen = true }
         }
         if MedalCatalog.isHelicopter(type: type, category: category) { state.rotorSeen = true }
-        if type?.uppercased().hasPrefix("A38") == true { state.superjumboSeen = true }
-        if type?.uppercased().hasPrefix("B74") == true { state.queenSeen = true }
-        if Calendar.current.component(.hour, from: date) < 5 { state.nightCount += 1 }
+        if let airline = MedalCatalog.airlineCode(from: callsign) { state.airlines.insert(airline) }
+
+        let parts = Calendar.current.dateComponents([.year, .month, .day, .hour], from: date)
+        if let h = parts.hour {
+            if h < 5 { state.nightCount += 1 }
+            else if h < 7 { state.earlyCount += 1 }
+        }
+        if parts.month == 1, parts.day == 1 { state.newYearSeen = true }
+        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        state.daysActive.insert(day)
+        if day == state.dayKey { state.dayCount += 1 } else { state.dayKey = day; state.dayCount = 1 }
+        state.bestDay = max(state.bestDay, state.dayCount)
+
         let detail = [callsign, type?.uppercased()].compactMap(\.self).joined(separator: " · ")
         evaluate(totalSpots: totalSpots, celebrate: true, detail: detail.isEmpty ? nil : detail)
     }
@@ -329,6 +487,21 @@ final class MedalStore {
         case "globetrotter": raw = state.countries.count
         case "transit":      raw = state.transitCaptured ? 1 : 0
         case "starsailor":   raw = state.issCaught ? 1 : 0
+        case "props":        raw = state.propSeen ? 1 : 0
+        case "lightwings":   raw = state.gaCount
+        case "newyear":      raw = state.newYearSeen ? 1 : 0
+        case "earlybird":    raw = state.earlyCount
+        case "busysky":      raw = state.bestDay
+        case "ritual":       raw = state.daysActive.count
+        case "triple7":      raw = state.triple7Seen ? 1 : 0
+        case "dreamliner":   raw = state.dreamlinerSeen ? 1 : 0
+        case "quadjet":      raw = state.quadCount
+        case "typecollector":   raw = state.typesSeen.count
+        case "liverycollector": raw = state.airlines.count
+        case "whale":        raw = state.whaleSeen ? 1 : 0
+        case "continental":  raw = state.countries.count
+        case "heavycentury": raw = state.widebodyCount
+        case "graveyard":    raw = state.nightCount
         default:             raw = 0
         }
         return min(raw, medal.target)

@@ -19,6 +19,9 @@ struct StarDissolve: View {
     /// Body color of the motes (pass the tier metal's light tint).
     var tint: Color
     var count: Int = 80
+    /// False: motes sail off to the trailing side (the portrait-dissolve).
+    /// True: they rise, like embers off a lit control.
+    var vertical: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -56,11 +59,17 @@ struct StarDissolve: View {
             let life = frozen ? (0.2 + 0.6 * r1)              // frozen: mid-flight
                               : (t / period + r1).truncatingRemainder(dividingBy: 1)
             let travel = 50.0 + r2 * 130.0
-            let x = emitter.minX + r4 * emitter.width + life * travel
             let sway = frozen ? 0 : sin(t * (0.5 + r5) + r3 * .pi * 2) * (3 + r5 * 5)
-            let y = emitter.minY + r3 * emitter.height        // lane
+            let x: Double, y: Double
+            if vertical {
+                x = emitter.minX + r4 * emitter.width          // lane
                   + sway                                       // gentle bob
                   + life * (r4 - 0.5) * 26                     // slow scatter
+                y = emitter.minY + r3 * emitter.height - life * travel
+            } else {
+                x = emitter.minX + r4 * emitter.width + life * travel
+                y = emitter.minY + r3 * emitter.height + sway + life * (r4 - 0.5) * 26
+            }
             // Fade in fast, out slow; farther particles are dimmer.
             let alpha = sin(.pi * min(max(life, 0), 1)) * (0.22 + 0.55 * r5)
 
