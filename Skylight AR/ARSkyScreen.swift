@@ -183,7 +183,7 @@ struct ARSkyScreen: View {
             case .events: showEvents = true
             case .profile: showProfile = true
             case .search: showSearch = true
-            case .medals: showMedals = true
+            case .medals, .legend: showMedals = true
             case .viewsky: showProfile = true   // ProfileView auto-pushes View & sky
             case .paywall: showPaywallShot = true
             default: break

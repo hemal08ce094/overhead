@@ -402,6 +402,53 @@ final class MedalStore {
             UserDefaults.standard.set(data, forKey: key)
         }
     }
+
+    /// Every medal earned, every counter cleared — Legend tier, full shelf.
+    /// Reference/demo only (see ScreenshotHooks `-shot legend`); DEBUG-only,
+    /// never reachable in a Release build.
+    static func seedLegendState() {
+        let now = Date()
+        func ago(_ days: Double) -> Date { now.addingTimeInterval(-days * 86_400) }
+        var day = 220.0
+        var earned: [String: MedalAward] = [:]
+        for medal in MedalCatalog.all {
+            earned[medal.id] = MedalAward(date: ago(day), detail: nil)
+            day -= 6
+        }
+        earned["first"] = MedalAward(date: ago(220), detail: "EK203 · A388")
+        earned["spots5000"] = MedalAward(date: ago(2), detail: "BA106 · B77W")
+        earned["superjumbo"] = MedalAward(date: ago(190), detail: "EK203 · A388")
+        earned["queen"] = MedalAward(date: ago(170), detail: "BA001 · B744")
+        earned["rotor"] = MedalAward(date: ago(160), detail: "N911EV · H60")
+        earned["triple7"] = MedalAward(date: ago(120), detail: "UAL925 · B77W")
+        earned["dreamliner"] = MedalAward(date: ago(110), detail: "SIA321 · B789")
+
+        var state = State()
+        state.earned = earned
+        state.widebodyTypes = ["A388", "B77W", "A359", "B789", "A346", "B744"]
+        state.widebodyCount = 140
+        state.nightCount = 62
+        state.countries = ["AE", "GB", "US", "DE", "SG", "JP", "FR", "AU", "CA", "NL",
+                           "QA", "TR", "CH", "IT", "ES", "NZ", "BR", "ZA", "IN", "KR",
+                           "SE", "NO", "IE", "PT", "GR", "MX"]
+        state.superjumboSeen = true; state.queenSeen = true; state.rotorSeen = true
+        state.transitCaptured = true; state.issCaught = true; state.seeded = true
+        state.earlyCount = 18; state.gaCount = 14
+        state.propSeen = true; state.triple7Seen = true; state.dreamlinerSeen = true
+        state.whaleSeen = true; state.newYearSeen = true
+        state.quadCount = 7
+        state.typesSeen = ["A388", "B77W", "A359", "B789", "A320", "A321", "B738",
+                           "E190", "AT76", "DH8D", "B744", "A346", "B762", "CRJ9",
+                           "PC12", "AN2"]
+        state.airlines = ["UAE", "BAW", "UAL", "DLH", "SIA", "QFA", "AFR", "ETD",
+                          "QTR", "THY", "KLM", "SWR", "ANA", "CPA", "JAL", "ACA",
+                          "ANZ", "LAN", "AVA", "ELY", "IBE", "TAP"]
+        state.daysActive = Set((1...12).map { "2026-\(String(format: "%02d", ($0 % 6) + 1))-\(String(format: "%02d", $0 + 3))" })
+        state.bestDay = 27
+        if let data = try? JSONEncoder().encode(state) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
     #endif
 
     // MARK: Events

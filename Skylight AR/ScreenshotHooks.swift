@@ -14,6 +14,9 @@ import Foundation
 enum ShotScreen: String {
     case onboard0, onboard1, onboard2, onboard3
     case sky, events, profile, search, medals, viewsky, spotlight, paywall
+    /// Reference/demo only: Legend tier, every medal earned. Never used for
+    /// real App Store screenshots — see MedalStore.seedLegendState().
+    case legend
 
     /// Reads the `-shot <name>` launch argument (parsed into UserDefaults).
     static var current: ShotScreen? {
@@ -32,7 +35,7 @@ enum ShotScreen: String {
     }
 
     /// Shots that should show a lived-in profile — real stats, favorites, medals.
-    var seedsData: Bool { self == .profile || self == .medals || self == .viewsky }
+    var seedsData: Bool { self == .profile || self == .medals || self == .viewsky || self == .legend }
 
     /// Force the right entry point: onboarding shots show onboarding, in-app
     /// shots skip it. Order-independent across successive launches.
@@ -41,10 +44,16 @@ enum ShotScreen: String {
         UserDefaults.standard.set(s.onboardingPage == nil, forKey: "didOnboard")
         if s.seedsData {
             let d = UserDefaults.standard
-            d.set(247, forKey: SkyDefaults.statSpots)
-            d.set(18, forKey: SkyDefaults.statDays)
             d.set(["EK203", "BA106", "UAL123", "QFA1", "SIA321"], forKey: SkyDefaults.favorites)
-            MedalStore.seedDemoState()
+            if s == .legend {
+                d.set(5280, forKey: SkyDefaults.statSpots)
+                d.set(180, forKey: SkyDefaults.statDays)
+                MedalStore.seedLegendState()
+            } else {
+                d.set(247, forKey: SkyDefaults.statSpots)
+                d.set(18, forKey: SkyDefaults.statDays)
+                MedalStore.seedDemoState()
+            }
         }
     }
 }
