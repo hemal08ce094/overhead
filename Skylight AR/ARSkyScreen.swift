@@ -1258,6 +1258,8 @@ Image(systemName: "scope")
 struct AirportDetailSheet: View {
     let airport: SelectedAirport
     @Environment(\.dismiss) private var dismiss
+    @State private var weather = AirportWeather.shared
+    @State private var showRawMetar = false
 
     var body: some View {
         ScrollView {
@@ -1272,12 +1274,18 @@ struct AirportDetailSheet: View {
                             .foregroundStyle(Theme.textSecondary)
                     }
                     Spacer()
+                    if case .loaded(let m) = weather.state, let cat = m.fltCat {
+                        flightCategoryChip(cat)
+                    }
                     Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 26))
                             .foregroundStyle(Theme.textTertiary)
                     }
                 }
+
+                liveWeatherCard
+                trafficCard
 
                 VStack(spacing: 0) {
                     infoRow(String(localized: "Location"), "\(airport.city), \(airport.country)")
@@ -1292,11 +1300,38 @@ struct AirportDetailSheet: View {
                     infoRow(String(localized: "Coordinates"), String(format: "%.4f°, %.4f°", airport.lat, airport.lon))
                 }
                 .nightCard()
+
+                if case .loaded(let m) = weather.state, let raw = m.rawOb {
+                    Button { withAnimation { showRawMetar.toggle() } } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("METAR")
+                                    .font(Theme.display(11, .bold)).tracking(1.5)
+                                    .foregroundStyle(Theme.textTertiary)
+                                Spacer()
+                                Image(systemName: showRawMetar ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(Theme.textTertiary)
+                            }
+                            if showRawMetar {
+                                Text(verbatim: raw)
+                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding(14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .nightCard()
+                }
             }
             .padding(24)
         }
+        .task(id: airport.icao) { weather.load(icao: airport.icao) }
         .scrollContentBackground(.hidden)
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
         .presentationBackground {
             Color.clear
                 .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
@@ -1304,6 +1339,160 @@ struct AirportDetailSheet: View {
                 .allowsHitTesting(false)
         }
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: Live field weather (NOAA METAR)
+
+    private func flightCategoryChip(_ cat: String) -> some View {
+        let color: Color = switch cat {
+        case "VFR": Color(red: 0.35, green: 0.85, blue: 0.55)
+        case "MVFR": Theme.accent
+        case "IFR": Color(red: 0.95, green: 0.45, blue: 0.40)
+        default: Color(red: 0.85, green: 0.45, blue: 0.85)   // LIFR
+        }
+        return HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(verbatim: cat)
+                .font(Theme.display(11, .bold)).tracking(1)
+                .foregroundStyle(color)
+        }
+        .padding(.horizontal, 9).padding(.vertical, 5)
+        .background(color.opacity(0.14), in: Capsule())
+    }
+
+    @ViewBuilder private var liveWeatherCard: some View {
+        switch weather.state {
+        case .loaded(let m):
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(String(localized: "Right now"))
+                    .padding(.horizontal, 16).padding(.top, 12)
+                if let spd = m.wspd {
+                    HStack(spacing: 6) {
+                        if case .degrees(let deg) = m.wdir {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Theme.accent)
+                                .rotationEffect(.degrees(deg + 180))  // blowing toward
+                        }
+                        Text(windLabel(m, speed: spd))
+                            .font(Theme.display(14, .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, 16).padding(.vertical, 11)
+                    .overlay(alignment: .leading) {
+                        Text("Wind")
+                            .font(Theme.display(14, .medium))
+                            .foregroundStyle(Theme.textSecondary)
+                            .padding(.leading, 16)
+                    }
+                    rowDivider
+                }
+                if let ceiling = m.ceiling, let base = ceiling.base {
+                    infoRow(String(localized: "Ceiling"),
+                            "\(cloudName(ceiling.cover)) \(Int(base).formatted()) ft")
+                    rowDivider
+                } else if m.clouds?.isEmpty == false {
+                    infoRow(String(localized: "Clouds"), cloudName(m.clouds?.first?.cover))
+                    rowDivider
+                }
+                if let vis = m.visib {
+                    infoRow(String(localized: "Visibility"), visLabel(vis))
+                    rowDivider
+                }
+                if let temp = m.temp {
+                    infoRow(String(localized: "Temperature"),
+                            m.dewp.map { String(localized: "\(Int(temp.rounded()))° · dew \(Int($0.rounded()))°") }
+                                ?? "\(Int(temp.rounded()))°")
+                    rowDivider
+                }
+                if let altim = m.altim {
+                    infoRow(String(localized: "Pressure"), "\(Int(altim.rounded())) hPa")
+                }
+                if let observed = m.observed {
+                    Text(String(localized: "observed \(observed.formatted(.relative(presentation: .named)))"))
+                        .font(Theme.display(11, .regular))
+                        .foregroundStyle(Theme.textTertiary)
+                        .padding(.horizontal, 16).padding(.bottom, 12).padding(.top, 4)
+                }
+            }
+            .nightCard()
+        case .loading:
+            HStack(spacing: 10) {
+                ProgressView().tint(Theme.textTertiary)
+                Text("Fetching field weather…")
+                    .font(Theme.display(13, .regular))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .nightCard()
+        case .unavailable:
+            Text("Live weather unavailable for this field.")
+                .font(Theme.display(13, .regular))
+                .foregroundStyle(Theme.textTertiary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .nightCard()
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    private func windLabel(_ m: Metar, speed: Double) -> String {
+        var parts: [String] = []
+        switch m.wdir {
+        case .degrees(let d): parts.append("\(Int(d))°")
+        case .variable: parts.append(String(localized: "variable"))
+        case nil: break
+        }
+        parts.append(speed < 1 ? String(localized: "calm") : "\(Int(speed)) kt")
+        if let g = m.wgst { parts.append(String(localized: "gusting \(Int(g))")) }
+        return parts.joined(separator: " · ")
+    }
+
+    private func visLabel(_ v: Metar.Visib) -> String {
+        switch v {
+        case .miles(let mi): String(localized: "\(String(format: "%.0f", mi * 1.609)) km")
+        case .plus(let mi): String(localized: "\(String(format: "%.0f", mi * 1.609))+ km")
+        }
+    }
+
+    private func cloudName(_ cover: String?) -> String {
+        switch cover {
+        case "FEW": String(localized: "Few")
+        case "SCT": String(localized: "Scattered")
+        case "BKN": String(localized: "Broken")
+        case "OVC": String(localized: "Overcast")
+        case "VV":  String(localized: "Obscured")
+        case "CLR", "SKC", "CAVOK": String(localized: "Clear")
+        default: cover ?? ""
+        }
+    }
+
+    // MARK: Live traffic (from the feed already on screen)
+
+    @ViewBuilder private var trafficCard: some View {
+        let t = airport.traffic
+        if t.inbound > 0 || t.outbound > 0 {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(String(localized: "Traffic overhead"))
+                    .padding(.horizontal, 16).padding(.top, 12)
+                infoRow(String(localized: "Within 30 nm"),
+                        String(localized: "\(t.inbound) inbound · \(t.outbound) departing"))
+                if let next = t.nextArrivalCallsign {
+                    rowDivider
+                    infoRow(String(localized: "Next arrival"),
+                            String(localized: "\(next) · \(Int(t.nextArrivalNm.rounded())) nm out"))
+                }
+                if let hdg = t.approachHeading {
+                    rowDivider
+                    infoRow(String(localized: "Approach heading"), "≈ \(String(format: "%03d", hdg))°")
+                }
+                Color.clear.frame(height: 8)
+            }
+            .nightCard()
+        }
     }
 
     private var rowDivider: some View {

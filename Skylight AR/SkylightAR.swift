@@ -1835,7 +1835,51 @@ final class ARSkyViewController: UIViewController {
         engine?.selectedAirport = SelectedAirport(
             iata: a.iata, icao: a.icao, name: a.name, city: a.city, country: a.country,
             lat: a.lat, lon: a.lon,
-            distanceNm: node.lastRangeNm, azimuth: node.lastAzimuth)
+            distanceNm: node.lastRangeNm, azimuth: node.lastAzimuth,
+            traffic: trafficSnapshot(lat: a.lat, lon: a.lon))
+    }
+
+    /// What the field is doing right now, from the aircraft already on
+    /// screen: within 30 nm, descending = inbound, climbing = outbound; the
+    /// approach in use is the dominant track of the low inbound traffic.
+    private func trafficSnapshot(lat: Double, lon: Double) -> SelectedAirport.Traffic {
+        var t = SelectedAirport.Traffic()
+        var headings: [Double] = []
+        var bestNm = Double.infinity
+        for fix in lastFix.values {
+            let ac = fix.aircraft
+            guard !ac.onGround else { continue }
+            let (_, _, rangeM) = SkyMath.azElRange(observerLat: lat, observerLon: lon,
+                                                   observerAltM: 0, targetLat: ac.lat,
+                                                   targetLon: ac.lon, targetAltM: 0)
+            let nm = rangeM / 1852
+            guard nm <= 30 else { continue }
+            let vr = ac.verticalRateFpm ?? 0
+            if vr < -300 {
+                t.inbound += 1
+                if nm < bestNm {
+                    bestNm = nm
+                    t.nextArrivalCallsign = ac.callsign
+                    t.nextArrivalNm = nm
+                }
+                if ac.altitudeFeet < 6000, let track = ac.track { headings.append(track) }
+            } else if vr > 300 {
+                t.outbound += 1
+            }
+        }
+        // Circular mean of the low-approach tracks; only claim a direction
+        // when at least two aircraft agree within a broad cone.
+        if headings.count >= 2 {
+            let x = headings.reduce(0) { $0 + cos($1 * .pi / 180) }
+            let y = headings.reduce(0) { $0 + sin($1 * .pi / 180) }
+            let r = (x * x + y * y).squareRoot() / Double(headings.count)
+            if r > 0.8 {
+                var mean = atan2(y, x) * 180 / .pi
+                if mean < 0 { mean += 360 }
+                t.approachHeading = Int((mean / 10).rounded() * 10) % 360
+            }
+        }
+        return t
     }
 
     // MARK: Catch the crossing (capture + share)

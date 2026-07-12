@@ -83,6 +83,18 @@ struct SelectedAirport: Identifiable, Equatable {
     var distanceNm: Double
     var azimuth: Double
 
+    /// Live traffic snapshot at the moment of the tap, computed from the
+    /// feed already on screen — aircraft within 30 nm of the field.
+    struct Traffic: Equatable {
+        var inbound: Int = 0
+        var outbound: Int = 0
+        var nextArrivalCallsign: String?
+        var nextArrivalNm: Double = 0
+        /// Dominant track of low inbound traffic — the approach in use.
+        var approachHeading: Int?
+    }
+    var traffic = Traffic()
+
     var id: String { iata }
 }
 
