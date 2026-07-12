@@ -111,7 +111,10 @@ struct ARSkyScreen: View {
                 calibrationOverlay
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: engine.selected)
+        // Key on the selection IDENTITY, not the struct: distance/azimuth
+        // fields tick every feed update, and animating the whole chrome
+        // overlay (over a live AR render) once a second is pure waste.
+        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: engine.selected?.hex)
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: engine.medals.pendingReveal)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: engine.skyTimeOffsetMin != 0)
         .animation(.easeInOut(duration: 0.25), value: engine.calibrationStep)

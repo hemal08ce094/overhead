@@ -86,7 +86,10 @@ struct MedalAssembly: View {
     var body: some View {
         if !reduceMotion {
             let targets = EmblemPoints.points(for: medal)
-            let tint = MedalArt.colors(medal.finish).thumbLight
+            let tones = MedalArt.colors(medal.finish)
+            let base = Color(tones.base)
+            let light = tones.thumbLight
+            let dark = tones.thumbDark
             TimelineView(.animation) { timeline in
                 Canvas { ctx, size in
                     let start = clock.start ?? timeline.date
@@ -110,7 +113,7 @@ struct MedalAssembly: View {
                             h ^= h >> 12; h ^= h << 25; h ^= h >> 27
                             return Double((h &* 2685821657736338717) >> 40) / Double(1 << 24)
                         }
-                        let r0 = rnd(), r1 = rnd(), r2 = rnd(), r3 = rnd()
+                        let r0 = rnd(), r1 = rnd(), r2 = rnd(), r3 = rnd(), r4 = rnd()
 
                         // Target in polar form around the centre.
                         let tx = (tp.x - 0.5) * span, ty = (tp.y - 0.5) * span
@@ -148,9 +151,14 @@ struct MedalAssembly: View {
                         let a = min(u * 4, 1) * (0.35 + 0.55 * r3) * (1 - relE)
 
                         let spark = i % 5 == 0
+                        // Shadow / base / highlight in the medal's own tones —
+                        // not a flat tint — so the swarm already reads as the
+                        // disc's lit metal before the hand-off, not a mismatched
+                        // color that then cuts to the real material.
+                        let metalTone = r4 < 0.15 ? dark : (r4 < 0.75 ? base : light)
                         let s = (spark ? 1.5 : 1.1) + r2 * 1.8
                         ctx.fill(Path(ellipseIn: CGRect(x: x - s / 2, y: y - s / 2, width: s, height: s)),
-                                 with: .color((spark ? Color.white : tint).opacity(a)))
+                                 with: .color((spark ? Color.white : metalTone).opacity(a)))
                     }
                 }
             }
