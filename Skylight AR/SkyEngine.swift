@@ -284,7 +284,11 @@ final class SkyEngine {
         showAircraft = d.object(forKey: SkyDefaults.showAircraft) as? Bool ?? true
         showGroundAircraft = d.object(forKey: SkyDefaults.showGroundAircraft) as? Bool ?? false
         // On by default: show what you could actually see, not every distant blip.
-        nakedEyeOnly = d.object(forKey: SkyDefaults.nakedEyeOnly) as? Bool ?? true
+        // Default OFF: a first launch should feel like a busy sky — every
+        // flight the feed knows about — not three dots. Spotters who prefer
+        // "only what my eyes could find" flip it in Aircraft settings, and
+        // whatever they choose persists.
+        nakedEyeOnly = d.object(forKey: SkyDefaults.nakedEyeOnly) as? Bool ?? false
         let nakedRange = d.object(forKey: SkyDefaults.nakedEyeRangeNm) as? Double ?? 35
         nakedEyeRangeNm = (15...55).contains(nakedRange) ? nakedRange : 35
         showAirports = d.object(forKey: SkyDefaults.showAirports) as? Bool ?? true
