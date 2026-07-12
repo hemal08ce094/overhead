@@ -684,6 +684,33 @@ struct TierBadge: View {
     }
 }
 
+/// Progress toward the next tier, poured in metal: a thin capsule whose fill
+/// runs from the current finish into the next one.
+struct MetalProgressBar: View {
+    let value: Double
+    let total: Double
+    let from: Color
+    let to: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let frac = total > 0 ? max(0, min(1, value / total)) : 0
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.10))
+                Capsule()
+                    .fill(LinearGradient(colors: [from, to],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(6, geo.size.width * frac))
+                    .shadow(color: to.opacity(0.5), radius: 4)
+            }
+        }
+        .frame(height: 6)
+        .accessibilityElement()
+        .accessibilityLabel(Text("Progress to next tier"))
+        .accessibilityValue(Text("\(Int((total > 0 ? value / total : 0) * 100)) percent"))
+    }
+}
+
 // MARK: - Tiers & medals overview
 
 /// The full progression, one tap from the Profile header: your current tier
@@ -714,6 +741,16 @@ struct MedalsOverviewView: View {
                                          cameraDistance: 2.7)
                             .frame(height: 240)
                             .id(featured.id)
+                            // The metal lends its color to the room: a soft
+                            // finish-tinted pool of light behind the medal.
+                            .background {
+                                Circle()
+                                    .fill(RadialGradient(
+                                        colors: [MedalArt.colors(featured.finish).thumbLight.opacity(0.26), .clear],
+                                        center: .center, startRadius: 12, endRadius: 150))
+                                    .blur(radius: 16)
+                                    .allowsHitTesting(false)
+                            }
                     } else if let first = MedalCatalog.medal("first") {
                         // Nothing earned yet: the first medal as a blank —
                         // spin it, want it.
@@ -725,9 +762,12 @@ struct MedalsOverviewView: View {
                         .foregroundStyle(Theme.textPrimary)
                     if let next = MedalCatalog.nextTier(forSpots: engine.statFlightsSpotted) {
                         VStack(spacing: 8) {
-                            ProgressView(value: Double(engine.statFlightsSpotted),
-                                         total: Double(next.threshold))
-                                .tint(Theme.accent)
+                            // The bar climbs from your metal into the next
+                            // one — the color IS the promotion.
+                            MetalProgressBar(value: Double(engine.statFlightsSpotted),
+                                             total: Double(next.threshold),
+                                             from: MedalArt.colors(engine.spotterTier.finish).thumbLight,
+                                             to: MedalArt.colors(next.finish).thumbLight)
                             Text("\(next.threshold - engine.statFlightsSpotted) flights to \(next.name)")
                                 .font(Theme.display(12, .semibold).monospacedDigit())
                                 .foregroundStyle(Theme.textSecondary)
@@ -820,16 +860,21 @@ struct MedalsOverviewView: View {
                 }
                 Spacer(minLength: 8)
                 if isCurrent {
+                    // Struck in your own metal, not interface blue.
                     Text("YOU")
                         .font(Theme.display(10, .bold))
                         .tracking(1.2)
                         .foregroundStyle(Theme.nightBottom)
                         .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Theme.accent, in: Capsule())
+                        .background(
+                            LinearGradient(colors: [MedalArt.colors(tier.finish).thumbLight,
+                                                    MedalArt.colors(tier.finish).thumbLight.opacity(0.75)],
+                                           startPoint: .top, endPoint: .bottom),
+                            in: Capsule())
                 } else if reached {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(MedalArt.colors(tier.finish).thumbLight)
                 } else {
                     Text("\(engine.statFlightsSpotted)/\(tier.threshold)")
                         .font(Theme.display(12, .semibold).monospacedDigit())

@@ -35,7 +35,7 @@ struct OnboardingView: View {
                     .opacity(appear ? 1 : 0)
                     .offset(y: appear ? 0 : 16)
                 Spacer(minLength: 0)
-                PageDots(count: 4, index: page)
+                PageDots(count: 5, index: page)
                     .padding(.bottom, 28)
             }
         }
@@ -57,6 +57,7 @@ struct OnboardingView: View {
         case 0: welcome
         case 1: locationStep
         case 2: cameraStep
+        case 3: tierStep
         default: readyStep
         }
     }
@@ -110,6 +111,62 @@ struct OnboardingView: View {
             },
             skipTitle: String(localized: "Skip — use dark sky"),
             skipAction: { advance() })
+    }
+
+    // Tiers & medals: the sky remembers what you find. Three real rungs from
+    // the catalog make the ladder concrete without listing all twelve.
+    private var tierStep: some View {
+        GlassCard {
+            VStack(spacing: 18) {
+                TierHero()
+                    .frame(height: 172)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(.white.opacity(0.08), lineWidth: 1))
+                    .padding(.bottom, 2)
+                Text("Every flight counts")
+                    .font(Theme.display(24, .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .multilineTextAlignment(.center)
+                Text("Each plane you spot climbs you through twelve tiers, every one struck as a medal. Find your standing in Profile.")
+                    .font(Theme.display(15, .regular))
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                VStack(spacing: 11) {
+                    tierRung(MedalCatalog.tiers.first, detail: String(localized: "where everyone begins"))
+                    tierRung(MedalCatalog.tiers.first { $0.finish == .silver },
+                             detail: nil)
+                    tierRung(MedalCatalog.tiers.last, detail: nil)
+                }
+                .padding(.horizontal, 6)
+                Button("Continue") { advance() }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.top, 4)
+            }
+        }
+    }
+
+    @ViewBuilder private func tierRung(_ tier: SpotterTier?, detail: String?) -> some View {
+        if let tier {
+            let c = MedalArt.colors(tier.finish)
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(RadialGradient(colors: [c.thumbLight, c.thumbDark],
+                                         center: .init(x: 0.35, y: 0.3),
+                                         startRadius: 1, endRadius: 16))
+                    .frame(width: 20, height: 20)
+                    .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+                Text(tier.name)
+                    .font(Theme.display(14, .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer(minLength: 8)
+                Text(detail ?? String(localized: "\(tier.threshold.formatted()) flights"))
+                    .font(Theme.display(12, .regular).monospacedDigit())
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
     }
 
     // "Aiming the sky": the honest close — how to hold it, how to correct it,
@@ -170,7 +227,7 @@ struct OnboardingView: View {
     private func advance() {
         withAnimation(.easeOut(duration: 0.25)) { appear = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
-            page = min(page + 1, 3)
+            page = min(page + 1, 4)
             animateIn()
         }
     }
@@ -428,6 +485,87 @@ private struct LocationHero: View {
                                        center: obs, startRadius: 1, endRadius: 12))
         ctx.fill(onbCircle(obs, 4.6), with: .color(.white))
         ctx.fill(onbCircle(obs, 2.6), with: .color(Theme.accent))
+    }
+}
+
+/// "Every flight counts": a climb-out arc rising across the night, with the
+/// tier metals struck along it — bronze, silver, gold coins growing as the
+/// path ascends — and a small plane forever climbing the line. The same
+/// living-sky Canvas language as the other heroes; still under Reduce Motion.
+private struct TierHero: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let stars = onbStars(seed: 37, count: 44)
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { tl in
+            let t = reduceMotion ? 5.0 : tl.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in draw(ctx, size, t) }
+        }
+        .background(LinearGradient(colors: [Color(red: 0.06, green: 0.08, blue: 0.18), Theme.nightBottom],
+                                   startPoint: .top, endPoint: .bottom))
+        .accessibilityHidden(true)
+    }
+
+    /// Quadratic climb-out: low at the left, easing up to the right.
+    private func climb(_ u: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGPoint {
+        let p0 = CGPoint(x: w * 0.08, y: h * 0.84)
+        let c  = CGPoint(x: w * 0.48, y: h * 0.88)
+        let p1 = CGPoint(x: w * 0.90, y: h * 0.20)
+        let v = 1 - u
+        return CGPoint(x: v * v * p0.x + 2 * v * u * c.x + u * u * p1.x,
+                       y: v * v * p0.y + 2 * v * u * c.y + u * u * p1.y)
+    }
+
+    private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        onbDrawStars(ctx, size, t, stars)
+
+        // The climb line, dotted like a route on a chart.
+        var route = Path()
+        route.move(to: climb(0, w, h))
+        for i in 1...36 { route.addLine(to: climb(CGFloat(i) / 36, w, h)) }
+        var rl = ctx; rl.opacity = 0.30
+        rl.stroke(route, with: .color(.white), style: StrokeStyle(lineWidth: 1, dash: [2, 5]))
+
+        // The metals along the way — each coin struck a little larger.
+        let rungs: [(Medal.Finish, CGFloat, CGFloat)] = [(.bronze, 0.22, 13), (.silver, 0.55, 17), (.gold, 0.88, 22)]
+        for (finish, u, r) in rungs {
+            let c = MedalArt.colors(finish)
+            let pt = climb(u, w, h)
+            // Halo, body, rim, inner engraving ring.
+            ctx.fill(onbCircle(pt, r * 1.9),
+                     with: .radialGradient(Gradient(colors: [c.thumbLight.opacity(0.22), .clear]),
+                                           center: pt, startRadius: r * 0.5, endRadius: r * 1.9))
+            ctx.fill(onbCircle(pt, r),
+                     with: .radialGradient(Gradient(colors: [c.thumbLight, c.thumbDark]),
+                                           center: CGPoint(x: pt.x - r * 0.35, y: pt.y - r * 0.4),
+                                           startRadius: 1, endRadius: r * 1.9))
+            ctx.stroke(onbCircle(pt, r), with: .color(.white.opacity(0.30)), lineWidth: 1)
+            var ring = ctx; ring.opacity = 0.45
+            ring.stroke(onbCircle(pt, r * 0.68), with: .color(c.thumbDark), lineWidth: 1)
+        }
+
+        // A glint sweeping the gold — the ladder's summit catches the light.
+        let gold = climb(0.88, w, h)
+        let gp = (t * 0.45).truncatingRemainder(dividingBy: 2 * .pi)
+        var glint = ctx
+        glint.opacity = max(0, sin(gp)) * 0.9
+        let gpt = CGPoint(x: gold.x + 22 * 0.62, y: gold.y - 22 * 0.62)
+        for (len, lw) in [(CGFloat(7), CGFloat(1.6)), (CGFloat(3.6), CGFloat(1.1))] {
+            var s = Path()
+            s.move(to: CGPoint(x: gpt.x - len, y: gpt.y)); s.addLine(to: CGPoint(x: gpt.x + len, y: gpt.y))
+            s.move(to: CGPoint(x: gpt.x, y: gpt.y - len)); s.addLine(to: CGPoint(x: gpt.x, y: gpt.y + len))
+            glint.stroke(s, with: .color(.white), lineWidth: lw)
+        }
+
+        // The plane, forever climbing.
+        let pu = reduceMotion ? 0.42 : CGFloat((t * 0.11).truncatingRemainder(dividingBy: 1.3)) // runs past the top
+        guard pu <= 1.04 else { return }
+        let u = min(pu, 1)
+        let pt = climb(u, w, h)
+        let ahead = climb(min(u + 0.02, 1), w, h)
+        let heading = atan2(ahead.y - pt.y, ahead.x - pt.x)
+        onbPlane(ctx, at: pt, heading: heading + .pi / 2, scale: 15, color: onbAltColor(Double(u)))
     }
 }
 

@@ -12,7 +12,7 @@
 import Foundation
 
 enum ShotScreen: String {
-    case onboard0, onboard1, onboard2
+    case onboard0, onboard1, onboard2, onboard3
     case sky, events, profile, search, medals, viewsky, spotlight, paywall
 
     /// Reads the `-shot <name>` launch argument (parsed into UserDefaults).
@@ -27,6 +27,7 @@ enum ShotScreen: String {
         case .onboard0: return 0
         case .onboard1: return 1
         case .onboard2: return 2
+        case .onboard3: return 3
         default: return nil
         }
     }
