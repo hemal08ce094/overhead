@@ -166,6 +166,18 @@ enum Celestial {
         return out
     }
 
+    /// Human name for a phase — shared by the Tonight card and the digest
+    /// notifications, so the words never drift apart.
+    nonisolated static func phaseName(illumination: Double, waxing: Bool) -> String {
+        switch illumination {
+        case ..<0.03:  return String(localized: "New moon")
+        case ..<0.45:  return waxing ? String(localized: "Waxing crescent") : String(localized: "Waning crescent")
+        case ..<0.55:  return waxing ? String(localized: "First quarter") : String(localized: "Last quarter")
+        case ..<0.97:  return waxing ? String(localized: "Waxing gibbous") : String(localized: "Waning gibbous")
+        default:       return String(localized: "Full moon")
+        }
+    }
+
     nonisolated static func moon(date: Date, lat: Double, lon: Double) -> MoonState {
         let geo = GeographicCoordinates(positivelyWestwardLongitude: Degree(-lon), latitude: Degree(lat))
         let jd = JulianDay(date)

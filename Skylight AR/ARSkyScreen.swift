@@ -9,6 +9,7 @@
 
 import SwiftUI
 import AVFoundation
+import UserNotifications
 
 // MARK: - UIKit bridge
 
@@ -58,6 +59,11 @@ struct ARSkyScreen: View {
                     alignButton
                     searchButton
                     eventsBell
+                }
+                if nudgeReady, let nudge = permissionNudge {
+                    permissionNudgeBanner(nudge)
+                        .padding(.top, 10)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 if engine.compassHintNeeded && !engine.compassHintDismissed {
                     compassHint
@@ -110,6 +116,12 @@ struct ARSkyScreen: View {
             if engine.calibrationStep != .idle {
                 calibrationOverlay
             }
+        }
+        // Let the sky arrive first; the permission tip follows a beat later.
+        .task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { nudgeReady = true }
         }
         // Key on the selection IDENTITY, not the struct: distance/azimuth
         // fields tick every feed update, and animating the whole chrome
@@ -351,6 +363,84 @@ struct ARSkyScreen: View {
             }
             .accessibilityLabel("Capture the crossing")
             Spacer()
+        }
+    }
+
+    /// Which missing permission to gently surface, if any. Camera first — it
+    /// IS the AR experience — but only while the user actually wants AR mode
+    /// (a deliberate dark-sky user is never nagged about the camera). One
+    /// nudge at a time; dismissing hides it for the session.
+    private enum PermissionNudge { case camera, location }
+    private var permissionNudge: PermissionNudge? {
+        guard !engine.permissionNudgeDismissed, engine.calibrationStep == .idle else { return nil }
+        if engine.cameraPassthrough,
+           AVCaptureDevice.authorizationStatus(for: .video) != .authorized {
+            return .camera
+        }
+        if engine.usingDemoLocation { return .location }
+        return nil
+    }
+
+    /// Give the sky a breath before nudging — a banner in the first frames
+    /// reads as a permission fight, a few seconds in it reads as a tip.
+    @State private var nudgeReady = false
+
+    private func permissionNudgeBanner(_ nudge: PermissionNudge) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: nudge == .camera ? "camera.fill" : "location.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+            Text(nudge == .camera
+                 ? "Turn on the camera to see planes on your real sky"
+                 : "This is the demo sky — turn on Location to see yours")
+                .font(Theme.display(13, .medium))
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+            Button {
+                enablePermission(nudge)
+            } label: {
+                Text("Turn on")
+                    .font(Theme.display(13, .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .contentShape(Capsule())
+            }
+            Button { engine.permissionNudgeDismissed = true } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 26, height: 26)
+                    .contentShape(Circle())
+            }
+            .accessibilityLabel("Dismiss permission hint")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.18)), in: .capsule)
+    }
+
+    /// Never-asked permissions get the system prompt right here; denied ones
+    /// can only be flipped in Settings, so that's where the button goes.
+    private func enablePermission(_ nudge: PermissionNudge) {
+        engine.permissionNudgeDismissed = true
+        switch nudge {
+        case .camera:
+            if AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined {
+                Task {
+                    let granted = await AVCaptureDevice.requestAccess(for: .video)
+                    // Swap the motion sky for a live ARKit session on the
+                    // spot — granting from the banner should feel instant.
+                    if granted { engine.controller?.cameraAccessChanged() }
+                }
+            } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        case .location:
+            if engine.controller?.locationAskable == true {
+                engine.controller?.requestLocationAccess()
+            } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
         }
     }
 
@@ -1601,6 +1691,15 @@ struct ProfileIdentityCard: View {
                         .font(Theme.display(12.5, .regular))
                         .foregroundStyle(Theme.textSecondary)
                         .contentTransition(.numericText())
+                    // The road to the next rung lives here now — this card IS
+                    // the tier surface (the separate "Your tier" card said the
+                    // same thing twice and went to the same place).
+                    if let next = MedalCatalog.nextTier(forSpots: engine.statFlightsSpotted) {
+                        Text("\(next.threshold - engine.statFlightsSpotted) flights to \(next.name)")
+                            .font(Theme.display(11.5, .regular).monospacedDigit())
+                            .foregroundStyle(Theme.textTertiary)
+                            .contentTransition(.numericText())
+                    }
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
@@ -1625,7 +1724,7 @@ struct ProfileIdentityCard: View {
             .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.14), lineWidth: 1))
             .shadow(color: .black.opacity(0.28), radius: 12, y: 6)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(RowPressStyle())
         .accessibilityLabel("Overhead. \(standing). Opens tiers and medals.")
     }
 }
@@ -1648,43 +1747,9 @@ struct ProfileView: View {
                          headerExtraHeight: 30,
                          compactLeading: AnyView(MoonMark().frame(width: 20, height: 20))) {
             VStack(alignment: .leading, spacing: 22) {
-                // The tier program, one tap away — medal, rank, and the road
-                // to the next rung.
-                VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow(String(localized: "Your tier"))
-                    NavigationLink {
-                        MedalsOverviewView(engine: engine)
-                    } label: {
-                        HStack(spacing: 14) {
-                            TierBadge(engine: engine, size: 44, tappable: false)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(engine.spotterTier.name)
-                                    .font(Theme.display(16, .semibold))
-                                    .foregroundStyle(Theme.textPrimary)
-                                if let next = MedalCatalog.nextTier(forSpots: engine.statFlightsSpotted) {
-                                    Text("\(next.threshold - engine.statFlightsSpotted) flights to \(next.name)")
-                                        .font(Theme.display(12, .regular).monospacedDigit())
-                                        .foregroundStyle(Theme.textSecondary)
-                                        .contentTransition(.numericText())
-                                } else {
-                                    Text("Top of the ladder")
-                                        .font(Theme.display(12, .regular))
-                                        .foregroundStyle(Theme.textSecondary)
-                                }
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Theme.textTertiary)
-                        }
-                        .padding(14)
-                        .contentShape(Rectangle())
-                        .nightCard()
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Your tier: \(engine.spotterTier.name). Learn about tiers and medals.")
-                }
-
+                // The identity card in the header is the tier surface — its
+                // progress line and destination make a separate "Your tier"
+                // card redundant, so content starts with what's used most.
                 VStack(alignment: .leading, spacing: 10) {
                     Eyebrow(String(localized: "Favorite flights"))
                     if engine.favorites.isEmpty {
@@ -1692,11 +1757,14 @@ struct ProfileView: View {
                             .font(Theme.display(13, .regular))
                             .foregroundStyle(Theme.textSecondary)
                             .padding(.vertical, 8)
+                            .transition(.opacity)
                     } else {
+                        let list = Array(engine.favorites).sorted()
                         VStack(spacing: 0) {
-                            ForEach(Array(engine.favorites).sorted(), id: \.self) { callsign in
+                            ForEach(list, id: \.self) { callsign in
                                 favoriteRow(callsign)
-                                if callsign != Array(engine.favorites).sorted().last {
+                                    .transition(.opacity)
+                                if callsign != list.last {
                                     Divider().overlay(.white.opacity(0.08)).padding(.leading, 16)
                                 }
                             }
@@ -1704,9 +1772,13 @@ struct ProfileView: View {
                         .nightCard()
                     }
                 }
+                .animation(Theme.Motion.standard, value: engine.favorites)
 
+                // Settings, grouped by purpose — what you see, what reaches
+                // you, and where to get help — so the stack reads as a map,
+                // not a pile.
                 VStack(alignment: .leading, spacing: 10) {
-                    Eyebrow(String(localized: "Settings"))
+                    Eyebrow(String(localized: "Your sky"))
                     VStack(spacing: 0) {
                         settingsLink(String(localized: "View & sky"), icon: "moon.stars.fill",
                                      subtitle: engine.cameraPassthrough ? String(localized: "AR sky · layers · sky time") : String(localized: "Dark sky · layers · sky time")) {
@@ -1722,33 +1794,56 @@ struct ProfileView: View {
                                      subtitle: engine.showAirports ? String(localized: "Shown on the horizon") : String(localized: "Hidden")) {
                             AirportSettingsView(engine: engine)
                         }
-                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink(String(localized: "Calibration"), icon: "scope",
-                                     subtitle: String(localized: "Recalibrate heading · point at the Sun")) {
-                            CalibrationView(engine: engine)
-                        }
                         // FR24 temporarily disabled — the Data source row is
                         // hidden until the FR24 path is production-ready.
                         // settingsLink("Data source", icon: "dot.radiowaves.up.forward",
                         //              subtitle: engine.fr24ApiKey.isEmpty ? "airplanes.live (free)" : "Flightradar24") {
                         //     DataSourceSettingsView(engine: engine)
                         // }
+                    }
+                    .nightCard()
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Alerts & precision"))
+                    VStack(spacing: 0) {
+                        settingsLink(String(localized: "Notifications"), icon: "bell.badge.fill",
+                                     subtitle: String(localized: "Transit alarm · ISS passes · event reminders")) {
+                            NotificationSettingsView(engine: engine)
+                        }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                        settingsLink(String(localized: "Calibration"), icon: "scope",
+                                     subtitle: String(localized: "Recalibrate heading · point at the Sun")) {
+                            CalibrationView(engine: engine)
+                        }
+                    }
+                    .nightCard()
+                }
+
+                // Pro: its own quiet surface while it's still an invitation;
+                // once owned it retires to a thank-you row under Support.
+                if !ProStore.shared.isPro {
+                    proCard
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Support"))
+                    VStack(spacing: 0) {
                         settingsLink(String(localized: "Accessibility"), icon: "accessibility",
                                      subtitle: String(localized: "Hear & feel the sky")) {
                             AccessibilityView(engine: engine)
                         }
                         Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
-                        settingsLink(ProCatalog.title, icon: "sparkles",
-                                     subtitle: ProStore.shared.isPro
-                                        ? String(localized: "Unlocked — thank you")
-                                        : String(localized: "Time Machine · event previews · lifetime")) {
-                            PaywallView(source: "settings")
-                        }
-                        Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
                         settingsLink(String(localized: "About & privacy"), icon: "info.circle",
                                      subtitle: String(localized: "How it works · privacy · feedback")) {
                             AboutView()
+                        }
+                        if ProStore.shared.isPro {
+                            Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
+                            settingsLink(ProCatalog.title, icon: "sparkles",
+                                         subtitle: String(localized: "Unlocked — thank you")) {
+                                PaywallView(source: "settings")
+                            }
                         }
                     }
                     .nightCard()
@@ -1769,6 +1864,37 @@ struct ProfileView: View {
         .onAppear { if ShotScreen.current == .viewsky { shotPushViewSky = true } }
         .navigationDestination(isPresented: $shotPushViewSky) { SkySettingsView(engine: engine) }
         #endif
+    }
+
+    /// Pro's invitation surface — gold-marked, honest, one row, gone once
+    /// it's yours.
+    private var proCard: some View {
+        NavigationLink {
+            PaywallView(source: "settings")
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Theme.gold)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ProCatalog.title)
+                        .font(Theme.display(16, .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(String(localized: "Time Machine · event previews · lifetime"))
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .contentShape(Rectangle())
+            .nightCard()
+        }
+        .buttonStyle(RowPressStyle())
     }
 
     private func settingsLink<Destination: View>(_ title: String, icon: String,
@@ -1798,7 +1924,7 @@ struct ProfileView: View {
             .padding(.horizontal, 14).padding(.vertical, 12)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(RowPressStyle())
     }
 
     private func favoriteRow(_ callsign: String) -> some View {
@@ -1817,17 +1943,23 @@ struct ProfileView: View {
                     .font(Theme.display(13, .semibold))
                     .foregroundStyle(engine.focusedCallsign == callsign
                                      ? Theme.gold : Theme.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
             }
             Button {
-                engine.toggleFavorite(callsign)
+                // Haptic on the commit; the list settles via the card's driver.
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(Theme.Motion.standard) { engine.toggleFavorite(callsign) }
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 18))
                     .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Remove favorite")
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
+        .padding(.horizontal, 16).padding(.vertical, 4)
     }
 }
 
@@ -1922,19 +2054,9 @@ struct EventsView: View {
         }.value
         tonight = TonightGlance(
             moonThumb: SkyArt.moonImage(fraction: moon.illumination, waxing: moon.waxing, diameter: 80),
-            phaseName: Self.phaseName(illumination: moon.illumination, waxing: moon.waxing),
+            phaseName: Celestial.phaseName(illumination: moon.illumination, waxing: moon.waxing),
             percent: Int((moon.illumination * 100).rounded()),
             planets: planetsUp)
-    }
-
-    private static func phaseName(illumination: Double, waxing: Bool) -> String {
-        switch illumination {
-        case ..<0.03:  return String(localized: "New moon")
-        case ..<0.45:  return waxing ? String(localized: "Waxing crescent") : String(localized: "Waning crescent")
-        case ..<0.55:  return waxing ? String(localized: "First quarter") : String(localized: "Last quarter")
-        case ..<0.97:  return waxing ? String(localized: "Waxing gibbous") : String(localized: "Waning gibbous")
-        default:       return String(localized: "Full moon")
-        }
     }
 
     private func tonightCard(_ glance: TonightGlance) -> some View {
@@ -2083,8 +2205,8 @@ struct CalibrationView: View {
     var body: some View {
         SettingsScaffold(theme: .calibration, title: String(localized: "Calibration"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
-                VStack(alignment: .leading, spacing: 24) {
-                    section(String(localized: "Calibrate heading"), trailing: nil) {
+                VStack(alignment: .leading, spacing: 22) {
+                    ControlCard(String(localized: "Calibrate heading")) {
                         Text("Sweep a full circle, then lock onto the Sun, Moon, or a plane you can see — the most accurate way to line the sky up with reality.")
                             .font(Theme.display(13, .regular))
                             .foregroundStyle(Theme.textSecondary)
@@ -2101,59 +2223,38 @@ struct CalibrationView: View {
                         }
                     }
 
-                    section(String(localized: "Auto-align"),
-                            trailing: engine.autoAlignEnabled ? String(localized: "On") : String(localized: "Locked")) {
+                    ControlCard(String(localized: "Auto-align"),
+                                value: engine.autoAlignEnabled ? String(localized: "On") : String(localized: "Locked"),
+                                footnote: engine.autoAlignEnabled
+                                    ? String(localized: "The sky follows the compass and self-corrects as you pan.")
+                                    : String(localized: "Holding your manual lock. Turn on to hand heading back to the compass.")) {
                         Toggle("Follow the compass automatically", isOn: Binding(
                             get: { engine.autoAlignEnabled },
                             set: { on in if on { engine.resetToAutoAlign() } else { engine.autoAlignEnabled = false } }))
                             .tint(Theme.accentSoft)
-                        Text(engine.autoAlignEnabled
-                             ? "The sky follows the compass and self-corrects as you pan."
-                             : "Holding your manual lock. Turn on to hand heading back to the compass.")
-                            .font(Theme.display(13, .regular))
-                            .foregroundStyle(Theme.textSecondary)
                     }
+                    // The state line crossfades with the toggle instead of
+                    // hard-swapping words under the finger.
+                    .animation(Theme.Motion.standard, value: engine.autoAlignEnabled)
 
                     if engine.lidarSupported {
-                        section(String(localized: "Tracking"),
-                                trailing: engine.lidarActive ? "LiDAR" : String(localized: "Off")) {
+                        ControlCard(String(localized: "Tracking"),
+                                    value: engine.lidarActive ? "LiDAR" : String(localized: "Off"),
+                                    footnote: String(localized: "Uses the LiDAR scanner to keep the sky steady when the camera can't see much — a blank or night sky. Pro models only; toggle to compare.")) {
                             Toggle("LiDAR tracking assist", isOn: $engine.lidarAssist)
                                 .tint(Theme.accentSoft)
-                            Text("Uses the LiDAR scanner to keep the sky steady when the camera can't see much — a blank or night sky. Pro models only; toggle to compare.")
-                                .font(Theme.display(13, .regular))
-                                .foregroundStyle(Theme.textSecondary)
                         }
                     }
 
-                    section(String(localized: "Fine trim"), trailing: String(format: "%.1f°", engine.headingOffsetDeg)) {
+                    ControlCard(String(localized: "Fine trim"),
+                                value: String(format: "%.1f°", engine.headingOffsetDeg),
+                                footnote: String(localized: "Manual nudge if it's still a touch off after calibrating.")) {
                         Slider(value: $engine.headingOffsetDeg, in: -20...20, step: 0.5)
                             .tint(Theme.accent)
-                        Text("Manual nudge if it's still a touch off after calibrating.")
-                            .font(Theme.display(13, .regular))
-                            .foregroundStyle(Theme.textSecondary)
                     }
 
                     compassStatus
                 }
-        }
-    }
-
-    @ViewBuilder
-    private func section<Content: View>(_ title: String, trailing: String?,
-                                        @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(title)
-                    .font(Theme.display(16, .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                if let trailing {
-                    Text(trailing)
-                        .font(Theme.display(16, .semibold).monospacedDigit())
-                        .foregroundStyle(Theme.accent)
-                }
-            }
-            content()
         }
     }
 
@@ -2172,8 +2273,11 @@ struct CalibrationView: View {
             }
             Spacer()
         }
-        .padding(14)
-        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(16)
+        .nightCard()
+        // Live status: quality shifts (good ↔ fair ↔ poor) settle in color
+        // and words rather than snapping.
+        .animation(Theme.Motion.standard, value: engine.compassQuality)
     }
 
     private var compassColor: Color {
@@ -2254,6 +2358,93 @@ private var settingsDivider: some View {
     Divider().overlay(.white.opacity(0.08)).padding(.leading, 56)
 }
 
+/// The one surface for a loose control on a settings page — title left, live
+/// value right, the control itself, an explainer below, all on the standard
+/// card. Nothing floats naked on the backdrop; if it isn't a toggle row or a
+/// navigation row, it lives in one of these.
+private struct ControlCard<Accessory: View, Content: View>: View {
+    private let title: String
+    private let value: String?
+    private let footnote: String?
+    private let accessory: Accessory
+    private let content: Content
+
+    init(_ title: String, value: String? = nil, footnote: String? = nil,
+         @ViewBuilder accessory: () -> Accessory,
+         @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.value = value
+        self.footnote = footnote
+        self.accessory = accessory()
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(Theme.display(16, .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                accessory
+                Spacer()
+                if let value {
+                    Text(value)
+                        .font(Theme.display(15, .semibold).monospacedDigit())
+                        .foregroundStyle(Theme.accent)
+                        .contentTransition(.numericText())
+                }
+            }
+            content
+            if let footnote {
+                Text(footnote)
+                    .font(Theme.display(12, .regular))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .nightCard()
+    }
+}
+
+extension ControlCard where Accessory == EmptyView {
+    init(_ title: String, value: String? = nil, footnote: String? = nil,
+         @ViewBuilder content: () -> Content) {
+        self.init(title, value: value, footnote: footnote,
+                  accessory: { EmptyView() }, content: content)
+    }
+}
+
+/// The one explainer surface — an icon-labelled title over body copy (plus
+/// any inline extras). About, Accessibility, and status cards all read as
+/// the same element.
+private struct InfoCard<Content: View>: View {
+    private let title: String
+    private let icon: String
+    private let content: Content
+
+    init(_ title: String, icon: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = icon
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(Theme.display(16, .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            content
+                .font(Theme.display(13, .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .nightCard()
+    }
+}
+
 /// View mode + celestial layers + sky time.
 struct SkySettingsView: View {
     @Bindable var engine: SkyEngine
@@ -2262,72 +2453,88 @@ struct SkySettingsView: View {
     var body: some View {
         SettingsScaffold(theme: .sky, title: String(localized: "View & sky"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(spacing: 10) {
-                    modeChip(String(localized: "AR sky"), "camera.fill", active: engine.cameraPassthrough) {
-                        // Without camera access AR mode would just show the
-                        // dark dome pretending to be a broken feed — be
-                        // honest and route to Settings instead.
-                        if AVCaptureDevice.authorizationStatus(for: .video) == .authorized {
-                            engine.cameraPassthrough = true
-                            Analytics.log("Mode.selected", ["mode": "ar"])
-                        } else if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
+            VStack(alignment: .leading, spacing: 22) {
+                // Three purposes, three groups: how the sky is shown, what's
+                // in it, and when it is.
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Display"))
+                    HStack(spacing: 10) {
+                        modeChip(String(localized: "AR sky"), "camera.fill", active: engine.cameraPassthrough) {
+                            // Without camera access AR mode would just show the
+                            // dark dome pretending to be a broken feed — be
+                            // honest and route to Settings instead.
+                            if AVCaptureDevice.authorizationStatus(for: .video) == .authorized {
+                                engine.cameraPassthrough = true
+                                Analytics.log("Mode.selected", ["mode": "ar"])
+                            } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        modeChip(String(localized: "Dark sky"), "moon.stars.fill", active: !engine.cameraPassthrough) {
+                            engine.cameraPassthrough = false
+                            Analytics.log("Mode.selected", ["mode": "dark"])
                         }
                     }
-                    modeChip(String(localized: "Dark sky"), "moon.stars.fill", active: !engine.cameraPassthrough) {
-                        engine.cameraPassthrough = false
-                        Analytics.log("Mode.selected", ["mode": "dark"])
+                    if AVCaptureDevice.authorizationStatus(for: .video) != .authorized {
+                        Text("AR sky needs camera access — tap AR sky to open Settings.")
+                            .font(Theme.display(12, .regular))
+                            .foregroundStyle(Theme.textTertiary)
                     }
-                }
-                if AVCaptureDevice.authorizationStatus(for: .video) != .authorized {
-                    Text("AR sky needs camera access — tap AR sky to open Settings.")
-                        .font(Theme.display(12, .regular))
-                        .foregroundStyle(Theme.textTertiary)
+                    VStack(spacing: 0) {
+                        SettingRow(title: String(localized: "Night vision"), icon: "eye.fill", isOn: $engine.nightVision,
+                                   subtitle: String(localized: "Deep red display — protects your dark adaptation"))
+                    }
+                    .padding(.vertical, 4)
+                    .nightCard()
                 }
 
-                VStack(spacing: 0) {
-                    SettingRow(title: String(localized: "Night vision"), icon: "eye.fill", isOn: $engine.nightVision,
-                               subtitle: String(localized: "Deep red display — protects your dark adaptation"))
-                }
-                .padding(.vertical, 4)
-                .nightCard()
-
-                VStack(spacing: 0) {
-                    SettingRow(title: String(localized: "Sun"), icon: "sun.max.fill", isOn: $engine.showSun)
-                    settingsDivider
-                    SettingRow(title: String(localized: "Moon"), icon: "moon.fill", isOn: $engine.showMoon,
-                               subtitle: moonSubtitle)
-                    settingsDivider
-                    SettingRow(title: String(localized: "Planets"), icon: "circle.circle", isOn: $engine.showPlanets,
-                               subtitle: String(localized: "Mercury through Saturn"))
-                    settingsDivider
-                    SettingRow(title: String(localized: "Stars"), icon: "sparkles", isOn: $engine.showStars)
-                    settingsDivider
-                    if engine.showStars {
-                        SettingRow(title: String(localized: "Milky Way"), icon: "sparkle", isOn: $engine.showMilkyWay,
-                                   subtitle: String(localized: "A soft river of distant starlight"))
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Sky layers"))
+                    VStack(spacing: 0) {
+                        SettingRow(title: String(localized: "Sun"), icon: "sun.max.fill", isOn: $engine.showSun)
                         settingsDivider
+                        SettingRow(title: String(localized: "Moon"), icon: "moon.fill", isOn: $engine.showMoon,
+                                   subtitle: moonSubtitle)
+                        settingsDivider
+                        SettingRow(title: String(localized: "Planets"), icon: "circle.circle", isOn: $engine.showPlanets,
+                                   subtitle: String(localized: "Mercury through Saturn"))
+                        settingsDivider
+                        SettingRow(title: String(localized: "Stars"), icon: "sparkles", isOn: $engine.showStars)
+                        settingsDivider
+                        if engine.showStars {
+                            Group {
+                                SettingRow(title: String(localized: "Milky Way"), icon: "sparkle", isOn: $engine.showMilkyWay,
+                                           subtitle: String(localized: "A soft river of distant starlight"))
+                                settingsDivider
+                            }
+                            .transition(.opacity)
+                        }
+                        SettingRow(title: String(localized: "ISS"), icon: "diamond.fill", isOn: $engine.showISS,
+                                   subtitle: engine.issVisible ? String(localized: "Overhead now") : nil)
+                        // ISS pass alerts moved to Profile → Notifications, the
+                        // one home for everything that can buzz the phone.
                     }
-                    SettingRow(title: String(localized: "ISS"), icon: "diamond.fill", isOn: $engine.showISS,
-                               subtitle: engine.issVisible ? String(localized: "Overhead now") : nil)
-                    settingsDivider
-                    SettingRow(title: String(localized: "ISS pass alerts"), icon: "bell.badge.fill", isOn: $engine.issAlerts,
-                               subtitle: String(localized: "A nudge 10 minutes before it rises"))
-                }
-                .padding(.vertical, 4)
-                .nightCard()
+                    .padding(.vertical, 4)
+                    .nightCard()
+                    // One driver per structural condition — the dependent row
+                    // and button fade with the card settling, never popping.
+                    .animation(Theme.Motion.standard, value: engine.showStars)
 
-                if engine.showISS {
-                    Button { engine.jumpToNextISSPass() } label: {
-                        Label("Jump to next ISS pass", systemImage: "arrow.up.forward.circle.fill")
+                    if engine.showISS {
+                        Button { engine.jumpToNextISSPass() } label: {
+                            Label("Jump to next ISS pass", systemImage: "arrow.up.forward.circle.fill")
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .transition(.opacity)
                     }
-                    .buttonStyle(PrimaryButtonStyle())
                 }
+                .animation(Theme.Motion.standard, value: engine.showISS)
 
-                timeScrub
-
-                timeMachine
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Time"))
+                    timeScrub
+                    timeMachine
+                }
             }
         }
         .sheet(isPresented: $showPaywall) {
@@ -2350,7 +2557,7 @@ struct SkySettingsView: View {
             .glassEffect(active ? .regular.tint(Theme.accentSoft.opacity(0.45)) : .regular,
                          in: .capsule)
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: active)
+        .animation(Theme.Motion.standard, value: active)
     }
 
     private var moonSubtitle: String {
@@ -2360,16 +2567,9 @@ struct SkySettingsView: View {
     }
 
     private var timeScrub: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Sky time")
-                    .font(Theme.display(16, .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                Text(TimeScrub.label(engine.skyTimeOffsetMin))
-                    .font(Theme.display(15, .semibold).monospacedDigit())
-                    .foregroundStyle(Theme.accent)
-            }
+        ControlCard(String(localized: "Sky time"),
+                    value: TimeScrub.label(engine.skyTimeOffsetMin),
+                    footnote: String(localized: "Scrub the sky forward or back to preview the sun, moon, stars and ISS at another time.")) {
             // Clamped proxy: a Time Machine jump can sit far outside the
             // slider's ±12 h — grabbing the slider pulls back into range.
             Slider(value: Binding(get: { max(-720, min(720, engine.skyTimeOffsetMin)) },
@@ -2382,23 +2582,15 @@ struct SkySettingsView: View {
                 Spacer()
                 Text("+12h").font(.caption2).foregroundStyle(Theme.textTertiary)
             }
-            Text("Scrub the sky forward or back to preview the sun, moon, stars and ISS at another time.")
-                .font(Theme.display(12, .regular))
-                .foregroundStyle(Theme.textSecondary)
         }
     }
 
     /// Pro: the sky on any date — eclipse day, a shower's peak, any night.
     @ViewBuilder private var timeMachine: some View {
         if ProStore.shared.isPro {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Text("Time Machine")
-                        .font(Theme.display(16, .medium))
-                        .foregroundStyle(Theme.textPrimary)
-                    ProChip()
-                    Spacer()
-                }
+            ControlCard(String(localized: "Time Machine"),
+                        footnote: String(localized: "Set the whole sky to any date within a year — stand under an eclipse before it happens. (Aircraft stay live; the ISS needs fresh orbit data, so far dates show it approximately.)"),
+                        accessory: { ProChip() }) {
                 DatePicker("Sky date",
                            selection: Binding(
                                get: { Date().addingTimeInterval(engine.skyTimeOffsetMin * 60) },
@@ -2407,9 +2599,6 @@ struct SkySettingsView: View {
                     .datePickerStyle(.compact)
                     .labelsHidden()
                     .tint(Theme.accent)
-                Text("Set the whole sky to any date within a year — stand under an eclipse before it happens. (Aircraft stay live; the ISS needs fresh orbit data, so far dates show it approximately.)")
-                    .font(Theme.display(12, .regular))
-                    .foregroundStyle(Theme.textSecondary)
             }
         } else {
             Button { showPaywall = true } label: {
@@ -2437,7 +2626,7 @@ struct SkySettingsView: View {
                 .padding(14)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(RowPressStyle())
             .nightCard()
         }
     }
@@ -2450,59 +2639,58 @@ struct AircraftSettingsView: View {
     var body: some View {
         SettingsScaffold(theme: .aircraft, title: String(localized: "Aircraft"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(spacing: 0) {
-                    SettingRow(title: String(localized: "Aircraft"), icon: "airplane", isOn: $engine.showAircraft,
-                               subtitle: engine.trafficCount > 0 ? String(localized: "\(engine.trafficCount) overhead") : nil)
-                    settingsDivider
-                    SettingRow(title: String(localized: "Naked-eye visible only"), icon: "eye.fill",
-                               isOn: $engine.nakedEyeOnly,
-                               subtitle: String(localized: "Hide distant planes you couldn't actually see"))
-                    settingsDivider
-                    SettingRow(title: String(localized: "Aircraft on the ground"), icon: "airplane.arrival",
-                               isOn: $engine.showGroundAircraft,
-                               subtitle: String(localized: "Taxiing and parked planes"))
-                    settingsDivider
-                    SettingRow(title: String(localized: "Aircraft trails"), icon: "wind", isOn: $engine.showTrails,
-                               subtitle: String(localized: "Fading path behind each plane"))
-                    settingsDivider
-                    SettingRow(title: String(localized: "Sky sounds"), icon: "speaker.wave.2.fill", isOn: $engine.soundOn,
-                               subtitle: String(localized: "Hear flyovers in 3D — best with AirPods"))
-                }
-                .padding(.vertical, 4)
-                .nightCard()
+            VStack(alignment: .leading, spacing: 22) {
+                // Two purposes, two groups: what traffic is drawn, and how to
+                // read what's drawn.
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Traffic"))
+                    VStack(spacing: 0) {
+                        SettingRow(title: String(localized: "Aircraft"), icon: "airplane", isOn: $engine.showAircraft,
+                                   subtitle: engine.trafficCount > 0 ? String(localized: "\(engine.trafficCount) overhead") : nil)
+                        settingsDivider
+                        SettingRow(title: String(localized: "Naked-eye visible only"), icon: "eye.fill",
+                                   isOn: $engine.nakedEyeOnly,
+                                   subtitle: String(localized: "Hide distant planes you couldn't actually see"))
+                        settingsDivider
+                        SettingRow(title: String(localized: "Aircraft on the ground"), icon: "airplane.arrival",
+                                   isOn: $engine.showGroundAircraft,
+                                   subtitle: String(localized: "Taxiing and parked planes"))
+                        settingsDivider
+                        SettingRow(title: String(localized: "Aircraft trails"), icon: "wind", isOn: $engine.showTrails,
+                                   subtitle: String(localized: "Fading path behind each plane"))
+                        settingsDivider
+                        SettingRow(title: String(localized: "Sky sounds"), icon: "speaker.wave.2.fill", isOn: $engine.soundOn,
+                                   subtitle: String(localized: "Hear flyovers in 3D — best with AirPods"))
+                    }
+                    .padding(.vertical, 4)
+                    .nightCard()
 
-                if engine.nakedEyeOnly {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("Visible range")
-                                .font(Theme.display(16, .medium))
-                                .foregroundStyle(Theme.textPrimary)
-                            Spacer()
-                            Text("\(Int(engine.nakedEyeRangeNm)) nm")
-                                .font(Theme.display(15, .semibold).monospacedDigit())
-                                .foregroundStyle(Theme.accent)
+                    if engine.nakedEyeOnly {
+                        ControlCard(String(localized: "Visible range"),
+                                    value: "\(Int(engine.nakedEyeRangeNm)) nm",
+                                    footnote: String(localized: "Baseline range — high-altitude jets stay visible farther. Planes near the horizon are kept too. Turn the whole filter off to never hide a plane.")) {
+                            Slider(value: $engine.nakedEyeRangeNm, in: 15...55, step: 1).tint(Theme.accent)
                         }
-                        Slider(value: $engine.nakedEyeRangeNm, in: 15...55, step: 1).tint(Theme.accent)
-                        Text("Baseline range — high-altitude jets stay visible farther. Planes near the horizon are kept too. Turn the whole filter off to never hide a plane.")
-                            .font(Theme.display(12, .regular))
-                            .foregroundStyle(Theme.textSecondary)
+                        .transition(.opacity)
                     }
                 }
+                // The range section rides the toggle with the card settling —
+                // no hard column shove when the filter flips.
+                .animation(Theme.Motion.standard, value: engine.nakedEyeOnly)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Labels")
-                        .font(Theme.display(16, .medium))
-                        .foregroundStyle(Theme.textPrimary)
-                    Picker("Labels", selection: $engine.labelMode) {
-                        ForEach(SkyEngine.LabelMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
+                    Eyebrow(String(localized: "Reading the sky"))
+                    ControlCard(String(localized: "Labels")) {
+                        Picker("Labels", selection: $engine.labelMode) {
+                            ForEach(SkyEngine.LabelMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
                         }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
-                }
 
-                PlaneColorLegend()
+                    PlaneColorLegend()
+                }
             }
         }
     }
@@ -2517,11 +2705,9 @@ private struct PlaneColorLegend: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("What the colors mean")
-                .font(Theme.display(16, .medium))
-                .foregroundStyle(Theme.textPrimary)
-
+        // Same element as every explainer card — the title lives inside the
+        // surface, not floating above it.
+        ControlCard(String(localized: "What the colors mean")) {
             VStack(alignment: .leading, spacing: 14) {
                 // Altitude ramp.
                 VStack(alignment: .leading, spacing: 6) {
@@ -2546,8 +2732,6 @@ private struct PlaneColorLegend: View {
                 legendRow(swatch: .ring(Theme.gold), title: String(localized: "Gold ring"),
                           detail: String(localized: "The flight you're tracking right now."))
             }
-            .padding(16)
-            .nightCard()
         }
     }
 
@@ -2643,13 +2827,211 @@ struct DataSourceSettingsView: View {
 
 /// Accessibility: find aircraft eyes-free, by spatial sound and proximity
 /// haptics. A headline feature for low-vision and blind users.
+/// Everything that can buzz the phone, in one place: the transit alarm, ISS
+/// pass alerts, and the sky-event reminders set from event pages. The
+/// pending-notification queue is the single source of truth throughout —
+/// the reminder list below is read straight from it.
+struct NotificationSettingsView: View {
+    @Bindable var engine: SkyEngine
+    @State private var authDenied = false
+    @State private var reminders: [PendingReminder] = []
+
+    private struct PendingReminder: Identifiable, Equatable {
+        let id: String
+        let title: String
+        let fireDate: Date?
+    }
+
+    var body: some View {
+        SettingsScaffold(theme: .alerts, title: String(localized: "Notifications")) {
+            VStack(alignment: .leading, spacing: 22) {
+                if authDenied { deniedCard }
+
+                // Grouped by horizon: the perishable now, the plannable week,
+                // and the reminders you set by hand.
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "While you watch"))
+                    VStack(spacing: 0) {
+                        SettingRow(title: String(localized: "Transit alarm"), icon: "airplane",
+                                   isOn: $engine.transitAlarm,
+                                   subtitle: String(localized: "\(TransitAlertScheduler.leadPhrase(engine.transitAlarmLeadSec)) before a plane crosses the Sun or Moon"))
+                        if engine.transitAlarm {
+                            Group {
+                                settingsDivider
+                                leadRow
+                                settingsDivider
+                                SettingRow(title: String(localized: "Moon crossings"), icon: "moon.fill",
+                                           isOn: $engine.transitAlarmMoon)
+                                settingsDivider
+                                SettingRow(title: String(localized: "Sun crossings"), icon: "sun.max.fill",
+                                           isOn: $engine.transitAlarmSun)
+                            }
+                            .transition(.opacity)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .nightCard()
+                    // One driver for the card's structure: the reveal springs
+                    // (and the subtitle's lead phrase keeps step), no popping.
+                    .animation(Theme.Motion.standard, value: engine.transitAlarm)
+                    .animation(Theme.Motion.standard, value: engine.transitAlarmLeadSec)
+
+                    Text("Aircraft transits can only be predicted about three minutes ahead, and only while Overhead is open — the alarm covers the moment your phone is locked while you set up. The longest lead fires the instant a transit is found.")
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Days ahead"))
+                    VStack(spacing: 0) {
+                        SettingRow(title: String(localized: "ISS pass alerts"), icon: "diamond.fill",
+                                   isOn: $engine.issAlerts,
+                                   subtitle: String(localized: "A nudge 10 minutes before it rises"))
+                        settingsDivider
+                        SettingRow(title: String(localized: "Meteor shower peaks"), icon: "sparkles",
+                                   isOn: $engine.showerAlerts,
+                                   subtitle: String(localized: "An hour before each major shower peaks"))
+                        settingsDivider
+                        SettingRow(title: String(localized: "Tonight's sky"), icon: "moon.stars.fill",
+                                   isOn: $engine.skyDigest,
+                                   subtitle: String(localized: "A quiet daily note as the first stars come out"))
+                    }
+                    .padding(.vertical, 4)
+                    .nightCard()
+
+                    Text("Tonight's sky waits silently in your notification list — moon phase and the planets up this evening, timed to your local sunset. Nothing lights the phone.")
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Eyebrow(String(localized: "Event reminders"))
+                    if reminders.isEmpty {
+                        Text("None scheduled. Set one from any sky event's page — you'll hear an hour before it begins.")
+                            .font(Theme.display(13, .regular))
+                            .foregroundStyle(Theme.textSecondary)
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .nightCard()
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(reminders) { reminder in
+                                reminderRow(reminder)
+                                    .transition(.opacity)
+                                if reminder != reminders.last { settingsDivider }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        .nightCard()
+                        .animation(Theme.Motion.standard, value: reminders)
+                    }
+                }
+            }
+        }
+        .task { await refresh() }
+    }
+
+    /// Lead-time picker, laid out like a SettingRow so the card reads as one
+    /// family. Physics note: choices stop at 3 minutes — the predictor's
+    /// entire horizon.
+    private var leadRow: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "timer")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 28)
+            Text(String(localized: "Alert lead"))
+                .font(Theme.display(16, .medium))
+                .foregroundStyle(Theme.textPrimary)
+            Spacer()
+            Picker(String(localized: "Alert lead"), selection: $engine.transitAlarmLeadSec) {
+                ForEach(TransitAlertScheduler.leadChoices, id: \.self) { lead in
+                    Text(TransitAlertScheduler.leadPhrase(lead)).tag(lead)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Theme.accent)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .frame(minHeight: 44)
+    }
+
+    private func reminderRow(_ reminder: PendingReminder) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: "bell.fill")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Theme.gold)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(reminder.title)
+                    .font(Theme.display(15, .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(2)
+                if let fireDate = reminder.fireDate {
+                    Text(fireDate.formatted(date: .abbreviated, time: .shortened))
+                        .font(Theme.display(12, .regular))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            Spacer()
+            Button {
+                // Haptic on the causal frame: the commit is the removal.
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                UNUserNotificationCenter.current()
+                    .removePendingNotificationRequests(withIdentifiers: [reminder.id])
+                withAnimation(Theme.Motion.standard) { reminders.removeAll { $0.id == reminder.id } }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Remove reminder for \(reminder.title)"))
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+    }
+
+    private var deniedCard: some View {
+        InfoCard(String(localized: "Notifications are off for Overhead"), icon: "bell.slash.fill") {
+            Text("Alerts and reminders can't be delivered until notifications are allowed in Settings.")
+            Button(String(localized: "Open Settings")) {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .font(Theme.display(14, .semibold))
+            .foregroundStyle(Theme.accent)
+            .frame(minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+    }
+
+    private func refresh() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        authDenied = settings.authorizationStatus == .denied
+        let pending = await center.pendingNotificationRequests()
+        reminders = pending
+            .filter { $0.identifier.hasPrefix("skyevent-") }
+            .map { request in
+                PendingReminder(
+                    id: request.identifier,
+                    title: request.content.title,
+                    fireDate: (request.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate())
+            }
+            .sorted { ($0.fireDate ?? .distantFuture) < ($1.fireDate ?? .distantFuture) }
+    }
+}
+
 struct AccessibilityView: View {
     @Bindable var engine: SkyEngine
 
     var body: some View {
         SettingsScaffold(theme: .accessibility, title: String(localized: "Accessibility"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 22) {
                 VStack(spacing: 0) {
                     SettingRow(title: String(localized: "Hear & feel the sky"), icon: "dot.radiowaves.left.and.right",
                                isOn: $engine.hearFeelSky,
@@ -2658,34 +3040,17 @@ struct AccessibilityView: View {
                 .padding(.vertical, 4)
                 .nightCard()
 
-                accessibilityCard(String(localized: "Hear it"), icon: "airpods") {
+                InfoCard(String(localized: "Hear it"), icon: "airpods") {
                     Text("Every nearby aircraft becomes a 3D-positioned engine hum — to your left, your right, above. Close your eyes, point toward the sound, and you're facing the plane. Best with AirPods for full spatial audio.")
                 }
-                accessibilityCard(String(localized: "Feel it"), icon: "hand.tap") {
+                InfoCard(String(localized: "Feel it"), icon: "hand.tap") {
                     Text("As a plane nears the center of where you're pointing, the phone pulses — slow and soft when it's off to the side, fast and firm when you're aimed right at it. Sweep the sky and feel for the plane, no screen needed.")
                 }
-                accessibilityCard(String(localized: "For everyone"), icon: "accessibility") {
+                InfoCard(String(localized: "For everyone"), icon: "accessibility") {
                     Text("Built for blind and low-vision skywatchers first — but anyone can find a plane without staring at the screen. Overhead also respects Reduce Motion, Dynamic Type, and works with VoiceOver.")
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    private func accessibilityCard<Content: View>(_ title: String, icon: String,
-                                                  @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: icon)
-                .font(Theme.display(16, .semibold))
-                .foregroundStyle(Theme.textPrimary)
-            content()
-                .font(Theme.display(13, .regular))
-                .foregroundStyle(Theme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .nightCard()
     }
 }
 
@@ -2698,19 +3063,19 @@ struct AboutView: View {
     var body: some View {
         SettingsScaffold(theme: .about, title: String(localized: "About & privacy")) {
             VStack(alignment: .leading, spacing: 22) {
-                aboutCard(String(localized: "What it is"), icon: "sparkles") {
+                InfoCard(String(localized: "What it is"), icon: "sparkles") {
                     Text("Hold your phone up and Overhead labels the sky around you — live aircraft, the Sun, the Moon, the planets, stars, and the ISS, each placed at its real position in augmented reality.")
                 }
 
-                aboutCard(String(localized: "Reference only"), icon: "exclamationmark.triangle") {
+                InfoCard(String(localized: "Reference only"), icon: "exclamationmark.triangle") {
                     Text("Overhead is a reference and educational tool, and we've worked hard to place everything as accurately as we can. Even so, we can't guarantee it: positions, routes, and identities come from public data that can be delayed, incomplete, or wrong, and many aircraft (parked, military, or not equipped) don't broadcast at all. Please don't use Overhead for navigation, safety, or any operational decision — we take no responsibility for the accuracy or completeness of what's shown.")
                 }
 
-                aboutCard(String(localized: "Best under open sky"), icon: "location.north.line") {
+                InfoCard(String(localized: "Best under open sky"), icon: "location.north.line") {
                     Text("Overhead points the sky using your iPhone's compass and motion sensors, so it's happiest outdoors in the open. Magnetometers can read a few degrees off — and the structural steel, wiring, and electronics inside airports, terminals, and buildings can pull them well off — so indoors the whole sky may sit noticeably rotated, and near metal, cars, speakers, or a magnetic case too. Hold still, and if something looks off, tap a plane or the Sun to re-align (or run Calibration). Accuracy also drifts while you're walking or in a moving vehicle.")
                 }
 
-                aboutCard(String(localized: "Privacy"), icon: "lock.shield") {
+                InfoCard(String(localized: "Privacy"), icon: "lock.shield") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("No account. No tracking. No ads.")
                             .font(Theme.display(13, .semibold))
@@ -2754,23 +3119,6 @@ struct AboutView: View {
             }
         }
     }
-
-    @ViewBuilder
-    private func aboutCard<Content: View>(_ title: String, icon: String,
-                                          @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: icon)
-                .font(Theme.display(16, .semibold))
-                .foregroundStyle(Theme.textPrimary)
-            content()
-                .font(Theme.display(13, .regular))
-                .foregroundStyle(Theme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .nightCard()
-    }
 }
 
 /// Airport layer settings.
@@ -2780,7 +3128,7 @@ struct AirportSettingsView: View {
     var body: some View {
         SettingsScaffold(theme: .airport, title: String(localized: "Airports"),
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 22) {
                 VStack(spacing: 0) {
                     SettingRow(title: String(localized: "Airports"), icon: "airplane.arrival",
                                isOn: $engine.showAirports,

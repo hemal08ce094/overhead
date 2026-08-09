@@ -337,6 +337,8 @@ enum EventReminder {
         content.title = String(localized: "\(event.title) — one hour to go")
         content.body = String(localized: "\(event.subtitle). Step outside and look up.")
         content.sound = .default
+        content.threadIdentifier = "events"
+        content.interruptionLevel = .active
         let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second],
                                                     from: fireAt)
         try? await center.add(UNNotificationRequest(

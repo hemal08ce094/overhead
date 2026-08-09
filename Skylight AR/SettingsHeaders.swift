@@ -28,6 +28,7 @@ enum HeaderTheme: Equatable {
     case calibration
     case dataSource
     case accessibility
+    case alerts        // Notifications — the pocket alarm for sky moments
 
     /// Two-stop night gradient behind the scene.
     var gradient: [Color] {
@@ -41,6 +42,7 @@ enum HeaderTheme: Equatable {
         case .calibration:   return [Color(red: 0.05, green: 0.08, blue: 0.14), Theme.nightBottom]
         case .dataSource:    return [Color(red: 0.03, green: 0.09, blue: 0.14), Theme.nightBottom]
         case .accessibility: return [Color(red: 0.07, green: 0.06, blue: 0.16), Theme.nightBottom]
+        case .alerts:        return [Color(red: 0.10, green: 0.08, blue: 0.17), Theme.nightBottom]
         }
     }
 
@@ -55,6 +57,7 @@ enum HeaderTheme: Equatable {
         case .calibration:   return Color(red: 0.52, green: 0.92, blue: 0.78)
         case .dataSource:    return Color(red: 0.50, green: 0.85, blue: 0.95)
         case .accessibility: return Color(red: 0.72, green: 0.72, blue: 1.00)
+        case .alerts:        return Theme.gold
         }
     }
 
@@ -70,6 +73,7 @@ enum HeaderTheme: Equatable {
         case .calibration:   return "scope"
         case .dataSource:    return "dot.radiowaves.up.forward"
         case .accessibility: return "accessibility"
+        case .alerts:        return "bell.badge.fill"
         }
     }
 }
@@ -403,6 +407,7 @@ private struct HeaderCanvas: View {
                 case .calibration:   drawCalibration(ctx, size, t)
                 case .dataSource:    drawDataSource(ctx, size, t)
                 case .accessibility: drawAccessibility(ctx, size, t)
+                case .alerts:        drawAlerts(ctx, size, t)
                 }
             }
         }
@@ -996,6 +1001,70 @@ private struct HeaderCanvas: View {
             let amp = (h * 0.06) * abs(sin(t * 3 + Double(i) * 0.5))
             var bp = Path(); bp.move(to: CGPoint(x: x, y: by - amp)); bp.addLine(to: CGPoint(x: x, y: by + amp))
             wf.stroke(bp, with: .color(violet.opacity(0.7)), lineWidth: 2)
+        }
+    }
+
+    // MARK: Notifications (the transit alarm moment)
+
+    /// A jet crosses the moon's disc; the instant it touches, gold alert
+    /// rings pulse outward — the notification, drawn as physics. The 8 s
+    /// cycle puts the Reduce Motion still (t = 6) at the money frame: jet
+    /// just past the disc, first ring mid-flight.
+    private func drawAlerts(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        let gold = theme.accent
+
+        // Moon disc, upper trailing — glow, body, a couple of maria.
+        let moon = CGPoint(x: w * 0.70, y: h * 0.42)
+        let moonR: CGFloat = 22
+        ctx.fill(circlePath(moon, moonR * 2.2),
+                 with: .radialGradient(Gradient(colors: [Theme.moonlight.opacity(0.20), .clear]),
+                                       center: moon, startRadius: moonR * 0.5, endRadius: moonR * 2.2))
+        ctx.fill(circlePath(moon, moonR),
+                 with: .radialGradient(Gradient(colors: [Theme.moonlight, Theme.moonlight.opacity(0.72)]),
+                                       center: CGPoint(x: moon.x - 6, y: moon.y - 6),
+                                       startRadius: 2, endRadius: moonR * 1.3))
+        var maria = ctx; maria.opacity = 0.12
+        maria.fill(circlePath(CGPoint(x: moon.x - 6, y: moon.y - 3), 5), with: .color(.black))
+        maria.fill(circlePath(CGPoint(x: moon.x + 5, y: moon.y + 6), 3.4), with: .color(.black))
+
+        // Jet on a shallow descending line through the moon's centre.
+        let cycle = 8.0
+        let u = (t.truncatingRemainder(dividingBy: cycle)) / cycle
+        func jetPoint(_ u: Double) -> CGPoint {
+            let x = w * (-0.08 + 1.16 * CGFloat(u))
+            // Line chosen to pass exactly through the moon at its crossing u.
+            let y = moon.y + (x - moon.x) * -0.12
+            return CGPoint(x: x, y: y)
+        }
+        let crossingU = (0.70 + 0.08) / 1.16   // where jet x == moon x
+
+        // Contrail — fading beads behind the jet.
+        var trail = ctx
+        for i in 1...10 {
+            let uu = u - Double(i) * 0.012
+            guard uu > 0 else { break }
+            trail.opacity = (1 - Double(i) / 10) * 0.35
+            trail.fill(circlePath(jetPoint(uu), 1.2), with: .color(.white))
+        }
+        // The jet itself: a short bright dash along its track.
+        let jp = jetPoint(u)
+        let jpBack = jetPoint(u - 0.006)
+        var jetPath = Path()
+        jetPath.move(to: jpBack); jetPath.addLine(to: jp)
+        ctx.stroke(jetPath, with: .color(.white), style: StrokeStyle(lineWidth: 2.6, lineCap: .round))
+
+        // Alert rings — three gold pulses born the moment the jet meets the
+        // disc, expanding from the moon. Pure function of cycle time.
+        let ringBirth = crossingU * cycle
+        for ringi in 0..<3 {
+            let age = t.truncatingRemainder(dividingBy: cycle) - ringBirth - Double(ringi) * 0.30
+            guard age > 0, age < 1.6 else { continue }
+            let ph = age / 1.6
+            var rc = ctx
+            rc.opacity = (1 - ph) * 0.55
+            rc.stroke(circlePath(moon, moonR + CGFloat(ph) * h * 0.34),
+                      with: .color(gold), lineWidth: 1.6)
         }
     }
 }

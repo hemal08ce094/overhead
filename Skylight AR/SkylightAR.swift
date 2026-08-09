@@ -428,6 +428,12 @@ enum SkyDefaults {
     static let hearFeelSky       = "hearFeelSky"        // Bool
     static let nightVision       = "nightVision"        // Bool
     static let issAlerts         = "issAlerts"          // Bool
+    static let transitAlarm      = "transitAlarm"       // Bool
+    static let transitAlarmLeadSec = "transitAlarmLeadSec" // Double (30…180)
+    static let transitAlarmMoon  = "transitAlarmMoon"   // Bool
+    static let transitAlarmSun   = "transitAlarmSun"    // Bool
+    static let skyDigest         = "skyDigest"          // Bool
+    static let showerAlerts      = "showerAlerts"       // Bool
     static let fr24ApiKey        = "fr24ApiKey"         // String
     static let lastLat           = "lastLat"            // Double (for Siri)
     static let lastLon           = "lastLon"            // Double
@@ -594,6 +600,8 @@ final class ARSkyViewController: UIViewController {
         loadOrRefreshISSTLE()
         applyNightVision()
         scheduleISSPassAlertsIfStale()
+        scheduleSkyDigestIfStale()
+        scheduleShowerAlertsIfStale()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -745,7 +753,15 @@ final class ARSkyViewController: UIViewController {
         // session (in place, no reset — world frame and alignment survive)
         // whenever the running video tier no longer matches the mode, and
         // cap the render loop at 60 Hz while nothing photographic is shown.
-        if videoFormatIsLowRes == showCamera, viewIfLoaded?.window != nil {
+        // Camera-authorized only: with access denied there is no video tier —
+        // the flag never gets written in the motion-sky path, the "mismatch"
+        // reads as permanent, and this restarted the session on every mode
+        // apply / sheet dismissal / foreground. Each restart probes ARKit's
+        // camera capabilities, which stall for seconds against the camera
+        // daemon when access is denied (CMVideoFormatDescription −12710,
+        // "System gesture gate timed out") — an app-wide hang that only
+        // reproduces on device.
+        if cameraAuthorized, videoFormatIsLowRes == showCamera, viewIfLoaded?.window != nil {
             startSession()
         }
         sceneView.preferredFramesPerSecond = showCamera ? 0 : 60
@@ -844,6 +860,14 @@ final class ARSkyViewController: UIViewController {
         AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     }
 
+    /// The AR screen's permission nudge: a user who skipped the onboarding
+    /// ask can get the system prompt in place; a denied one needs Settings.
+    var locationAskable: Bool { locationManager.authorizationStatus == .notDetermined }
+    func requestLocationAccess() { locationManager.requestWhenInUseAuthorization() }
+    /// Camera granted in place (never-asked → allowed): swap the motion sky
+    /// for a live ARKit session without waiting for a relaunch.
+    func cameraAccessChanged() { startSession() }
+
     // MARK: Motion sky (camera permission denied)
 
     /// With no camera access ARKit can't track, so the dark sky is driven by
@@ -855,6 +879,15 @@ final class ARSkyViewController: UIViewController {
     private var motionCameraNode: SCNNode?
     private var arPointOfView: SCNNode?
     private var motionActive = false
+
+    /// Queried once: `availableAttitudeReferenceFrames` is a synchronous
+    /// round-trip to the CoreMotion daemon, and the motion sky restarts on
+    /// every foreground — device capabilities don't change mid-run.
+    private static let motionReferenceFrame: CMAttitudeReferenceFrame = {
+        let frames = CMMotionManager.availableAttitudeReferenceFrames()
+        return frames.contains(.xArbitraryCorrectedZVertical) ? .xArbitraryCorrectedZVertical
+                                                              : .xArbitraryZVertical
+    }()
 
     private func startMotionSky() {
         guard !motionActive, motionManager.isDeviceMotionAvailable else { return }
@@ -876,12 +909,8 @@ final class ARSkyViewController: UIViewController {
 
         // Z-vertical reference; yaw starts arbitrary and the CLHeading
         // consensus turns worldNode to true north, same as AR mode.
-        let frames = CMMotionManager.availableAttitudeReferenceFrames()
-        let frame: CMAttitudeReferenceFrame =
-            frames.contains(.xArbitraryCorrectedZVertical) ? .xArbitraryCorrectedZVertical
-                                                           : .xArbitraryZVertical
         motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
-        motionManager.startDeviceMotionUpdates(using: frame, to: .main) { [weak self] dm, _ in
+        motionManager.startDeviceMotionUpdates(using: Self.motionReferenceFrame, to: .main) { [weak self] dm, _ in
             guard let self, self.motionActive, let dm else { return }
             // CoreMotion's reference (X forward, Z up) → SceneKit camera
             // (Y up, looking down −Z): tilt the frame −90° about X, then
@@ -1052,6 +1081,34 @@ final class ARSkyViewController: UIViewController {
         }
     }
 
+    /// Toggle/customization handler for the transit alarm: ask permission on
+    /// enable; on disable clear any pending request. Lead-time and body-filter
+    /// changes land here too (their didSets call this) — the scheduler's
+    /// settings-aware key makes the re-sync cheap.
+    func applyTransitAlarm() {
+        if engine?.transitAlarm == true {
+            Task { @MainActor in
+                let center = UNUserNotificationCenter.current()
+                let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+                guard granted else { engine?.transitAlarm = false; return }
+                syncTransitAlarm()
+            }
+        } else {
+            TransitAlertScheduler.cancel()
+        }
+    }
+
+    /// One gathering point for the alarm's settings — every sync goes
+    /// through here so no call site can forget a knob.
+    private func syncTransitAlarm() {
+        guard let engine else { return }
+        TransitAlertScheduler.sync(engine.transitPrediction,
+                                   enabled: engine.transitAlarm,
+                                   leadSeconds: engine.transitAlarmLeadSec,
+                                   moon: engine.transitAlarmMoon,
+                                   sun: engine.transitAlarmSun)
+    }
+
     /// Refresh the schedule when it's older than six hours (TLE drift and
     /// location changes both stay well inside that window).
     func scheduleISSPassAlertsIfStale() {
@@ -1111,12 +1168,202 @@ final class ARSkyViewController: UIViewController {
                 content.title = String(localized: "ISS pass in 10 minutes")
                 content.body = String(localized: "Rises \(compass(pass.az)) and climbs to \(Int(pass.maxEl.rounded()))° — open Overhead to watch it cross.")
                 content.sound = .default
+                content.threadIdentifier = "iss"
+                content.interruptionLevel = .active
                 let comps = Calendar.current.dateComponents(
                     [.year, .month, .day, .hour, .minute, .second], from: fireAt)
                 let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
                 try? await center.add(UNNotificationRequest(
                     identifier: "isspass-\(Int(pass.rise.timeIntervalSince1970))",
                     content: content, trigger: trigger))
+            }
+        }
+    }
+
+    // MARK: Tonight's sky digest
+
+    private var digestScheduledAt: Date?
+
+    /// Toggle handler: ask permission, then schedule the week; clearing
+    /// removes only our own pending digest requests.
+    func applySkyDigest() {
+        if engine?.skyDigest == true {
+            Task { @MainActor in
+                let center = UNUserNotificationCenter.current()
+                let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+                guard granted else { engine?.skyDigest = false; return }
+                scheduleSkyDigest()
+            }
+        } else {
+            digestScheduledAt = nil
+            Task {
+                let center = UNUserNotificationCenter.current()
+                let ours = await center.pendingNotificationRequests()
+                    .map(\.identifier).filter { $0.hasPrefix("skydigest-") }
+                center.removePendingNotificationRequests(withIdentifiers: ours)
+            }
+        }
+    }
+
+    /// Refresh daily — the schedule always covers the next seven evenings.
+    func scheduleSkyDigestIfStale() {
+        guard engine?.skyDigest == true,
+              digestScheduledAt.map({ Date().timeIntervalSince($0) > 24 * 3600 }) ?? true
+        else { return }
+        scheduleSkyDigest()
+    }
+
+    /// One quiet note per evening, timed to the observer's own sky: fires
+    /// ~30 minutes after local sunset — when the first stars come out — with
+    /// the moon's phase and the planets up that evening. Passive delivery:
+    /// it waits in the list rather than lighting the phone.
+    private func scheduleSkyDigest() {
+        guard let here = observerLocation else { return }
+        digestScheduledAt = Date()
+        let lat = here.coordinate.latitude, lon = here.coordinate.longitude
+        Task.detached(priority: .utility) {
+            var entries: [(fire: Date, body: String, moonFrac: Double, waxing: Bool)] = []
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = TimeZone.current
+            let rank = ["Venus", "Jupiter", "Mars", "Saturn", "Mercury"]
+            for dayOffset in 0..<7 {
+                guard let day = cal.date(byAdding: .day, value: dayOffset,
+                                         to: cal.startOfDay(for: Date())) else { continue }
+                // Sunset: scan the afternoon for the sun crossing the horizon.
+                var sunset: Date?
+                var t = day.addingTimeInterval(14 * 3600)
+                let scanEnd = day.addingTimeInterval(23 * 3600 + 3300)
+                var prevUp = Celestial.sun(date: t, lat: lat, lon: lon).el > 0
+                while t < scanEnd {
+                    let up = Celestial.sun(date: t, lat: lat, lon: lon).el > 0
+                    if prevUp, !up { sunset = t; break }
+                    prevUp = up
+                    t += 300
+                }
+                // Polar day/night or already past: no digest for this evening.
+                guard let sunset else { continue }
+                let fire = sunset.addingTimeInterval(30 * 60)
+                guard fire.timeIntervalSinceNow > 600 else { continue }
+
+                let evening = cal.date(bySettingHour: 22, minute: 30, second: 0, of: day) ?? fire
+                let moon = Celestial.moon(date: evening, lat: lat, lon: lon)
+                let phase = Celestial.phaseName(illumination: moon.illumination, waxing: moon.waxing)
+                let pct = Int((moon.illumination * 100).rounded())
+                let planets = Celestial.planets(date: evening, lat: lat, lon: lon)
+                    .filter { $0.el > 8 }
+                    .map(\.name)
+                    .sorted { (rank.firstIndex(of: $0) ?? 9) < (rank.firstIndex(of: $1) ?? 9) }
+
+                var body = String(localized: "\(phase), \(pct)% lit.")
+                if !planets.isEmpty {
+                    body += " " + String(localized: "Up this evening: \(planets.joined(separator: ", ")).")
+                }
+                entries.append((fire, body, moon.illumination, moon.waxing))
+            }
+            let found = entries
+            await MainActor.run { Self.scheduleDigestNotifications(for: found) }
+        }
+    }
+
+    private static func scheduleDigestNotifications(
+        for entries: [(fire: Date, body: String, moonFrac: Double, waxing: Bool)]) {
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let stale = await center.pendingNotificationRequests()
+                .map(\.identifier).filter { $0.hasPrefix("skydigest-") }
+            center.removePendingNotificationRequests(withIdentifiers: stale)
+            for entry in entries {
+                let content = UNMutableNotificationContent()
+                content.title = String(localized: "Tonight's sky")
+                content.body = entry.body
+                content.threadIdentifier = "digest"
+                content.interruptionLevel = .passive   // no sound, no wake — it waits
+                if let attachment = moonAttachment(fraction: entry.moonFrac, waxing: entry.waxing) {
+                    content.attachments = [attachment]
+                }
+                let comps = Calendar.current.dateComponents(
+                    [.year, .month, .day, .hour, .minute, .second], from: entry.fire)
+                try? await center.add(UNNotificationRequest(
+                    identifier: "skydigest-\(Int(entry.fire.timeIntervalSince1970))",
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)))
+            }
+        }
+    }
+
+    /// The same moon the app draws, as notification art. The system moves the
+    /// file into its own store, so a fresh temp write per request is correct.
+    private static func moonAttachment(fraction: Double, waxing: Bool) -> UNNotificationAttachment? {
+        let image = SkyArt.moonImage(fraction: fraction, waxing: waxing, diameter: 128)
+        guard let data = image.pngData() else { return nil }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("digest-moon-\(UUID().uuidString).png")
+        do {
+            try data.write(to: url)
+            return try UNNotificationAttachment(identifier: "moon", url: url)
+        } catch { return nil }
+    }
+
+    // MARK: Meteor shower alerts
+
+    private var showerAlertsScheduledAt: Date?
+
+    /// Toggle handler: the automatic version of setting a reminder on every
+    /// shower event by hand. Skips any shower the user already set a manual
+    /// reminder for — one buzz per sky moment.
+    func applyShowerAlerts() {
+        if engine?.showerAlerts == true {
+            Task { @MainActor in
+                let center = UNUserNotificationCenter.current()
+                let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+                guard granted else { engine?.showerAlerts = false; return }
+                scheduleShowerAlerts()
+            }
+        } else {
+            showerAlertsScheduledAt = nil
+            Task {
+                let center = UNUserNotificationCenter.current()
+                let ours = await center.pendingNotificationRequests()
+                    .map(\.identifier).filter { $0.hasPrefix("shower-") }
+                center.removePendingNotificationRequests(withIdentifiers: ours)
+            }
+        }
+    }
+
+    func scheduleShowerAlertsIfStale() {
+        guard engine?.showerAlerts == true,
+              showerAlertsScheduledAt.map({ Date().timeIntervalSince($0) > 24 * 3600 }) ?? true
+        else { return }
+        scheduleShowerAlerts()
+    }
+
+    private func scheduleShowerAlerts() {
+        guard let engine else { return }
+        let showers = Array(engine.events.filter { $0.kind == .meteorShower }.prefix(8))
+        guard !showers.isEmpty else { return }   // events not computed yet — retry via staleness
+        showerAlertsScheduledAt = Date()
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let pending = await center.pendingNotificationRequests().map(\.identifier)
+            center.removePendingNotificationRequests(
+                withIdentifiers: pending.filter { $0.hasPrefix("shower-") })
+            for event in showers {
+                let fireAt = event.date.addingTimeInterval(-3600)
+                guard fireAt > Date() else { continue }
+                // A manual reminder for this event already covers it.
+                guard !pending.contains("skyevent-\(Int(event.date.timeIntervalSince1970))") else { continue }
+                let content = UNMutableNotificationContent()
+                content.title = String(localized: "\(event.title) — one hour to go")
+                content.body = String(localized: "\(event.subtitle). Step outside and look up.")
+                content.sound = .default
+                content.threadIdentifier = "events"
+                content.interruptionLevel = .active
+                let comps = Calendar.current.dateComponents(
+                    [.year, .month, .day, .hour, .minute, .second], from: fireAt)
+                try? await center.add(UNNotificationRequest(
+                    identifier: "shower-\(Int(event.date.timeIntervalSince1970))",
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)))
             }
         }
     }
@@ -1663,6 +1910,7 @@ final class ARSkyViewController: UIViewController {
             }
             engine.transitPrediction = nil
             transitHapticFired = false
+            syncTransitAlarm()
         }
         // Transit alerts are real-world events. While the sky clock is
         // scrubbed the displayed sun/moon are displaced from the real ones,
@@ -1677,6 +1925,9 @@ final class ARSkyViewController: UIViewController {
             aircraft: traffic,
             observerLat: lat, observerLon: lon, observerAltM: observer.altitude,
             moon: (moon.az, moon.el), sun: (sun.az, sun.el))
+        // Mirror the prediction into the pocket alarm (cheap no-op per tick
+        // unless the transit identity or the alarm settings changed).
+        syncTransitAlarm()
     }
 
     /// Aim the glyph along the plane's *true* 3D direction of travel — ground
@@ -2339,6 +2590,8 @@ final class ARSkyViewController: UIViewController {
         // Fresh elements → refresh any scheduled pass alerts.
         issAlertsScheduledAt = nil
         scheduleISSPassAlertsIfStale()
+        scheduleSkyDigestIfStale()
+        scheduleShowerAlertsIfStale()
     }
 
     /// Scrub the sky clock forward to the ISS's next rise above ~10°.
@@ -2425,6 +2678,8 @@ extension ARSkyViewController: CLLocationManagerDelegate {
             // The launch-time attempt bails without a fix; now that one exists,
             // schedule for real. No-ops once stamped fresh.
             scheduleISSPassAlertsIfStale()
+            scheduleSkyDigestIfStale()
+            scheduleShowerAlertsIfStale()
         }
     }
 

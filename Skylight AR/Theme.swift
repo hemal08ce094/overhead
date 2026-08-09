@@ -44,6 +44,18 @@ enum Theme {
     static func display(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
     }
+
+    /// The app's spring voices — reach for these instead of inventing
+    /// constants per call site. Damping stays high: motion often plays over
+    /// a live camera feed, where bounce reads as jitter.
+    enum Motion {
+        /// Chrome and state changes — critically damped, settles with no
+        /// overshoot. The default for anything that isn't press feedback.
+        static let standard = Animation.spring(response: 0.4, dampingFraction: 1.0)
+        /// Press feedback and small controls (the slight overshoot at
+        /// 0.97 → 1 is invisible and keeps taps feeling alive).
+        static let snappy = Animation.spring(response: 0.3, dampingFraction: 0.7)
+    }
 }
 
 /// Tracked-caps section label — the one way sections are introduced app-wide.
@@ -165,7 +177,18 @@ struct PrimaryButtonStyle: ButtonStyle {
             .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.35)), in: .capsule)
             .shadow(color: Theme.accent.opacity(0.25), radius: 16, y: 6)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+            .animation(Theme.Motion.snappy, value: configuration.isPressed)
+    }
+}
+
+/// Settings-row press feedback: a quiet dim on touch-down. Rows are
+/// full-width surfaces, where the buttons' scale-down would read as warping —
+/// opacity is the right instrument at this size.
+struct RowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.55 : 1)
+            .animation(Theme.Motion.snappy, value: configuration.isPressed)
     }
 }
 

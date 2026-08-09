@@ -150,6 +150,24 @@ final class SkyEngine {
     var nightVision: Bool = false { didSet { persist(); controller?.applyNightVision() } }
     /// Local notifications ~10 minutes before visible ISS passes.
     var issAlerts: Bool = false { didSet { persist(); controller?.applyISSAlerts() } }
+    /// Local notification ahead of a predicted aircraft transit — covers the
+    /// pocket-locked phone while the tripod goes up.
+    var transitAlarm: Bool = false { didSet { persist(); controller?.applyTransitAlarm() } }
+    /// How far ahead the alarm fires (seconds). Capped by physics: the
+    /// predictor sees at most ~3 minutes out, so the longest lead simply
+    /// fires the moment a transit is predicted.
+    var transitAlarmLeadSec: Double = 60 { didSet { persist(); controller?.applyTransitAlarm() } }
+    /// Which crossings qualify — an astrophotographer chasing lunar transits
+    /// may not want a buzz for every solar pass, and vice versa.
+    var transitAlarmMoon: Bool = true { didSet { persist(); controller?.applyTransitAlarm() } }
+    var transitAlarmSun: Bool = true { didSet { persist(); controller?.applyTransitAlarm() } }
+    /// A quiet daily note as the first stars come out: moon phase and which
+    /// planets are up this evening. Passive — it waits in the notification
+    /// list rather than lighting the phone.
+    var skyDigest: Bool = false { didSet { persist(); controller?.applySkyDigest() } }
+    /// An hour's warning before each major meteor shower peaks — the automatic
+    /// version of setting a reminder on every shower event by hand.
+    var showerAlerts: Bool = false { didSet { persist(); controller?.applyShowerAlerts() } }
 
     /// Minutes added to "now" for the sky clock (time-scrub; not persisted).
     var skyTimeOffsetMin: Double = 0 { didSet { controller?.applySkyTimeNow() } }
@@ -203,7 +221,12 @@ final class SkyEngine {
         eventsLoaded = true
         Task.detached(priority: .utility) {
             let events = EventsCalendar.upcoming(lat: lat, lon: lon)
-            await MainActor.run { self.events = events }
+            await MainActor.run {
+                self.events = events
+                // Shower alerts schedule off this list — refresh them the
+                // moment the year ahead is (re)computed.
+                if self.showerAlerts { self.controller?.applyShowerAlerts() }
+            }
         }
     }
 
@@ -253,6 +276,9 @@ final class SkyEngine {
     var feedOffline: Bool = false
     /// Location was denied; the sky is shown from a stand-in city.
     var usingDemoLocation: Bool = false
+    /// Session-scoped dismissal for the missing-permission nudge — a quiet
+    /// reminder each launch, never a nag within one.
+    var permissionNudgeDismissed: Bool = false
     /// Moon illuminated fraction (0…1) and waxing flag, for the UI.
     var moonIllumination: Double = 0
     var moonWaxing: Bool = true
@@ -300,6 +326,12 @@ final class SkyEngine {
         hearFeelSky = d.object(forKey: SkyDefaults.hearFeelSky) as? Bool ?? true
         nightVision = d.bool(forKey: SkyDefaults.nightVision)
         issAlerts = d.bool(forKey: SkyDefaults.issAlerts)
+        transitAlarm = d.bool(forKey: SkyDefaults.transitAlarm)
+        transitAlarmLeadSec = d.object(forKey: SkyDefaults.transitAlarmLeadSec) as? Double ?? 60
+        transitAlarmMoon = d.object(forKey: SkyDefaults.transitAlarmMoon) as? Bool ?? true
+        transitAlarmSun = d.object(forKey: SkyDefaults.transitAlarmSun) as? Bool ?? true
+        skyDigest = d.bool(forKey: SkyDefaults.skyDigest)
+        showerAlerts = d.bool(forKey: SkyDefaults.showerAlerts)
         fr24ApiKey = d.string(forKey: SkyDefaults.fr24ApiKey) ?? ""
         favorites = Set(d.stringArray(forKey: SkyDefaults.favorites) ?? [])
         statFlightsSpotted = d.integer(forKey: SkyDefaults.statSpots)
@@ -454,5 +486,11 @@ final class SkyEngine {
         d.set(hearFeelSky, forKey: SkyDefaults.hearFeelSky)
         d.set(nightVision, forKey: SkyDefaults.nightVision)
         d.set(issAlerts, forKey: SkyDefaults.issAlerts)
+        d.set(transitAlarm, forKey: SkyDefaults.transitAlarm)
+        d.set(transitAlarmLeadSec, forKey: SkyDefaults.transitAlarmLeadSec)
+        d.set(transitAlarmMoon, forKey: SkyDefaults.transitAlarmMoon)
+        d.set(transitAlarmSun, forKey: SkyDefaults.transitAlarmSun)
+        d.set(skyDigest, forKey: SkyDefaults.skyDigest)
+        d.set(showerAlerts, forKey: SkyDefaults.showerAlerts)
     }
 }

@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import UserNotifications
 
 struct TransitPrediction: Equatable {
     enum Body: String {
@@ -114,5 +115,105 @@ enum TransitPredictor {
             }
         }
         return best
+    }
+}
+
+// MARK: - Transit alarm (local notification, T−60 s)
+
+/// The "phone in the pocket" alarm: a local notification one minute before a
+/// predicted crossing, so the observer who set the tripod up and locked the
+/// phone still gets tapped on the shoulder. Aircraft transits are knowable
+/// only minutes ahead and only while the feed runs, so the schedule simply
+/// mirrors the live prediction 1:1 — it never promises more than the
+/// predictor knows.
+enum TransitAlertScheduler {
+    /// The lead choices offered in Notifications settings. Physics caps the
+    /// ceiling: the predictor sees ~3 minutes out, so the longest lead means
+    /// "the moment a transit is predicted."
+    static let leadChoices: [TimeInterval] = [30, 60, 120, 180]
+
+    /// The last (identity × settings) we scheduled — re-predictions of the
+    /// *same* transit refine the date by fractions of a second every poll
+    /// tick; comparing keys here keeps the per-tick call free (no
+    /// UNUserNotificationCenter XPC round-trip unless something changed).
+    private static var scheduledKey: String?
+
+    /// One identity per physical transit: plane × body × minute bucket.
+    private static func identifier(for p: TransitPrediction) -> String {
+        "transit-\(p.callsign)-\(p.body.rawValue)-\(Int(p.date.timeIntervalSince1970 / 60))"
+    }
+
+    /// "30 seconds" / "1 minute" / "2 minutes" / "3 minutes" — bucketed so a
+    /// capped lead still reads honestly as an "about".
+    static func leadPhrase(_ seconds: TimeInterval) -> String {
+        switch seconds {
+        case ..<45:  String(localized: "30 seconds")
+        case ..<90:  String(localized: "1 minute")
+        case ..<150: String(localized: "2 minutes")
+        default:     String(localized: "3 minutes")
+        }
+    }
+
+    /// Remove any pending transit alarm (alarm switched off, or app teardown).
+    static func cancel() {
+        guard scheduledKey != nil else { return }
+        scheduledKey = nil
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let ours = await center.pendingNotificationRequests()
+                .map(\.identifier).filter { $0.hasPrefix("transit-") }
+            center.removePendingNotificationRequests(withIdentifiers: ours)
+        }
+    }
+
+    /// Mirror the live prediction under the user's settings: schedule when a
+    /// qualifying transit exists, clear when it dissolves. The notification
+    /// fires `leadSeconds` before the crossing — or immediately, when the
+    /// prediction is already inside the lead. Safe to call every tick.
+    static func sync(_ prediction: TransitPrediction?, enabled: Bool,
+                     leadSeconds: TimeInterval, moon: Bool, sun: Bool) {
+        // Body filter first: a disabled body is the same as no prediction.
+        let qualified: TransitPrediction? = {
+            guard enabled, let p = prediction else { return nil }
+            switch p.body {
+            case .moon: return moon ? p : nil
+            case .sun:  return sun ? p : nil
+            }
+        }()
+        // Under ~15 s out there is nothing useful left to say from a pocket.
+        let target: (key: String, p: TransitPrediction)? = qualified.flatMap { p in
+            guard p.date.timeIntervalSinceNow > 15 else { return nil }
+            return ("\(identifier(for: p))-L\(Int(leadSeconds))", p)
+        }
+        guard target?.key != scheduledKey else { return }   // nothing changed
+        scheduledKey = target?.key
+
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let stale = await center.pendingNotificationRequests()
+                .map(\.identifier)
+                .filter { $0.hasPrefix("transit-") && $0 != target?.key }
+            center.removePendingNotificationRequests(withIdentifiers: stale)
+            guard let target else { return }
+
+            let p = target.p
+            let remaining = p.date.timeIntervalSinceNow
+            // Already inside the lead → fire now, and say the real time left.
+            let fireDelay = max(1, remaining - leadSeconds)
+            let shownLead = min(leadSeconds, remaining - fireDelay)
+
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "\(p.callsign) crosses the \(p.body.displayName) in \(leadPhrase(shownLead))")
+            content.body = String(localized: "Look \(compass(p.azimuth)), \(Int(p.elevation.rounded()))° up — open Overhead for the shutter.")
+            content.sound = .default
+            content.threadIdentifier = "transit"
+            // A transit is a genuinely perishable moment — the one alert in
+            // the app that earns breaking through Focus (requires the
+            // time-sensitive entitlement; downgrades gracefully without it).
+            content.interruptionLevel = .timeSensitive
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fireDelay, repeats: false)
+            try? await center.add(UNNotificationRequest(
+                identifier: target.key, content: content, trigger: trigger))
+        }
     }
 }
