@@ -8,7 +8,8 @@
 //  footnote, page dots and a fixed action area so nothing jumps between
 //  beats. The beats live on a real pager: they track the finger 1:1, rubber-
 //  band at the ends, and a release projects momentum to pick the snap — so
-//  revisiting an earlier page is one swipe, never a dead end. The material
+//  revisiting an earlier page is one swipe, never a dead end. Forward travel
+//  gates on each permission being asked (see maxReachablePage). The material
 //  stays ours: advancing bursts the words into star-motes, and the scene's
 //  camera — not a slide deck — carries you forward.
 //
@@ -190,10 +191,18 @@ struct OnboardingView: View {
             }
     }
 
+    /// Forward travel stops at the first permission still unasked: the only
+    /// way past a priming page is Continue → the system prompt (App Review
+    /// 5.1.1(iv) — the message must always lead to the request). Backward
+    /// travel is never gated.
+    private var maxReachablePage: Int {
+        permissions.location == .notDetermined ? 1 : 2
+    }
+
     /// Past either end the night resists progressively instead of stopping
     /// hard — there's nothing further, but the interface is still listening.
     private func rubberbanded(_ x: CGFloat, width: CGFloat) -> CGFloat {
-        guard (page == 0 && x > 0) || (page == 2 && x < 0) else { return x }
+        guard (page == 0 && x > 0) || (page >= maxReachablePage && x < 0) else { return x }
         let c: CGFloat = 0.55
         return x * c * width / (width + c * abs(x))
     }
@@ -203,7 +212,7 @@ struct OnboardingView: View {
     /// there is no seam between dragging and animating.
     private func settle(width: CGFloat, predicted: CGFloat, velocity: CGFloat) {
         var target = page
-        if predicted < -width / 2 { target = min(page + 1, 2) }
+        if predicted < -width / 2 { target = min(page + 1, maxReachablePage) }
         else if predicted > width / 2 { target = max(page - 1, 0) }
         if target > page { burst += 1 }                 // words → star-motes
 
@@ -254,7 +263,7 @@ struct OnboardingView: View {
                 .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 26)
-            Text("Overhead uses your location to compute exactly where each aircraft and celestial object sits above you.")
+            Text("Overhead needs your location to compute exactly where each aircraft and celestial object sits above you. Without it, the sky on screen can't be yours.")
                 .font(Theme.display(16, .regular))
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -276,7 +285,7 @@ struct OnboardingView: View {
                 .font(Theme.display(32, .semibold))
                 .foregroundStyle(Theme.textPrimary)
                 .multilineTextAlignment(.center)
-            Text("The camera places aircraft and stars onto your live sky in augmented reality. Prefer not to? A low-power dark-sky mode works too.")
+            Text("Overhead needs the camera to place aircraft and stars onto your live sky in augmented reality — it's the heart of the experience.")
                 .font(Theme.display(16, .regular))
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -356,12 +365,10 @@ struct OnboardingView: View {
             return String(localized: "Continue")
         case 1:
             if permissions.locationDenied { return String(localized: "Open Settings") }
-            if permissions.locationGranted { return String(localized: "Continue") }
-            return String(localized: "Enable Location")
+            return String(localized: "Continue")
         default:
             if permissions.cameraDenied { return String(localized: "Open Settings") }
-            if permissions.cameraGranted { return String(localized: "Continue") }
-            return String(localized: "Enable Camera")
+            return String(localized: "Continue")
         }
     }
 
@@ -387,20 +394,22 @@ struct OnboardingView: View {
         switch page {
         case 0:
             secondaryPlaceholder
+        // App Review 5.1.1(iv): a priming page may not offer a way to decline
+        // or defer before the system prompt — the skip appears only after the
+        // user has answered the real request and denied it.
         case 1:
-            if permissions.locationGranted {
-                secondaryPlaceholder
-            } else {
-                Button(permissions.locationDenied ? String(localized: "Continue with demo sky")
-                                                  : String(localized: "Not now")) { advance() }
+            if permissions.locationDenied {
+                Button(String(localized: "Continue with demo sky")) { advance() }
                     .buttonStyle(GhostButtonStyle())
+            } else {
+                secondaryPlaceholder
             }
         default:
-            if permissions.cameraGranted {
-                secondaryPlaceholder
-            } else {
+            if permissions.cameraDenied {
                 Button("Skip — use dark sky") { finish() }
                     .buttonStyle(GhostButtonStyle())
+            } else {
+                secondaryPlaceholder
             }
         }
     }
@@ -419,7 +428,7 @@ struct OnboardingView: View {
     }
 
     private func goTo(_ target: Int) {
-        let clamped = min(max(target, 0), 2)
+        let clamped = min(max(target, 0), maxReachablePage)
         guard clamped != page else { return }
         if clamped > page { burst += 1 }             // words → star-motes
         withAnimation(.spring(response: 0.55, dampingFraction: 0.9)) { page = clamped }
