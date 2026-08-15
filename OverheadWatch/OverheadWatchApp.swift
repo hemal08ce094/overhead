@@ -386,7 +386,10 @@ final class ISSPassModel: NSObject, CLLocationManagerDelegate {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         guard lines.count >= 3 else { return nil }
-        return try? Satellite(lines[0], lines[1], lines[2])
+        // Elements throws on a malformed line; Satellite's string init
+        // would fatalError instead — never feed it cached network data.
+        guard let elements = try? Elements(lines[0], lines[1], lines[2]) else { return nil }
+        return Satellite(withTLE: elements)
     }
 
     /// Celestrak blocks IPs that re-query the same catalog number more than

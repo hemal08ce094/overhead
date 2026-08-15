@@ -348,7 +348,7 @@ enum EventsCalendar {
     // MARK: Planet conjunctions
 
     /// Naked-eye planets, brightest first — the brighter one leads the title.
-    private static let planetRank = ["Venus", "Jupiter", "Mercury", "Mars", "Saturn"]
+    nonisolated private static let planetRank = ["Venus", "Jupiter", "Mercury", "Mars", "Saturn"]
 
     /// Pairs of planets passing within 2° of each other in the next year —
     /// the "two lanterns almost touching" moments that make people look up.

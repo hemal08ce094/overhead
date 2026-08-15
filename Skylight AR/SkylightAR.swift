@@ -473,6 +473,7 @@ enum SkyDefaults {
     static let showMilkyWay      = "showMilkyWay"       // Bool
     static let showISS           = "showISS"            // Bool
     static let showSatellites    = "showSatellites"     // Bool (visual-group fleet)
+    static let scanRangeNm       = "scanRangeNm"        // Double (Sky Scan dial radius)
     static let showAircraft      = "showAircraft"       // Bool
     static let showGroundAircraft = "showGroundAircraft" // Bool
     static let nakedEyeOnly       = "nakedEyeOnly"       // Bool
@@ -2631,7 +2632,8 @@ final class ARSkyViewController: UIViewController {
     private func loadOrRefreshISSTLE() {
         if sky?.issSatellite == nil,
            let lines = UserDefaults.standard.stringArray(forKey: SkyDefaults.issTLELines),
-           lines.count >= 3, let sat = try? Satellite(lines[0], lines[1], lines[2]) {
+           lines.count >= 3, let elements = try? Elements(lines[0], lines[1], lines[2]) {
+            let sat = Satellite(withTLE: elements)
             sky?.issSatellite = sat
             issTLEFetchedAt = UserDefaults.standard.object(forKey: SkyDefaults.issTLEDate) as? Date
         }
@@ -2653,7 +2655,9 @@ final class ARSkyViewController: UIViewController {
         let lines = text.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        guard lines.count >= 3, let sat = try? Satellite(lines[0], lines[1], lines[2]) else { return }
+        guard lines.count >= 3,
+              let elements = try? Elements(lines[0], lines[1], lines[2]) else { return }
+        let sat = Satellite(withTLE: elements)
         sky?.issSatellite = sat
         issTLEFetchedAt = Date()
         UserDefaults.standard.set(Array(lines.prefix(3)), forKey: SkyDefaults.issTLELines)

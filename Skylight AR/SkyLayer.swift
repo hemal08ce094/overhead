@@ -24,7 +24,7 @@ final class StarCatalog {
     let lines: [[[Double]]]   // polylines of [ra, dec] (degrees, J2000)
 
     /// The famous bright stars, labeled by name in the sky (J2000 degrees).
-    static let namedStars: [(name: String, ra: Double, dec: Double)] = [
+    nonisolated static let namedStars: [(name: String, ra: Double, dec: Double)] = [
         ("Sirius", 101.287, -16.716), ("Canopus", 95.988, -52.696),
         ("Arcturus", 213.915, 19.182), ("Vega", 279.234, 38.784),
         ("Capella", 79.172, 45.998), ("Rigel", 78.634, -8.202),
@@ -615,7 +615,10 @@ final class SkyScene {
         for entry in satelliteObjects { entry.node.removeFromParentNode() }
         satelliteObjects.removeAll()
         for entry in satellites {
-            guard let sat = try? Satellite(entry.name, entry.line1, entry.line2) else { continue }
+            // Elements throws on a malformed line; Satellite's string init
+            // would fatalError instead — never feed it network data.
+            guard let elements = try? Elements(entry.name, entry.line1, entry.line2) else { continue }
+            let sat = Satellite(withTLE: elements)
             let node = SCNNode()
             let plane = SCNPlane(width: 6, height: 6)
             let mat = SCNMaterial()

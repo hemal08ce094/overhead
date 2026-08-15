@@ -98,7 +98,6 @@ struct LaunchIntroView: View {
     private func draw(_ ctx: GraphicsContext, _ size: CGSize, t: Double) {
         let w = size.width, h = size.height
         drawStars(ctx, w, h, t: t)
-        drawHorizon(ctx, w, h, t: t)
 
         let center = CGPoint(x: w * 0.5, y: h * 0.30)
         let r = min(w, h) * 0.155
@@ -134,76 +133,63 @@ struct LaunchIntroView: View {
         }
     }
 
-    /// The planet's rim below, with your beacon pulsing on it — where you
-    /// stand watching the transit from.
-    private func drawHorizon(_ ctx: GraphicsContext, _ w: CGFloat, _ h: CGFloat, t: Double) {
-        let rise = ramp((t - 0.35) / 0.8)
-        guard rise > 0 else { return }
-        let apex = CGPoint(x: w * 0.5, y: h * (1.06 - 0.18 * rise))
-        let r = w * 1.6
-        var rim = Path()
-        rim.addArc(center: CGPoint(x: apex.x, y: apex.y + r), radius: r,
-                   startAngle: .degrees(250), endAngle: .degrees(290), clockwise: false)
-        ctx.fill(Path(CGRect(x: 0, y: apex.y - 2, width: w, height: h - apex.y + 2)),
-                 with: .linearGradient(Gradient(colors: [Theme.indigo.opacity(0.40 * rise), .clear]),
-                                       startPoint: CGPoint(x: 0, y: apex.y),
-                                       endPoint: CGPoint(x: 0, y: h)))
-        ctx.drawLayer { layer in
-            layer.addFilter(.blur(radius: 12))
-            layer.stroke(rim, with: .color(Theme.accentSoft.opacity(0.55 * rise)), lineWidth: 7)
-        }
-        ctx.stroke(rim, with: .color(Theme.accent.opacity(0.6 * rise)), lineWidth: 1.4)
-        for i in 0..<3 {
-            let ph = ((t * 0.5 + Double(i) * 0.45).truncatingRemainder(dividingBy: 1.5)) / 1.5
-            let e = 1 - pow(1 - ph, 3)
-            var rc = ctx; rc.opacity = (1 - ph) * 0.5 * rise
-            let rr = CGFloat(e) * w * 0.40
-            rc.stroke(Path(ellipseIn: CGRect(x: apex.x - rr, y: apex.y - rr * 0.28,
-                                             width: rr * 2, height: rr * 0.56)),
-                      with: .color(Theme.accent), lineWidth: 1.2)
-        }
-        ctx.fill(Path(ellipseIn: CGRect(x: apex.x - 4, y: apex.y - 4, width: 8, height: 8)),
-                 with: .color(.white.opacity(rise)))
-    }
-
-    /// The eclipsed sun: corona in three breathing layers, slowly turning
-    /// streamers, the moon dead black, and a thin chromosphere ring with two
-    /// prominence specks on the limb.
+    /// The eclipsed sun, built the way totality actually looks: a hard bright
+    /// inner corona hugging the limb, then ~110 fine filamentary strands —
+    /// long streamers fanning out along the solar equator, short brushy
+    /// plumes at the poles — each shimmering slightly out of phase. No
+    /// uniform halo anywhere; the shape comes from the strands.
     private func drawEclipse(_ ctx: GraphicsContext, center: CGPoint, r: CGFloat, t: Double) {
         let bloom = ramp((t - Self.eclipseAt) / 0.6)
         guard bloom > 0 else { return }
-        let breathe = 1 + 0.015 * sin(t * 0.8)
+        let tilt = -0.35   // solar equator's lean across the frame
 
-        // Streamers: elongated wisps turning imperceptibly, like the real wind.
-        ctx.drawLayer { layer in
-            layer.translateBy(x: center.x, y: center.y)
-            layer.rotate(by: .radians(t * 0.02))
-            layer.addFilter(.blur(radius: 10))
-            for i in 0..<5 {
-                let (r0, r1, _, _) = hash(500 + i)
-                let ang = r0 * .pi
-                let len = r * (2.0 + r1 * 1.3) * breathe
-                var p = Path()
-                p.addEllipse(in: CGRect(x: -len, y: -r * 0.30, width: len * 2, height: r * 0.60))
-                layer.drawLayer { inner in
-                    inner.rotate(by: .radians(ang))
-                    inner.fill(p, with: .color(Color(red: 1.0, green: 0.94, blue: 0.78)
-                        .opacity(0.10 * bloom)))
+        // Filaments, twice: once softly blurred for the glow body, once thin
+        // and faint on top for the crisp strand texture photographs show.
+        for pass in 0..<2 {
+            ctx.drawLayer { layer in
+                if pass == 0 { layer.addFilter(.blur(radius: 3.5)) }
+                for i in 0..<110 {
+                    let (r0, r1, r2, r3) = hash(600 + i)
+                    let ang = r0 * 2 * .pi
+                    // How equatorial this strand is decides how far it reaches.
+                    let equat = pow(abs(cos(ang - tilt)), 2.4)
+                    let len = r * (0.30 + 0.45 * r1 + equat * (1.0 + 1.9 * r2))
+                    // Polar plumes splay outward a touch, like field lines.
+                    let splay = (1 - equat) * (r3 - 0.5) * 0.35
+                    let a0 = ang, a1 = ang + splay
+                    let p0 = CGPoint(x: center.x + cos(a0) * r * 1.01,
+                                     y: center.y + sin(a0) * r * 1.01)
+                    let p1 = CGPoint(x: center.x + cos(a1) * (r + len),
+                                     y: center.y + sin(a1) * (r + len))
+                    let shimmer = 0.8 + 0.2 * sin(t * (0.15 + r1 * 0.4) + r3 * 6.28)
+                    let alpha = (pass == 0 ? 0.10 : 0.05)
+                        * (0.5 + r3 * 0.9) * (0.45 + equat) * bloom * shimmer
+                    var strand = Path()
+                    strand.move(to: p0)
+                    strand.addLine(to: p1)
+                    layer.stroke(strand, with: .linearGradient(
+                        Gradient(colors: [Color(red: 0.99, green: 0.97, blue: 0.93).opacity(alpha),
+                                          .clear]),
+                        startPoint: p0, endPoint: p1),
+                        style: StrokeStyle(lineWidth: pass == 0 ? 1.6 + r2 * 1.4 : 0.7,
+                                           lineCap: .round))
                 }
             }
         }
 
-        // Corona body: hot white core light falling off to a warm haze.
-        let glow = Gradient(stops: [
-            .init(color: Color(red: 1.0, green: 0.98, blue: 0.92).opacity(0.95 * bloom), location: 0.30),
-            .init(color: Color(red: 1.0, green: 0.92, blue: 0.72).opacity(0.50 * bloom), location: 0.46),
-            .init(color: Theme.gold.opacity(0.16 * bloom), location: 0.66),
+        // Inner corona: the blinding collar right against the limb — bright,
+        // tight, and falling off fast. This is what sells the exposure.
+        let collar = Gradient(stops: [
+            .init(color: .clear, location: 0.0),
+            .init(color: Color(red: 1.0, green: 0.99, blue: 0.96).opacity(0.92 * bloom), location: 0.385),
+            .init(color: Color(red: 1.0, green: 0.96, blue: 0.86).opacity(0.42 * bloom), location: 0.52),
+            .init(color: Color(red: 0.98, green: 0.90, blue: 0.72).opacity(0.10 * bloom), location: 0.75),
             .init(color: .clear, location: 1.0),
         ])
-        let cr = r * 2.6 * breathe
+        let cr = r * 2.6
         ctx.fill(Path(ellipseIn: CGRect(x: center.x - cr, y: center.y - cr,
                                         width: cr * 2, height: cr * 2)),
-                 with: .radialGradient(glow, center: center, startRadius: 0, endRadius: cr))
+                 with: .radialGradient(collar, center: center, startRadius: 0, endRadius: cr))
 
         // The moon: near-nothing. Corona light scatters into the lens, so the
         // disc reads charcoal with glare creeping in from the limb — which is
@@ -241,18 +227,21 @@ struct LaunchIntroView: View {
             layer.opacity = alpha
             let s = span   // local unit: 1 wingspan
 
-            // Contrails first, so the airframe sits on top of them.
+            // Contrails first, so the airframe sits on top of them — four
+            // threads, one per engine, the jumbo's signature.
             for side in [-1.0, 1.0] {
-                let y = CGFloat(side) * s * 0.16
-                var trail = Path()
-                trail.move(to: CGPoint(x: -s * 0.30, y: y))
-                trail.addLine(to: CGPoint(x: -s * 1.9, y: y))
-                layer.stroke(trail, with: .linearGradient(
-                    Gradient(colors: [Color(red: 0.10, green: 0.09, blue: 0.07).opacity(0.38),
-                                      .clear]),
-                    startPoint: CGPoint(x: -s * 0.30, y: y),
-                    endPoint: CGPoint(x: -s * 1.9, y: y)),
-                    style: StrokeStyle(lineWidth: s * 0.035, lineCap: .round))
+                for engineY in [0.14, 0.30] {
+                    let y = CGFloat(side) * s * engineY
+                    var trail = Path()
+                    trail.move(to: CGPoint(x: -s * 0.30, y: y))
+                    trail.addLine(to: CGPoint(x: -s * 1.9, y: y))
+                    layer.stroke(trail, with: .linearGradient(
+                        Gradient(colors: [Color(red: 0.10, green: 0.09, blue: 0.07).opacity(0.32),
+                                          .clear]),
+                        startPoint: CGPoint(x: -s * 0.30, y: y),
+                        endPoint: CGPoint(x: -s * 1.9, y: y)),
+                        style: StrokeStyle(lineWidth: s * 0.030, lineCap: .round))
+                }
             }
 
             let ink = GraphicsContext.Shading.color(Color(red: 0.012, green: 0.010, blue: 0.008))
@@ -260,10 +249,10 @@ struct LaunchIntroView: View {
             // keeps the shape readable even over the disc's darkest center.
             let rim = GraphicsContext.Shading.color(
                 Color(red: 1.0, green: 0.88, blue: 0.62).opacity(0.28))
-            // Fuselage: a slender capsule, nose to the +x.
-            let fuselage = Path(roundedRect: CGRect(x: -s * 0.50, y: -s * 0.042,
-                                                    width: s * 1.04, height: s * 0.084),
-                                cornerRadius: s * 0.042)
+            // Fuselage: the jumbo's wide-body capsule, nose to the +x.
+            let fuselage = Path(roundedRect: CGRect(x: -s * 0.50, y: -s * 0.048,
+                                                    width: s * 1.04, height: s * 0.096),
+                                cornerRadius: s * 0.048)
             layer.fill(fuselage, with: ink)
             layer.stroke(fuselage, with: rim, lineWidth: 0.6)
             // Wings swept back, engines slung beneath, tailplane at the rear.
@@ -276,11 +265,16 @@ struct LaunchIntroView: View {
                 wing.closeSubpath()
                 layer.fill(wing, with: ink)
                 layer.stroke(wing, with: rim, lineWidth: 0.6)
-                let engine = Path(roundedRect: CGRect(x: s * 0.02, y: CGFloat(side) * s * 0.16 - s * 0.026,
-                                                      width: s * 0.15, height: s * 0.052),
-                                  cornerRadius: s * 0.026)
-                layer.fill(engine, with: ink)
-                layer.stroke(engine, with: rim, lineWidth: 0.6)
+                // Four engines — inner pair and outer pair, following the sweep.
+                for (engineY, engineX) in [(0.14, 0.05), (0.30, -0.07)] {
+                    let engine = Path(roundedRect: CGRect(
+                        x: s * CGFloat(engineX),
+                        y: CGFloat(side) * s * CGFloat(engineY) - s * 0.026,
+                        width: s * 0.14, height: s * 0.052),
+                        cornerRadius: s * 0.026)
+                    layer.fill(engine, with: ink)
+                    layer.stroke(engine, with: rim, lineWidth: 0.6)
+                }
                 var tail = Path()
                 tail.move(to: CGPoint(x: -s * 0.40, y: CGFloat(side) * s * 0.018))
                 tail.addLine(to: CGPoint(x: -s * 0.52, y: CGFloat(side) * s * 0.19))
@@ -317,7 +311,7 @@ struct LaunchIntroView: View {
     private func drawChip(_ ctx: GraphicsContext, _ w: CGFloat, at c: CGPoint, t: Double) {
         let pinned = ramp((t - Self.chipAt) / 0.2)
         guard pinned > 0 else { return }
-        let text = ctx.resolve(Text(verbatim: liveLabel ?? "QTR649 → Doha · 38,000 ft")
+        let text = ctx.resolve(Text(verbatim: liveLabel ?? "EK225 · A380 · DXB → SFO")
             .font(Theme.display(11, .semibold)).foregroundColor(.white))
         let ts = text.measure(in: CGSize(width: 260, height: 40))
         let chip = CGRect(x: min(max(c.x - ts.width / 2 - 10, 12), w - ts.width - 32),
