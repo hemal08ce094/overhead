@@ -18,6 +18,8 @@ private let gold = Theme.gold
 private let moonlight = Color(red: 0.96, green: 0.96, blue: 0.91)
 private let nightDisc = Color(red: 0.07, green: 0.08, blue: 0.12)
 private let copper = Color(red: 0.93, green: 0.52, blue: 0.35)
+private let auroraGreen = Color(red: 0.40, green: 0.85, blue: 0.62)
+private let flame = Color(red: 0.98, green: 0.62, blue: 0.30)
 
 extension SkyEvent.Kind {
     /// One accent per event family — countdowns, progress rings, borders.
@@ -29,11 +31,17 @@ extension SkyEvent.Kind {
         case .fullMoon: moonlight
         case .conjunction: Theme.accent
         case .season: gold
+        case .occultation: moonlight
+        case .aurora: auroraGreen
+        case .rocketLaunch: flame
+        case .reentry: copper
+        case .fireball: gold
         }
     }
 
-    /// Eclipses of either kind get the headline treatment.
-    var isHeadline: Bool { self == .eclipse || self == .lunarEclipse }
+    /// Eclipses and occultations — the location-exact spectacles — get the
+    /// headline treatment.
+    var isHeadline: Bool { self == .eclipse || self == .lunarEclipse || self == .occultation }
 }
 
 // MARK: - Handcrafted glyphs (list size)
@@ -113,6 +121,92 @@ struct EventGlyph: View {
                                style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
             }
             .shadow(color: gold.opacity(0.5), radius: 3)
+        case .occultation:
+            // The moon's dark limb sliding over a star.
+            ZStack {
+                Circle().fill(.white)
+                    .frame(width: 6, height: 6)
+                    .offset(x: 7, y: -6)
+                    .shadow(color: .white.opacity(0.8), radius: 3)
+                Circle().fill(RadialGradient(colors: [moonlight.opacity(0.9), moonlight.opacity(0.5)],
+                                             center: UnitPoint(x: 0.3, y: 0.7),
+                                             startRadius: 1, endRadius: 18))
+                    .frame(width: 18, height: 18)
+                    .offset(x: -2, y: 2)
+            }
+        case .aurora:
+            // Three curtains leaning with the field lines.
+            Canvas { context, size in
+                for (i, x) in [0.28, 0.52, 0.76].enumerated() {
+                    let lean = CGFloat(i - 1) * 3
+                    var curtain = Path()
+                    curtain.move(to: CGPoint(x: size.width * x + lean, y: size.height * 0.18))
+                    curtain.addLine(to: CGPoint(x: size.width * x - lean, y: size.height * 0.85))
+                    context.stroke(curtain, with: .linearGradient(
+                        Gradient(colors: [auroraGreen.opacity(0.15), auroraGreen]),
+                        startPoint: CGPoint(x: 0, y: 0),
+                        endPoint: CGPoint(x: 0, y: size.height)),
+                        style: StrokeStyle(lineWidth: i == 1 ? 4 : 3, lineCap: .round))
+                }
+            }
+            .shadow(color: auroraGreen.opacity(0.6), radius: 4)
+        case .rocketLaunch:
+            // A climb-out: bright head, flame trail back to the pad.
+            Canvas { context, size in
+                let head = CGPoint(x: size.width * 0.66, y: size.height * 0.22)
+                let pad = CGPoint(x: size.width * 0.30, y: size.height * 0.88)
+                var trail = Path()
+                trail.move(to: pad)
+                trail.addQuadCurve(to: head, control: CGPoint(x: size.width * 0.34, y: size.height * 0.44))
+                context.stroke(trail, with: .linearGradient(
+                    Gradient(colors: [flame.opacity(0), flame]),
+                    startPoint: pad, endPoint: head),
+                    style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 3.5, y: head.y - 3.5, width: 7, height: 7)),
+                             with: .color(.white))
+            }
+            .shadow(color: flame.opacity(0.6), radius: 3)
+        case .reentry:
+            // Falling the other way, shedding sparks.
+            Canvas { context, size in
+                let head = CGPoint(x: size.width * 0.26, y: size.height * 0.80)
+                let entry = CGPoint(x: size.width * 0.82, y: size.height * 0.16)
+                var streak = Path()
+                streak.move(to: entry)
+                streak.addLine(to: head)
+                context.stroke(streak, with: .linearGradient(
+                    Gradient(colors: [copper.opacity(0), copper]),
+                    startPoint: entry, endPoint: head),
+                    style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+                for (i, u) in [0.32, 0.55].enumerated() {
+                    let p = CGPoint(x: entry.x + (head.x - entry.x) * u,
+                                    y: entry.y + (head.y - entry.y) * u + CGFloat(i) * 3 + 3)
+                    context.fill(Path(ellipseIn: CGRect(x: p.x - 1.2, y: p.y - 1.2, width: 2.4, height: 2.4)),
+                                 with: .color(copper.opacity(0.8)))
+                }
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 3, y: head.y - 3, width: 6, height: 6)),
+                             with: .color(.white))
+            }
+            .shadow(color: copper.opacity(0.6), radius: 3)
+        case .fireball:
+            // One violent instant: a blazing head outshining its short trail.
+            Canvas { context, size in
+                let head = CGPoint(x: size.width * 0.62, y: size.height * 0.62)
+                var streak = Path()
+                streak.move(to: CGPoint(x: size.width * 0.2, y: size.height * 0.24))
+                streak.addLine(to: head)
+                context.stroke(streak, with: .linearGradient(
+                    Gradient(colors: [.white.opacity(0), gold]),
+                    startPoint: CGPoint(x: size.width * 0.2, y: size.height * 0.24),
+                    endPoint: head),
+                    style: StrokeStyle(lineWidth: 2.6, lineCap: .round))
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 8, y: head.y - 8, width: 16, height: 16)),
+                             with: .radialGradient(Gradient(colors: [gold.opacity(0.65), .clear]),
+                                                   center: head, startRadius: 1, endRadius: 8))
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 3.5, y: head.y - 3.5, width: 7, height: 7)),
+                             with: .color(.white))
+            }
+            .shadow(color: gold.opacity(0.7), radius: 4)
         }
     }
 }
@@ -278,6 +372,114 @@ struct EventHero: View {
                     Rectangle().fill(.white.opacity(0.35)).frame(height: 1.2)
                     Rectangle().fill(Theme.nightBottom.opacity(0.85)).frame(height: 61)
                 }
+            }
+        case .occultation:
+            ZStack {
+                // The star, moments from vanishing behind the limb.
+                Circle()
+                    .fill(RadialGradient(colors: [.white.opacity(0.6), .clear],
+                                         center: .center, startRadius: 2, endRadius: 44))
+                    .frame(width: 88, height: 88)
+                    .offset(x: 52, y: -34)
+                Circle().fill(.white)
+                    .frame(width: 9, height: 9)
+                    .offset(x: 52, y: -34)
+                // The moon closing in, lit low on one limb.
+                Circle()
+                    .fill(RadialGradient(colors: [moonlight, moonlight.opacity(0.55)],
+                                         center: UnitPoint(x: 0.3, y: 0.75),
+                                         startRadius: 4, endRadius: 80))
+                    .frame(width: 104, height: 104)
+                    .offset(x: -12, y: 10)
+                Circle()
+                    .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                    .frame(width: 104, height: 104)
+                    .offset(x: -12, y: 10)
+            }
+        case .aurora:
+            Canvas { context, size in
+                // Curtains hanging from the field lines, brightest at the base.
+                let xs: [CGFloat] = [0.16, 0.30, 0.46, 0.60, 0.74, 0.88]
+                let heights: [CGFloat] = [0.52, 0.72, 0.60, 0.80, 0.56, 0.68]
+                context.addFilter(.blur(radius: 6))
+                for (i, x) in xs.enumerated() {
+                    let lean = CGFloat(i % 3 - 1) * 10
+                    let top = CGPoint(x: size.width * x + lean, y: size.height * (1 - heights[i]) * 0.5)
+                    let base = CGPoint(x: size.width * x - lean, y: size.height * 0.86)
+                    var curtain = Path()
+                    curtain.move(to: top)
+                    curtain.addLine(to: base)
+                    context.stroke(curtain, with: .linearGradient(
+                        Gradient(colors: [auroraGreen.opacity(0.05), auroraGreen.opacity(0.7)]),
+                        startPoint: top, endPoint: base),
+                        style: StrokeStyle(lineWidth: i % 2 == 0 ? 16 : 22, lineCap: .round))
+                }
+            }
+        case .rocketLaunch:
+            Canvas { context, size in
+                let pad = CGPoint(x: size.width * 0.30, y: size.height * 0.92)
+                let head = CGPoint(x: size.width * 0.64, y: size.height * 0.22)
+                // Pad glow still burning on the horizon.
+                context.fill(Path(ellipseIn: CGRect(x: pad.x - 40, y: pad.y - 12, width: 80, height: 24)),
+                             with: .radialGradient(Gradient(colors: [flame.opacity(0.5), .clear]),
+                                                   center: pad, startRadius: 1, endRadius: 40))
+                // The arc of the climb, flame fading up into exhaust.
+                var trail = Path()
+                trail.move(to: pad)
+                trail.addQuadCurve(to: head, control: CGPoint(x: size.width * 0.34, y: size.height * 0.48))
+                context.stroke(trail, with: .linearGradient(
+                    Gradient(colors: [flame.opacity(0.1), flame]),
+                    startPoint: pad, endPoint: head),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                // The vehicle: a hard white point with a wide halo.
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 26, y: head.y - 26, width: 52, height: 52)),
+                             with: .radialGradient(Gradient(colors: [.white.opacity(0.35), .clear]),
+                                                   center: head, startRadius: 1, endRadius: 26))
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 5, y: head.y - 5, width: 10, height: 10)),
+                             with: .color(.white))
+            }
+        case .reentry:
+            Canvas { context, size in
+                let entry = CGPoint(x: size.width * 0.86, y: size.height * 0.14)
+                let head = CGPoint(x: size.width * 0.24, y: size.height * 0.72)
+                var streak = Path()
+                streak.move(to: entry)
+                streak.addLine(to: head)
+                context.stroke(streak, with: .linearGradient(
+                    Gradient(colors: [copper.opacity(0), copper]),
+                    startPoint: entry, endPoint: head),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                // Fragments peeling off and dying behind the head.
+                for (i, u) in [0.30, 0.46, 0.62].enumerated() {
+                    let p = CGPoint(x: entry.x + (head.x - entry.x) * u,
+                                    y: entry.y + (head.y - entry.y) * u + CGFloat(i) * 7 + 8)
+                    let s = 3.5 - CGFloat(i) * 0.7
+                    context.fill(Path(ellipseIn: CGRect(x: p.x - s / 2, y: p.y - s / 2, width: s, height: s)),
+                                 with: .color(copper.opacity(0.8 - Double(i) * 0.2)))
+                }
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 20, y: head.y - 20, width: 40, height: 40)),
+                             with: .radialGradient(Gradient(colors: [copper.opacity(0.5), .clear]),
+                                                   center: head, startRadius: 1, endRadius: 20))
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 4.5, y: head.y - 4.5, width: 9, height: 9)),
+                             with: .color(.white))
+            }
+        case .fireball:
+            Canvas { context, size in
+                let head = CGPoint(x: size.width * 0.60, y: size.height * 0.58)
+                let tail = CGPoint(x: size.width * 0.16, y: size.height * 0.18)
+                var streak = Path()
+                streak.move(to: tail)
+                streak.addLine(to: head)
+                context.stroke(streak, with: .linearGradient(
+                    Gradient(colors: [gold.opacity(0), gold]),
+                    startPoint: tail, endPoint: head),
+                    style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                // The flash that lights the whole frame for a heartbeat.
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 60, y: head.y - 60, width: 120, height: 120)),
+                             with: .radialGradient(Gradient(colors: [gold.opacity(0.45), .clear]),
+                                                   center: head, startRadius: 2, endRadius: 60))
+                context.fill(Path(ellipseIn: CGRect(x: head.x - 7, y: head.y - 7, width: 14, height: 14)),
+                             with: .color(.white))
             }
         }
     }
@@ -472,6 +674,7 @@ struct EventDetailView: View {
 
     private var daysAway: String {
         let days = event.date.timeIntervalSinceNow / 86_400
+        if days <= -1 { return String(localized: "\(Int(-days))d ago") }   // recorded events (fireballs)
         if days < 1 { return String(localized: "today") }
         return String(localized: "in \(Int(days))d")
     }

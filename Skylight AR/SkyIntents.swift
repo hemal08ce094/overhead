@@ -22,7 +22,7 @@ struct WhatsFlyingIntent: AppIntent {
         }
         // A fetch failure must not read as "quiet sky" — that's a confident lie
         // when the network is simply down.
-        guard let traffic = try? await ADSBClient().aircraft(lat: lat, lon: lon, radiusNm: 40) else {
+        guard let traffic = try? await FallbackSource.freeFeeds().aircraft(lat: lat, lon: lon, radiusNm: 40) else {
             return .result(dialog: "I couldn't reach the sky data just now — try again in a moment.")
         }
         let airborne = traffic.filter { !$0.onGround }

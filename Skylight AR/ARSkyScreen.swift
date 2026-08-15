@@ -2,9 +2,10 @@
 //  ARSkyScreen.swift
 //  Skylight AR
 //
-//  Hosts ARSkyViewController and lays elegant, minimal chrome over it: a live
-//  status pill, a dark-sky / camera toggle, tap-to-identify detail card, and the
-//  calibration sheet.
+//  Hosts ARSkyViewController and lays elegant, minimal chrome over it: a
+//  liquid-glass cluster that blooms into profile / search / events /
+//  calibration, a one-tap AR ↔ dark-sky toggle, tap-to-identify detail card,
+//  and the calibration sheet.
 //
 
 import SwiftUI
@@ -34,6 +35,9 @@ struct ARSkyScreen: View {
     @State private var showEvents = false
     @State private var showSearch = false
     @State private var showAircraftDetail = false
+    /// The chrome cluster: true while the glass orb is bloomed open.
+    @State private var menuOpen = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if DEBUG
     @State private var showMedals = false
     @State private var showPaywallShot = false
@@ -50,16 +54,23 @@ struct ARSkyScreen: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
+            // While the cluster is open, the whole sky is a close target —
+            // a stray tap dismisses instead of selecting a plane behind it.
+            if menuOpen {
+                Color.black.opacity(0.001)
+                    .ignoresSafeArea()
+                    .onTapGesture { menuOpen = false }
+            }
+
             VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    profileButton
+                HStack(alignment: .top, spacing: 8) {
+                    chromeCluster
                     Spacer()
                     if engine.zoomFactor > 1.05 { zoomPill }
                     if engine.skyTimeOffsetMin != 0 { timeOffsetPill }
-                    alignButton
-                    searchButton
-                    eventsBell
+                    arModeButton
                 }
+                .zIndex(3)
                 if nudgeReady, let nudge = permissionNudge {
                     permissionNudgeBanner(nudge)
                         .padding(.top, 10)
@@ -174,7 +185,7 @@ struct ARSkyScreen: View {
         }
         // A calibration started from a settings sheet needs the live sky visible.
         .onChange(of: engine.calibrationStep) { _, step in
-            if step != .idle { showProfile = false; showEvents = false; showSearch = false }
+            if step != .idle { showProfile = false; showEvents = false; showSearch = false; menuOpen = false }
         }
         // While a full-screen chrome sheet covers the sky, pause the live-sky
         // simulation, rendering, and feed — no wasted CPU/GPU/network — and
@@ -619,12 +630,130 @@ struct ARSkyScreen: View {
         return String(localized: "Drag the sky left or right until a plane sits exactly where you see it in the air, then tap Done.")
     }
 
+    // MARK: Chrome cluster
+
+    /// One glass orb, top-left, that blooms into the four chrome controls —
+    /// profile, search, events, calibration — along a quarter circle. The
+    /// drops emerge from the orb and retract into it, so the controls always
+    /// visibly live inside the one button. Order matches the old chrome:
+    /// profile nearest its old corner, calibration out by the pills.
+    private var chromeCluster: some View {
+        GlassEffectContainer(spacing: 22) {
+            ZStack(alignment: .topLeading) {
+                // Only exist while open: a hidden-but-present drop still draws
+                // its glass on the container's shared layer and ghosts through
+                // the closed orb.
+                if menuOpen {
+                    satellite(0, profileButton)
+                    satellite(1, searchButton)
+                    satellite(2, eventsBell)
+                    satellite(3, alignButton)
+                }
+                clusterHub
+            }
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: menuOpen)
+    }
+
+    private var clusterHub: some View {
+        Button {
+            withAnimation { menuOpen.toggle() }
+        } label: {
+            Image(systemName: menuOpen ? "xmark" : "airplane")
+                .font(.system(size: 18, weight: .semibold))
+                .rotationEffect(.degrees(menuOpen ? 0 : -90))   // nose to the sky
+                .foregroundStyle(Theme.textPrimary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .glassEffect(.regular.interactive(), in: .circle)
+                .overlay(alignment: .topTrailing) {
+                    // The bell's imminent-event dot surfaces on the closed orb
+                    // so the calendar still announces itself from inside.
+                    if let soon = imminentEvent, !menuOpen {
+                        Circle().fill(soon.kind.tint)
+                            .frame(width: 9, height: 9)
+                            .overlay(Circle().stroke(Theme.nightBottom, lineWidth: 1.5))
+                            .offset(x: -4, y: 5)
+                    }
+                }
+        }
+        .accessibilityLabel(menuOpen ? String(localized: "Close menu") : String(localized: "Menu"))
+        .accessibilityHint(menuOpen ? "" : String(localized: "Profile, flight search, sky events and calibration"))
+    }
+
+    /// Places one control on the bloom arc: 90° is straight down, 0° is
+    /// straight right. Travel and scale ride one spring with a whisper of
+    /// stagger (reversed on close, so the farthest drop returns first);
+    /// under Reduce Motion the drops simply fade in place.
+    private func satellite(_ index: Int, _ content: some View) -> some View {
+        let angle = (90 - Double(index) * 30) * .pi / 180
+        let dx = 88 * CGFloat(cos(angle))
+        let dy = 88 * CGFloat(sin(angle))
+        let bloom = AnyTransition.offset(x: -dx, y: -dy)
+            .combined(with: .scale(scale: 0.4))
+            .combined(with: .opacity)
+        return content
+            .offset(x: dx, y: dy)
+            .transition(reduceMotion ? .opacity : .asymmetric(
+                insertion: bloom.animation(.spring(response: 0.38, dampingFraction: 0.8)
+                    .delay(Double(index) * 0.04)),
+                removal: bloom.animation(.spring(response: 0.38, dampingFraction: 0.8)
+                    .delay(Double(3 - index) * 0.04))))
+    }
+
+    /// One tap between the camera's real sky and the dark-sky map — the
+    /// choice the old chrome buried in a settings sheet. Sits where the bell
+    /// used to. No motion beyond the symbol swap: this is a many-times-a-day
+    /// switch, and the sky itself is the feedback.
+    private var arModeButton: some View {
+        Button { toggleARMode() } label: {
+            Image(systemName: engine.cameraPassthrough ? "camera.fill" : "moon.stars.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(engine.cameraPassthrough ? Theme.accent : Theme.textPrimary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .glassEffect(.regular, in: .circle)
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: engine.cameraPassthrough)
+        .accessibilityLabel(engine.cameraPassthrough
+                            ? String(localized: "AR sky is on. Switch to dark sky.")
+                            : String(localized: "Dark sky is on. Switch to AR sky."))
+    }
+
+    private func toggleARMode() {
+        if engine.cameraPassthrough {
+            engine.cameraPassthrough = false
+            Analytics.log("Mode.selected", ["mode": "dark", "source": "chrome"])
+            return
+        }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            engine.cameraPassthrough = true
+            Analytics.log("Mode.selected", ["mode": "ar", "source": "chrome"])
+        case .notDetermined:
+            Task {
+                let granted = await AVCaptureDevice.requestAccess(for: .video)
+                if granted {
+                    engine.cameraPassthrough = true
+                    engine.controller?.cameraAccessChanged()
+                    Analytics.log("Mode.selected", ["mode": "ar", "source": "chrome"])
+                }
+            }
+        default:
+            // Denied: requesting again is a no-op — Settings is the only path.
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        }
+    }
+
     /// Top-right bell — the sky calendar, one tap from anywhere.
     /// Top-right entry to flight search.
     private var searchButton: some View {
-        Button { showSearch = true; Analytics.log("Search.opened") } label: {
+        Button { menuOpen = false; showSearch = true; Analytics.log("Search.opened") } label: {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 23, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
@@ -640,9 +769,9 @@ struct ARSkyScreen: View {
     }
 
     private var eventsBell: some View {
-        Button { showEvents = true; Analytics.log("Events.opened") } label: {
+        Button { menuOpen = false; showEvents = true; Analytics.log("Events.opened") } label: {
             Image(systemName: "bell")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 23, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
@@ -664,9 +793,9 @@ struct ARSkyScreen: View {
     /// current heading is (green good → orange poor), and a dot marks a held
     /// manual lock. Tapping opens the tap/drag heading fix on the live screen.
     private var alignButton: some View {
-        Button { withAnimation { engine.beginQuickAlign() } } label: {
+        Button { menuOpen = false; withAnimation { engine.beginQuickAlign() } } label: {
             Image(systemName: "location.north.line.fill")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(alignTint)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
@@ -708,9 +837,9 @@ struct ARSkyScreen: View {
 
     /// Top-left entry to the profile sheet.
     private var profileButton: some View {
-        Button { showProfile = true; Analytics.log("Profile.opened") } label: {
+        Button { menuOpen = false; showProfile = true; Analytics.log("Profile.opened") } label: {
             Image(systemName: "person.crop.circle")
-                .font(.system(size: 20, weight: .medium))
+                .font(.system(size: 26, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
@@ -1072,7 +1201,7 @@ struct AircraftDetailSheet: View {
                         if ac.airline != nil || ac.destination != nil { routeCard(ac) }
                         if let arrival = ac.observedArrival { arrivalCard(ac, arrival: arrival) }
                         statsGrid(ac)
-                        Text("Live position via airplanes.live · route via adsbdb · photos via planespotters.net")
+                        Text("Live position via airplanes.live / adsb.lol · route via adsbdb · photos via planespotters.net")
                             .font(Theme.display(11, .regular))
                             .foregroundStyle(Theme.textTertiary)
                     }
@@ -1849,7 +1978,7 @@ struct ProfileView: View {
                     .nightCard()
                 }
 
-                Text("Position data airplanes.live · routes adsbdb · photos planespotters.net\nAll stats live on this device only.")
+                Text("Position data airplanes.live / adsb.lol · routes adsbdb · photos planespotters.net\nAll stats live on this device only.")
                     .font(Theme.display(11, .regular))
                     .foregroundStyle(Theme.textTertiary)
             }
@@ -2007,6 +2136,20 @@ struct EventsView: View {
                             .padding(.top, 12)
                         VStack(spacing: 10) {
                             ForEach(engine.events.dropFirst()) { event in
+                                NavigationLink { EventDetailView(event: event, engine: engine) } label: {
+                                    eventRow(event)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    // Fireballs are recorded, not predicted — they get their
+                    // own shelf below the forecastable sky.
+                    if !engine.recentEvents.isEmpty {
+                        Eyebrow(String(localized: "Recently in the sky"))
+                            .padding(.top, 12)
+                        VStack(spacing: 10) {
+                            ForEach(engine.recentEvents) { event in
                                 NavigationLink { EventDetailView(event: event, engine: engine) } label: {
                                     eventRow(event)
                                 }
@@ -2191,6 +2334,7 @@ struct EventsView: View {
 
     private func countdown(to date: Date) -> String {
         let days = date.timeIntervalSinceNow / 86_400
+        if days <= -1 { return String(localized: "\(Int(-days))d ago") }   // the "recently" shelf
         if days < 1 { return String(localized: "today") }
         if days < 60 { return String(localized: "\(Int(days))d") }
         return String(localized: "\(Int(days / 30.44))mo")
@@ -2513,6 +2657,10 @@ struct SkySettingsView: View {
                                    subtitle: engine.issVisible ? String(localized: "Overhead now") : nil)
                         // ISS pass alerts moved to Profile → Notifications, the
                         // one home for everything that can buzz the phone.
+                        settingsDivider
+                        SettingRow(title: String(localized: "Satellites"), icon: "smallcircle.filled.circle",
+                                   isOn: $engine.showSatellites,
+                                   subtitle: String(localized: "The naked-eye fleet — shown only when sunlit against a dark sky"))
                     }
                     .padding(.vertical, 4)
                     .nightCard()
@@ -2776,13 +2924,13 @@ struct DataSourceSettingsView: View {
                          titleBadge: AnyView(TierBadge(engine: engine, size: 46))) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label(usingFR24 ? "Flightradar24" : "airplanes.live (free)",
+                    Label(usingFR24 ? "Flightradar24" : "airplanes.live / adsb.lol (free)",
                           systemImage: usingFR24 ? "globe" : "dot.radiowaves.left.and.right")
                         .font(Theme.display(17, .semibold))
                         .foregroundStyle(usingFR24 ? Theme.accent : Theme.textPrimary)
                     Text(usingFR24
                          ? "Satellite-backed global coverage, including the Gulf and oceans. Billed per call, so the app polls gently (about every 8 seconds)."
-                         : "Community ADS-B — excellent over the US and Europe, but sparse over the Gulf, the Middle East, and oceans. Free and non-commercial.")
+                         : "Community ADS-B, with automatic fallback between feeds — excellent over the US and Europe, but sparse over the Gulf, the Middle East, and oceans. Free and non-commercial.")
                         .font(Theme.display(13, .regular))
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -2815,7 +2963,7 @@ struct DataSourceSettingsView: View {
                             .buttonStyle(GhostButtonStyle())
                         }
                     }
-                    Text("Get a token at fr24api.flightradar24.com — free sandbox, or the $9/mo Explorer plan. Leave empty to use the free airplanes.live feed.")
+                    Text("Get a token at fr24api.flightradar24.com — free sandbox, or the $9/mo Explorer plan. Leave empty to use the free community feeds.")
                         .font(Theme.display(12, .regular))
                         .foregroundStyle(Theme.textTertiary)
                 }
@@ -3080,7 +3228,7 @@ struct AboutView: View {
                         Text("No account. No tracking. No ads.")
                             .font(Theme.display(13, .semibold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("Your location places the sky around you, and is sent to public flight services like airplanes.live to fetch the aircraft near you — never linked to an account, logged by us, or used to track you. Favorites and stats live only on this device.\n\nTo improve the app, Overhead may collect anonymous usage statistics — which features get used, never who you are, where you are, or what you looked at. You can turn this off below.\n\nAircraft data comes from public feeds: airplanes.live (positions), adsbdb (routes), planespotters.net (photos), CelesTrak (orbits). Those services have their own terms.")
+                        Text("Your location places the sky around you, and is sent to public flight services like airplanes.live to fetch the aircraft near you — never linked to an account, logged by us, or used to track you. Favorites and stats live only on this device.\n\nTo improve the app, Overhead may collect anonymous usage statistics — which features get used, never who you are, where you are, or what you looked at. You can turn this off below.\n\nAircraft data comes from public feeds: airplanes.live and adsb.lol (positions), adsbdb (routes), planespotters.net (photos), CelesTrak (orbits). Those services have their own terms.")
                         Toggle(isOn: $shareUsageStats) {
                             Text("Share anonymous usage statistics")
                                 .font(Theme.display(13, .medium))

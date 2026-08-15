@@ -14,17 +14,31 @@ import Foundation
 
 enum OverheadFetch {
 
+    /// The same free-feed chain as the app's `FallbackSource`: airplanes.live
+    /// gated its open API (403 until whitelisted), adsb.lol mirrors the schema.
+    private static let bases = ["https://api.airplanes.live/v2", "https://api.adsb.lol/v2"]
+
     /// Fetch live traffic around (lat, lon) and reduce it to a glance snapshot.
     /// Returns nil on any network/decoding failure so the caller can fall back
     /// to the last stored snapshot.
     static func glance(lat: Double, lon: Double, radiusNm: Int = 40) async -> SkyGlanceSnapshot? {
         let r = min(max(radiusNm, 1), 250)
-        guard let url = URL(string: "https://api.airplanes.live/v2/point/\(lat)/\(lon)/\(r)") else { return nil }
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 8
-        guard let (data, _) = try? await URLSession.shared.data(for: request),
-              let decoded = try? JSONDecoder().decode(Response.self, from: data) else { return nil }
+        for base in bases {
+            guard let url = URL(string: "\(base)/point/\(lat)/\(lon)/\(r)") else { continue }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 8
+            // Status must gate the decode: a JSON error body still decodes
+            // (both envelope keys are optional) and would look like empty sky.
+            guard let (data, response) = try? await URLSession.shared.data(for: request),
+                  (response as? HTTPURLResponse).map({ (200...299).contains($0.statusCode) }) ?? true,
+                  let decoded = try? JSONDecoder().decode(Response.self, from: data) else { continue }
+            return snapshot(from: decoded, lat: lat, lon: lon)
+        }
+        return nil
+    }
 
+    /// Reduce decoded traffic to the widget's snapshot shape.
+    private static func snapshot(from decoded: Response, lat: Double, lon: Double) -> SkyGlanceSnapshot {
         var count = 0
         var nearest: SkyGlanceSnapshot.Plane?
         var nearestRange = Double.greatestFiniteMagnitude

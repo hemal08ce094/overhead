@@ -39,7 +39,7 @@ exact positions in augmented reality.
 
 ## Data & credits
 
-- Live ADS-B traffic: [airplanes.live](https://airplanes.live) (non-commercial feed)
+- Live ADS-B traffic: [airplanes.live](https://airplanes.live) with fallback to [adsb.lol](https://adsb.lol) (non-commercial feeds)
 - Routes: [adsbdb](https://www.adsbdb.com) · Airframe photos: [planespotters.net](https://www.planespotters.net)
 - Orbits: [CelesTrak](https://celestrak.org) TLEs, propagated with [SatelliteKit](https://github.com/gavineadie/SatelliteKit)
 - Ephemeris: [SwiftAA](https://github.com/onekiloparsec/SwiftAA) (VSOP87 / Meeus)

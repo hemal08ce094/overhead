@@ -11,7 +11,13 @@
 import Foundation
 
 struct SkyEvent: Identifiable, Equatable {
-    enum Kind { case eclipse, lunarEclipse, meteorShower, fullMoon, conjunction, season }
+    enum Kind {
+        case eclipse, lunarEclipse, meteorShower, fullMoon, conjunction, season
+        // Live + computed additions: the moon covering a planet or star, an
+        // aurora window, a launch countdown, an object falling back, and a
+        // recorded bolide.
+        case occultation, aurora, rocketLaunch, reentry, fireball
+    }
     let kind: Kind
     let title: String
     let subtitle: String
@@ -393,6 +399,135 @@ enum EventsCalendar {
             }
         }
         return events
+    }
+
+    // MARK: Lunar occultations
+
+    /// J2000 catalog coordinates precessed to date. The equinox has drifted
+    /// ~0.36° since 2000 — wider than the moon's whole disc — so occultation
+    /// geometry cannot use raw catalog positions the way star *plotting* can.
+    nonisolated private static func precessed(raDeg: Double, decDeg: Double, at date: Date)
+        -> (ra: Double, dec: Double) {
+        let years = (date.timeIntervalSince1970 / 86_400 + 2_440_587.5 - 2_451_545.0) / 365.25
+        let ra = raDeg * .pi / 180, dec = decDeg * .pi / 180
+        let m = 46.1245 / 3600, n = 20.0431 / 3600      // precession rates, deg/yr
+        return (raDeg + (m + n * sin(ra) * tan(dec)) * years,
+                decDeg + n * cos(ra) * years)
+    }
+
+    /// Scan the coming year for the moon covering a naked-eye planet or one
+    /// of the bright named stars, from this exact position — the same
+    /// "gold shutter" moment as an aircraft transit, delivered by celestial
+    /// mechanics instead of a flight plan. Occultations are fiercely local
+    /// (lunar parallax swings the moon a full degree between cities), which
+    /// is exactly why they're computed here and not read from a table.
+    /// Heavy like the eclipse scan — call off the main thread.
+    nonisolated static func occultations(lat: Double, lon: Double, from now: Date) -> [SkyEvent] {
+        struct Target { let name: String; let isStar: Bool; let ra: Double; let dec: Double }
+        var targets: [Target] = planetRank.map { Target(name: $0, isStar: false, ra: 0, dec: 0) }
+        // Stars beyond the moon's declination reach can never be covered.
+        for star in StarCatalog.namedStars where abs(star.dec) < 29 {
+            targets.append(Target(name: star.name, isStar: true, ra: star.ra, dec: star.dec))
+        }
+
+        func targetFix(_ t: Target, _ date: Date) -> (az: Double, el: Double)? {
+            if t.isStar {
+                let p = precessed(raDeg: t.ra, decDeg: t.dec, at: date)
+                let h = SkyMath.equatorialToHorizontal(raDeg: p.ra, decDeg: p.dec,
+                                                       latDeg: lat, lonDeg: lon, date: date)
+                return (h.azimuth, h.elevation)
+            }
+            return Celestial.planet(t.name, date: date, lat: lat, lon: lon).map { ($0.az, $0.el) }
+        }
+
+        var events: [SkyEvent] = []
+        let step: TimeInterval = 3 * 3600
+        let end = now.addingTimeInterval(380 * 86_400)
+        // Local-minimum tracking per target on the coarse grid, exactly like
+        // the aircraft transit predictor: refine each dip under the gate.
+        var prev = [Double](repeating: .infinity, count: targets.count)
+        var prev2 = prev
+        var skipUntil = [Date](repeating: .distantPast, count: targets.count)
+        var t = now
+        while t <= end.addingTimeInterval(step) {
+            let date = min(t, end)
+            let moon = Celestial.moon(date: date, lat: lat, lon: lon)
+            for (i, target) in targets.enumerated() {
+                guard date >= skipUntil[i] else { prev2[i] = .infinity; prev[i] = .infinity; continue }
+                let s: Double
+                if let fix = targetFix(target, date) {
+                    s = TransitPredictor.separation(az1: moon.az, el1: moon.el,
+                                                    az2: fix.az, el2: fix.el)
+                } else { s = .infinity }
+                if prev[i] <= prev2[i], prev[i] <= s, prev[i] < 4.0 {
+                    if let event = refineOccultation(name: target.name, isStar: target.isStar,
+                                                     around: t.addingTimeInterval(-step),
+                                                     lat: lat, lon: lon,
+                                                     fix: { targetFix(target, $0) }) {
+                        events.append(event)
+                    }
+                    skipUntil[i] = date.addingTimeInterval(5 * 86_400)   // past this lunation
+                }
+                prev2[i] = prev[i]; prev[i] = s
+            }
+            t = t.addingTimeInterval(step)
+        }
+        return events
+    }
+
+    /// Pin the moment of minimum separation (5-minute pass, then 20-second
+    /// polish) and keep it only if the moon's disc actually covers the
+    /// target while both are genuinely watchable from here.
+    nonisolated private static func refineOccultation(
+        name: String, isStar: Bool, around center: Date, lat: Double, lon: Double,
+        fix: (Date) -> (az: Double, el: Double)?) -> SkyEvent? {
+
+        func separation(_ date: Date) -> (sep: Double, moonEl: Double)? {
+            guard let f = fix(date) else { return nil }
+            let m = Celestial.moon(date: date, lat: lat, lon: lon)
+            return (TransitPredictor.separation(az1: m.az, el1: m.el, az2: f.az, el2: f.el), m.el)
+        }
+
+        var best: (date: Date, sep: Double, moonEl: Double)?
+        var t = center.addingTimeInterval(-3.5 * 3600)
+        while t <= center.addingTimeInterval(3.5 * 3600) {
+            if let s = separation(t), s.sep < (best?.sep ?? .infinity) {
+                best = (t, s.sep, s.moonEl)
+            }
+            t = t.addingTimeInterval(300)
+        }
+        guard var found = best, found.sep < 1.2 else { return nil }
+        t = found.date.addingTimeInterval(-300)
+        let fineEnd = found.date.addingTimeInterval(300)
+        while t <= fineEnd {
+            if let s = separation(t), s.sep < found.sep { found = (t, s.sep, s.moonEl) }
+            t = t.addingTimeInterval(20)
+        }
+
+        // Distance-corrected disc radius — perigee vs apogee is a 12% swing,
+        // easily the difference between a miss and a cover.
+        let moonR = asin(1_737.4 / moonDistanceKm(at: found.date)) * 180 / .pi
+        guard found.sep < moonR + 0.06 else { return nil }
+        let graze = found.sep > moonR * 0.9
+        guard found.moonEl > 3 else { return nil }              // happens below this horizon
+        let sunEl = Celestial.sun(date: found.date, lat: lat, lon: lon).el
+        guard sunEl < (isStar ? -6 : -1) else { return nil }    // washed out by daylight
+
+        let moon = Celestial.moon(date: found.date, lat: lat, lon: lon)
+        let display = Celestial.localizedName(name)
+        let vanish = moon.waxing
+            ? String(localized: "It vanishes at the moon's dark leading edge — an instant blink, one of astronomy's cleanest tricks.")
+            : String(localized: "It slips behind the bright limb and pops back out of the dark edge up to an hour later.")
+        return SkyEvent(
+            kind: .occultation,
+            title: graze ? String(localized: "\(display) grazes the moon")
+                         : String(localized: "Moon covers \(display)"),
+            subtitle: isStar ? String(localized: "The star winks out behind the moon, from where you are")
+                             : String(localized: "The planet slips behind the moon, from where you are"),
+            date: found.date,
+            detail: graze
+                ? String(localized: "From your exact position \(display) skims the moon's limb — a few kilometres north or south and it would miss entirely. Binoculars make the edge dance visible.")
+                : String(localized: "The moon slides exactly in front of \(display), timed for your coordinates — observers one city over see it minutes earlier or later. \(vanish) The time shown is mid-cover; start watching half an hour early."))
     }
 
     /// "evening" if the body is up after dusk, "morning" if before dawn.

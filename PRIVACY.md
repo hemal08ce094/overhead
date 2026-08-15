@@ -34,6 +34,7 @@ To provide flight and sky data, the app makes requests to the following independ
 | Service | Purpose | Data sent |
 |---|---|---|
 | **airplanes.live** | Live aircraft positions | Your approximate location (to return nearby traffic) |
+| **adsb.lol** | Live aircraft positions (fallback feed) | Your approximate location (to return nearby traffic) |
 | **adsbdb** | Flight routes | Flight callsign |
 | **planespotters.net** | Aircraft photos | Aircraft type / registration |
 | **CelesTrak** | ISS orbital data | None |

@@ -166,6 +166,24 @@ enum Celestial {
         return out
     }
 
+    /// One planet's sky position. The occultation scan probes a single body
+    /// hundreds of times per candidate — computing all five each step would
+    /// be pure waste.
+    nonisolated static func planet(_ name: String, date: Date, lat: Double, lon: Double) -> PlanetFix? {
+        let geo = GeographicCoordinates(positivelyWestwardLongitude: Degree(-lon), latitude: Degree(lat))
+        let jd = JulianDay(date)
+        let h: HorizontalCoordinates
+        switch name {
+        case "Mercury": h = Mercury(julianDay: jd).makeHorizontalCoordinates(with: geo)
+        case "Venus":   h = Venus(julianDay: jd).makeHorizontalCoordinates(with: geo)
+        case "Mars":    h = Mars(julianDay: jd).makeHorizontalCoordinates(with: geo)
+        case "Jupiter": h = Jupiter(julianDay: jd).makeHorizontalCoordinates(with: geo)
+        case "Saturn":  h = Saturn(julianDay: jd).makeHorizontalCoordinates(with: geo)
+        default:        return nil
+        }
+        return PlanetFix(name: name, az: h.northBasedAzimuth.value, el: h.altitude.value)
+    }
+
     /// Human name for a phase — shared by the Tonight card and the digest
     /// notifications, so the words never drift apart.
     nonisolated static func phaseName(illumination: Double, waxing: Bool) -> String {
@@ -362,6 +380,12 @@ final class SkyScene {
     /// Set by the controller once the TLE is fetched.
     var issSatellite: Satellite?
 
+    /// The naked-eye satellite fleet (CelesTrak visual group), set by the
+    /// controller once the catalog is fetched. Nodes are rebuilt on set.
+    var satellites: [SatelliteEntry] = [] { didSet { rebuildSatelliteNodes() } }
+    private let satelliteLayer = SCNNode()
+    private var satelliteObjects: [(name: String, sat: Satellite, node: SCNNode)] = []
+
     private var lastStarBuild = Date.distantPast
     private var lastMoonFraction = -1.0
     private var lastMoonWaxing = true
@@ -402,6 +426,7 @@ final class SkyScene {
         // ISS marker: a bright cyan diamond + label.
         buildISSNode()
         root.addChildNode(issNode)
+        root.addChildNode(satelliteLayer)
         root.addChildNode(milkyWayNode)
         root.addChildNode(starsRoot)
         root.addChildNode(starSpritesNode)
@@ -582,6 +607,91 @@ final class SkyScene {
         issNode.isHidden = true
     }
 
+    // MARK: Naked-eye satellites
+
+    /// One quiet mark per satellite: a pale dot and a whisper of a label —
+    /// deliberately dimmer than the ISS, which keeps its diamond and glow.
+    private func rebuildSatelliteNodes() {
+        for entry in satelliteObjects { entry.node.removeFromParentNode() }
+        satelliteObjects.removeAll()
+        for entry in satellites {
+            guard let sat = try? Satellite(entry.name, entry.line1, entry.line2) else { continue }
+            let node = SCNNode()
+            let plane = SCNPlane(width: 6, height: 6)
+            let mat = SCNMaterial()
+            mat.lightingModel = .constant
+            mat.diffuse.contents = UIColor(red: 0.75, green: 0.92, blue: 0.95, alpha: 1)
+            mat.isDoubleSided = true
+            plane.materials = [mat]
+            let dot = SCNNode(geometry: plane)
+            node.addChildNode(dot)
+
+            let text = SCNText(string: entry.name.capitalized, extrusionDepth: 0)
+            text.font = .systemFont(ofSize: 9, weight: .semibold)
+            text.flatness = 0.3
+            let tmat = SCNMaterial(); tmat.lightingModel = .constant
+            tmat.diffuse.contents = UIColor(red: 0.72, green: 0.88, blue: 0.92, alpha: 0.85)
+            text.materials = [tmat]
+            let label = SCNNode(geometry: text)
+            label.scale = SCNVector3(0.55, 0.55, 0.55)
+            let (minB, maxB) = text.boundingBox
+            label.position = SCNVector3(-(maxB.x - minB.x) * 0.28, 7, 0)
+            node.addChildNode(label)
+
+            node.constraints = [SCNBillboardConstraint()]
+            node.isHidden = true
+            satelliteLayer.addChildNode(node)
+            satelliteObjects.append((entry.name, sat, node))
+        }
+    }
+
+    /// A satellite is drawn only when it could really be seen: above the
+    /// haze, still catching sunlight, against a twilight-or-darker sky.
+    /// In daytime the layer is honestly empty — that's the promise.
+    private func updateSatellites(date: Date, lat: Double, lon: Double,
+                                  offset: Double, mirror: Bool, show: Bool) {
+        guard show, !satelliteObjects.isEmpty else { satelliteLayer.isHidden = true; return }
+        let sun = Celestial.sun(date: date, lat: lat, lon: lon)
+        guard sun.el < -6 else { satelliteLayer.isHidden = true; return }
+        satelliteLayer.isHidden = false
+
+        // Sun direction in ECEF for the shadow test. The sun is far enough
+        // that its direction from the observer equals its direction from
+        // Earth's centre.
+        let sunDir = Self.ecefDirection(azDeg: sun.az, elDeg: sun.el, latDeg: lat, lonDeg: lon)
+        let jd = SkyMath.julianDay(date)
+        for entry in satelliteObjects {
+            guard let lla = try? entry.sat.geoPosition(julianDays: jd) else {
+                entry.node.isHidden = true; continue
+            }
+            let r = SkyMath.azElRange(observerLat: lat, observerLon: lon, observerAltM: 0,
+                                      targetLat: lla.lat, targetLon: lla.lon,
+                                      targetAltM: lla.alt * 1000)
+            guard r.elevation > 5 else { entry.node.isHidden = true; continue }
+            // In Earth's shadow → invisible, however dark the sky.
+            let satECEF = SkyMath.ecef(latDeg: lla.lat, lonDeg: lla.lon, altM: lla.alt * 1000)
+            let along = simd_dot(satECEF, sunDir)
+            let eclipsed = along < 0 && simd_length(satECEF - along * sunDir) < 6_371_000
+            guard !eclipsed else { entry.node.isHidden = true; continue }
+            entry.node.position = SkyMath.scenePosition(azimuthDeg: r.azimuth, elevationDeg: r.elevation,
+                                                        radius: radius * 0.97,
+                                                        headingOffsetDeg: offset, mirrorX: mirror)
+            entry.node.isHidden = false
+        }
+    }
+
+    /// Unit vector in ECEF for a sky direction seen from the observer.
+    private static func ecefDirection(azDeg: Double, elDeg: Double,
+                                      latDeg: Double, lonDeg: Double) -> SIMD3<Double> {
+        let az = azDeg * .pi / 180, el = elDeg * .pi / 180
+        let enu = SIMD3(cos(el) * sin(az), cos(el) * cos(az), sin(el))   // E, N, U
+        let la = latDeg * .pi / 180, lo = lonDeg * .pi / 180
+        let east = SIMD3(-sin(lo), cos(lo), 0.0)
+        let north = SIMD3(-sin(la) * cos(lo), -sin(la) * sin(lo), cos(la))
+        let up = SIMD3(cos(la) * cos(lo), cos(la) * sin(lo), sin(la))
+        return enu.x * east + enu.y * north + enu.z * up
+    }
+
     // MARK: Tappable bodies
 
     /// Every celestial mark currently in the sky, for the tap handler's
@@ -613,6 +723,7 @@ final class SkyScene {
         updateSun(date: date, lat: lat, lon: lon, offset: offset, mirror: mirror, show: engine.showSun)
         updateMoon(date: date, lat: lat, lon: lon, offset: offset, mirror: mirror, show: engine.showMoon)
         updateISS(date: date, lat: lat, lon: lon, offset: offset, mirror: mirror, show: engine.showISS)
+        updateSatellites(date: date, lat: lat, lon: lon, offset: offset, mirror: mirror, show: engine.showSatellites)
         updatePlanets(date: date, lat: lat, lon: lon, offset: offset, mirror: mirror, show: engine.showPlanets)
 
         if engine.showStars {
@@ -641,6 +752,7 @@ final class SkyScene {
         if !engine.showSun { sunNode.isHidden = true }
         if !engine.showMoon { moonNode.isHidden = true }
         if !engine.showISS { issNode.isHidden = true }
+        if !engine.showSatellites { satelliteLayer.isHidden = true }
         planetsNode.isHidden = !engine.showPlanets
         starsRoot.isHidden = !engine.showStars
         starSpritesNode.isHidden = !engine.showStars

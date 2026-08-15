@@ -129,6 +129,9 @@ final class SkyEngine {
     var showStars: Bool    { didSet { persist(); controller?.applyLayerVisibility() } }
     var showMilkyWay: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     var showISS: Bool      { didSet { persist(); controller?.applyLayerVisibility() } }
+    /// The rest of the naked-eye fleet (CelesTrak visual group) — drawn only
+    /// when genuinely spottable: sunlit satellite, twilight-or-darker sky.
+    var showSatellites: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     var showAircraft: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
     /// Planes taxiing/parked are noise for a sky app — hidden by default.
     var showGroundAircraft: Bool { didSet { persist(); controller?.applyLayerVisibility() } }
@@ -213,19 +216,39 @@ final class SkyEngine {
 
     /// The sky calendar — eclipses (local), meteor showers, full moons.
     var events: [SkyEvent] = []
+    /// Already-happened live events (recorded fireballs) — their own shelf,
+    /// so a two-week-old bolide never sits above next week's eclipse.
+    var recentEvents: [SkyEvent] = []
     private var eventsLoaded = false
 
     /// Heavy scan (thousands of ephemerides); runs once, off the main actor.
+    /// Staged so the sheet fills fast: the computed calendar lands first,
+    /// then the slower occultation scan, then the network feeds (aurora,
+    /// launches, reentries, fireballs) merge in as they arrive.
     func loadEventsIfNeeded(lat: Double, lon: Double) {
         guard !eventsLoaded else { return }
         eventsLoaded = true
         Task.detached(priority: .utility) {
-            let events = EventsCalendar.upcoming(lat: lat, lon: lon)
-            await MainActor.run {
-                self.events = events
+            var merged = EventsCalendar.upcoming(lat: lat, lon: lon)
+            await MainActor.run { [merged] in
+                self.events = merged
                 // Shower alerts schedule off this list — refresh them the
                 // moment the year ahead is (re)computed.
                 if self.showerAlerts { self.controller?.applyShowerAlerts() }
+            }
+
+            let occultations = EventsCalendar.occultations(lat: lat, lon: lon, from: Date())
+            if !occultations.isEmpty {
+                merged = (merged + occultations).sorted { $0.date < $1.date }
+                await MainActor.run { [merged] in self.events = merged }
+            }
+
+            let live = await LiveSkyEvents.fetch(lat: lat, lon: lon)
+            guard !live.events.isEmpty || !live.recent.isEmpty else { return }
+            merged = (merged + live.events).sorted { $0.date < $1.date }
+            await MainActor.run { [merged] in
+                self.events = merged
+                self.recentEvents = live.recent
             }
         }
     }
@@ -307,6 +330,7 @@ final class SkyEngine {
         showStars = d.object(forKey: SkyDefaults.showStars) as? Bool ?? true
         showMilkyWay = d.object(forKey: SkyDefaults.showMilkyWay) as? Bool ?? true
         showISS = d.object(forKey: SkyDefaults.showISS) as? Bool ?? true
+        showSatellites = d.object(forKey: SkyDefaults.showSatellites) as? Bool ?? true
         showAircraft = d.object(forKey: SkyDefaults.showAircraft) as? Bool ?? true
         showGroundAircraft = d.object(forKey: SkyDefaults.showGroundAircraft) as? Bool ?? false
         // On by default: show what you could actually see, not every distant blip.
@@ -476,6 +500,7 @@ final class SkyEngine {
         d.set(showStars, forKey: SkyDefaults.showStars)
         d.set(showMilkyWay, forKey: SkyDefaults.showMilkyWay)
         d.set(showISS, forKey: SkyDefaults.showISS)
+        d.set(showSatellites, forKey: SkyDefaults.showSatellites)
         d.set(showAircraft, forKey: SkyDefaults.showAircraft)
         d.set(showGroundAircraft, forKey: SkyDefaults.showGroundAircraft)
         d.set(nakedEyeOnly, forKey: SkyDefaults.nakedEyeOnly)

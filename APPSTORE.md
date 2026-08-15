@@ -46,7 +46,7 @@ Location is core functionality (the app positions aircraft and celestial
 objects relative to the reviewer's coordinates, like a navigation app). If
 location is declined, the app continues in a demo sky. All features are
 testable indoors via Dark sky mode. Aircraft data comes from the public
-airplanes.live feed; no login required.
+airplanes.live and adsb.lol feeds; no login required.
 
 ## Privacy questionnaire
 - Location (precise): collected, App Functionality, NOT linked to identity,

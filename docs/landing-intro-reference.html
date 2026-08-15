@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overhead — entrance reference</title>
+<!--
+  Reference implementation of the landing-page entrance ("the label moment").
+  Hand this to Lovable together with the "Entrance choreography" section of
+  LANDING.md. It is deliberately a single self-contained file: open it in a
+  browser to feel the timing; view source to lift the values.
+
+  Live-flight mode needs the Supabase edge function described in LANDING.md
+  (free ADS-B feeds send no CORS headers, so the browser cannot call them
+  directly). Point at it with  ?proxy=https://…/overhead  — without it the
+  scripted QTR649 beat plays, which is also the production fallback.
+
+  Dev controls: "replay" bottom-right (clears the play-once flag). Append
+  ?slow=1 to run everything at quarter speed for frame checking.
+-->
+<style>
+  :root {
+    --bg: #02030B;
+    --gold: #F0B24A;
+    --text: #F4F3EF;
+    --text-dim: rgba(244, 243, 239, 0.62);
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sky {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+  }
+  .star {
+    position: absolute;
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0;                 /* entrance sets the real value */
+  }
+  .star.twinkle { animation: twinkle var(--tw-dur) ease-in-out var(--tw-delay) infinite; }
+  @keyframes twinkle {
+    0%, 100% { opacity: var(--base); }
+    50%      { opacity: calc(var(--base) * 0.55); }
+  }
+
+  /* The moving light: dot + leader line + label drift as one group. */
+  .flight {
+    position: absolute;
+    top: 16vh;
+    left: 0;
+    opacity: 0;
+  }
+  .flight .dot {
+    position: absolute;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px 1px rgba(255, 244, 214, 0.9);
+  }
+  .flight .leader {
+    position: absolute;
+    top: 4px; left: 2px;
+    overflow: visible;
+  }
+  .flight .leader line {
+    stroke: var(--gold);
+    stroke-width: 1;
+    stroke-dasharray: 57;       /* the line's exact length, so the draw fills its window */
+    stroke-dashoffset: 57;      /* drawn by the entrance */
+  }
+  .flight .label {
+    position: absolute;
+    top: 62px; left: 34px;
+    transform-origin: top left; /* pops from where the leader lands */
+    opacity: 0;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    white-space: nowrap;
+  }
+  .flight .label .callsign { font-weight: 600; font-size: 15px; letter-spacing: 0.01em; }
+  .flight .label .route    { color: var(--gold); }
+  .flight .label .sub      { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 18px;
+    padding: 0 24px 18svh;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-family: -apple-system, "SF Pro Display", Inter, system-ui, sans-serif;
+    font-size: clamp(38px, 7vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+  h1 .w { display: inline-block; opacity: 0; }   /* per-word entrance */
+  .sub { font-size: 18px; color: var(--text-dim); max-width: 46ch; opacity: 0; }
+  .cta { opacity: 0; }
+  .cta a {
+    display: inline-block;
+    background: #000;
+    color: #fff;
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: transform 160ms var(--ease-out-strong);
+  }
+  .cta a:active { transform: scale(0.97); }
+
+  /* ---- The transit: a plane crossing the eclipsed sun (August 12 band).
+     An original recreation of the famous eclipse-transit shots — the app's
+     "Catch a transit" feature, drawn, not licensed footage. */
+  .transit {
+    position: relative;
+    min-height: 88svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 26px;
+    overflow: hidden;
+    padding: 60px 24px;
+  }
+  .eclipse {
+    position: relative;
+    width: min(58vw, 340px);
+    aspect-ratio: 1;
+  }
+  /* Corona: a bright halo with two slowly counter-rotating streamer layers. */
+  .corona, .streamers, .streamers.b {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+  }
+  .corona {
+    background: radial-gradient(circle,
+      rgba(255, 244, 214, 0.95) 30%,
+      rgba(255, 233, 178, 0.55) 42%,
+      rgba(240, 178, 74, 0.18) 58%,
+      transparent 72%);
+  }
+  .streamers {
+    background:
+      radial-gradient(ellipse 78% 34% at 50% 50%, rgba(255, 240, 200, 0.32), transparent 70%),
+      radial-gradient(ellipse 34% 78% at 50% 50%, rgba(255, 240, 200, 0.22), transparent 70%);
+    filter: blur(6px);
+    animation: streamers 90s linear infinite;
+  }
+  .streamers.b {
+    transform: rotate(45deg);
+    animation: streamersB 130s linear infinite;
+    opacity: 0.7;
+  }
+  @keyframes streamers  { to { transform: rotate(360deg); } }
+  @keyframes streamersB { from { transform: rotate(45deg); } to { transform: rotate(405deg); } }
+  /* The moon: dead black over the light, a hair of limb glow. */
+  .moon {
+    position: absolute;
+    inset: 29%;
+    border-radius: 50%;
+    background: #000;
+    box-shadow: 0 0 18px 4px rgba(255, 236, 190, 0.35);
+  }
+  /* Flight path: the whole lane leans like the long-lens shots. */
+  .lane {
+    position: absolute;
+    inset: 0;
+    transform: rotate(-14deg);
+  }
+  .plane {
+    position: absolute;
+    top: 46%;
+    left: 0;
+    width: 7.5%;
+    animation: crossing 9s linear infinite;
+    will-change: transform;
+  }
+  .plane svg { display: block; width: 100%; height: auto; }
+  /* Contrail: twin fading threads behind the tail. */
+  .plane::before, .plane::after {
+    content: "";
+    position: absolute;
+    top: 38%;
+    right: 92%;
+    width: 900%;
+    height: 1.5px;
+    background: linear-gradient(to left, rgba(20, 18, 14, 0.55), transparent 80%);
+  }
+  .plane::after { top: 58%; }
+  /* translateX % is relative to the plane's own width (~7.5% of the disc),
+     so a full crossing plus margins is ~15 plane-widths. One pass, then the
+     sky rests — like waiting for the next flight. */
+  @keyframes crossing {
+    0%   { transform: translateX(-200%); opacity: 0; }
+    4%   { opacity: 1; }
+    32%  { transform: translateX(1300%); opacity: 1; }
+    36%  { transform: translateX(1480%); opacity: 0; }
+    100% { transform: translateX(1480%); opacity: 0; }
+  }
+  .transit h2 {
+    font-size: clamp(26px, 4.5vw, 38px);
+    letter-spacing: -0.02em;
+    text-align: center;
+  }
+  .transit p {
+    color: var(--text-dim);
+    max-width: 52ch;
+    text-align: center;
+  }
+  .transit .date { color: var(--gold); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) {
+    .plane { animation: none; transform: translateX(650%); }
+    .streamers, .streamers.b { animation: none; }
+  }
+
+  .replay {
+    position: fixed;
+    right: 14px; bottom: 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="sky" id="sky" aria-hidden="true">
+  <div class="flight" id="flight">
+    <div class="dot"></div>
+    <svg class="leader" width="80" height="80" viewBox="0 0 80 80">
+      <line x1="6" y1="8" x2="32" y2="58"></line>
+    </svg>
+    <div class="label" id="label">
+      <div class="callsign"><span id="flightName">QTR649</span> <span class="route" id="flightRoute">→ Doha</span></div>
+      <div class="sub" id="flightSub">38,000 ft · overhead now</div>
+    </div>
+  </div>
+</div>
+
+<main class="hero">
+  <h1 id="headline">Everything above you, labeled.</h1>
+  <p class="sub" id="subhead">Point your phone at any light in the sky. Overhead tells you whether
+     it's a planet, a satellite, or flight QTR649 to Doha — placed exactly where it really is.</p>
+  <div class="cta" id="cta"><a href="https://apps.apple.com/app/id6782262384"> Download on the App Store</a></div>
+</main>
+
+<section class="transit" aria-label="A plane crossing the total solar eclipse">
+  <div class="eclipse">
+    <div class="streamers"></div>
+    <div class="streamers b"></div>
+    <div class="corona"></div>
+    <div class="moon"></div>
+    <div class="lane">
+      <div class="plane">
+        <!-- Original airliner silhouette, drawn for this page. -->
+        <svg viewBox="0 0 100 34" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path fill="#0a0906"
+            d="M2 18 q10 -3 26 -3 l14 0 L28 2 l7 0 L57 15 l20 0 q14 0 21 3
+               q-7 3 -21 3 L57 21 L35 33 l-7 0 L42 21 l-14 0 q-16 0 -26 -3 Z"/>
+          <path fill="#0a0906" d="M70 18 l9 -9 5 0 -6 9 Z"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <h2>Catch a transit</h2>
+  <p><span class="date">August 12</span> — a total solar eclipse and the Perseids peak, the
+     same week. Overhead warns you when a plane is about to cross the face of the Sun,
+     counts you down, and hands you the shutter.</p>
+</section>
+
+<button class="replay" id="replay">replay intro</button>
+
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const SLOW = qs.has('slow') ? 4 : 1;               // ?slow=1 → quarter speed
+  const PROXY = qs.get('proxy');                     // Supabase edge function URL
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const replayed = sessionStorage.getItem('overhead-intro-replay') === '1';
+  const seen = localStorage.getItem('overhead-intro-played') === '1' && !replayed;
+  sessionStorage.removeItem('overhead-intro-replay');
+
+  const sky = document.getElementById('sky');
+  const flight = document.getElementById('flight');
+  const label = document.getElementById('label');
+  const leaderLine = document.querySelector('.leader line');
+  const anims = [];                                  // everything a skip must finish
+
+  // t() converts the choreography's millisecond timeline; the whole sequence
+  // collapses when the intro has already been seen or motion is reduced.
+  const collapse = seen ? 0 : (reduced ? 0.15 : 1);
+  const t = (ms) => ms * collapse * SLOW;
+
+  function play(el, frames, opts) {
+    // Reduced motion means no movement, not faster movement: keep the fades,
+    // drop every transform.
+    if (reduced) frames = frames.map(({ transform, ...rest }) => rest);
+    const a = el.animate(frames, { fill: 'both', easing: 'cubic-bezier(0.23, 1, 0.32, 1)', ...opts });
+    anims.push(a);
+    return a;
+  }
+
+  // Return visits: everything lands instantly (1ms durations below), wrapped
+  // in one quiet 300ms fade so the page still breathes in.
+  if (seen) document.body.animate([{ opacity: 0 }, { opacity: 1 }],
+                                  { duration: 300, easing: 'ease-out' });
+
+  // ---- Stars: 140 points, staggered in over the first 600ms -------------
+  const stars = [];
+  for (let i = 0; i < 140; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() < 0.85 ? 1 : 2;
+    const base = 0.25 + Math.random() * 0.55;
+    s.style.cssText = `left:${Math.random() * 100}%; top:${Math.random() * 100}%;`
+      + `width:${size}px; height:${size}px;`
+      + `--base:${base}; --tw-dur:${4 + Math.random() * 5}s; --tw-delay:${Math.random() * 6}s;`;
+    sky.appendChild(s);
+    stars.push({ el: s, base });
+  }
+  stars.forEach(({ el, base }) => {
+    play(el, [
+      { opacity: 0, transform: 'scale(0.9)' },
+      { opacity: base, transform: 'scale(1)' },
+    ], { duration: t(450) || 1, delay: t(Math.random() * 500) })
+      .finished.then(() => el.classList.add('twinkle'));   // twinkle only after settling
+  });
+
+  // ---- The light: drifts from 1/5 across the sky, indefinitely ----------
+  // Drift is NOT in `anims`: skipping pins the label, the plane keeps flying.
+  flight.style.opacity = 1;
+  if (!reduced) {
+    flight.animate([
+      { transform: 'translateX(18vw)' },
+      { transform: 'translateX(85vw)' },
+    ], { duration: 130000, delay: t(500), fill: 'both', easing: 'linear' });
+  } else {
+    flight.style.transform = 'translateX(32vw)';
+  }
+  play(flight, [{ opacity: 0 }, { opacity: 1 }], { duration: t(400) || 1, delay: t(500) });
+
+  // ---- The label moment: leader draws at 1400ms, card pops at 1500ms ----
+  play(leaderLine, [{ strokeDashoffset: 57 }, { strokeDashoffset: 0 }],
+       { duration: t(250) || 1, delay: t(1400) });
+  play(label, [
+    { opacity: 0, transform: 'scale(0.95)' },
+    { opacity: 1, transform: 'scale(1)' },
+  ], { duration: t(200) || 1, delay: t(1500) });
+
+  // ---- Headline words rise in from 1900ms, then subhead + CTA -----------
+  const headline = document.getElementById('headline');
+  headline.innerHTML = headline.textContent.split(' ')
+    .map(w => `<span class="w">${w}</span>`).join(' ');
+  headline.querySelectorAll('.w').forEach((w, i) => {
+    play(w, [
+      { opacity: 0, transform: 'translateY(10px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], { duration: t(350) || 1, delay: t(1900 + i * 60) });
+  });
+  for (const id of ['subhead', 'cta']) {
+    play(document.getElementById(id), [
+      { opacity: 0, transform: 'translateY(8px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], { duration: t(400) || 1, delay: t(2250) });
+  }
+
+  // ---- Skip: any input lands everything on its settled state ------------
+  function skip() {
+    anims.forEach(a => a.finish());
+    stars.forEach(({ el }) => el.classList.add('twinkle'));
+    removeSkipListeners();
+  }
+  const skipEvents = ['pointerdown', 'keydown', 'wheel', 'touchmove'];
+  const removeSkipListeners = () =>
+    skipEvents.forEach(e => removeEventListener(e, skip, { capture: true }));
+  if (!seen) skipEvents.forEach(e => addEventListener(e, skip, { capture: true, once: true }));
+
+  localStorage.setItem('overhead-intro-played', '1');
+
+  document.getElementById('replay').addEventListener('click', (e) => {
+    e.stopPropagation();
+    localStorage.removeItem('overhead-intro-played');
+    sessionStorage.setItem('overhead-intro-replay', '1');
+    location.reload();
+  });
+
+  // ---- Option C: label a REAL flight when the proxy answers in time -----
+  // geojs (IP → approx location) and adsbdb (callsign → destination) are
+  // CORS-open; the ADS-B position feed itself must go through our proxy.
+  // The label beat lands at 1500ms; the fetch gets an 800ms budget so a slow
+  // network can never delay the choreography — the scripted beat just plays.
+  if (PROXY && !seen) liveFlight().catch(() => {});
+  async function liveFlight() {
+    const deadline = (ms) => new Promise((_, rej) => setTimeout(rej, ms, new Error('slow')));
+    const geo = await Promise.race([
+      fetch('https://get.geojs.io/v1/ip/geo.json').then(r => r.json()),
+      deadline(400),
+    ]);
+    const f = await Promise.race([
+      fetch(`${PROXY}?lat=${geo.latitude}&lon=${geo.longitude}`).then(r => r.json()),
+      deadline(400),
+    ]);
+    if (!f || !f.callsign) return;
+    document.getElementById('flightName').textContent = f.callsign;
+    document.getElementById('flightRoute').textContent = '';
+    document.getElementById('flightSub').textContent =
+      `${Math.round(f.alt_ft).toLocaleString()} ft · overhead now`;
+    // Destination is gravy — patch it in whenever adsbdb answers, even after
+    // the label has popped; a late "→ Doha" appearing is its own tiny wow.
+    const r = await fetch(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(f.callsign)}`)
+      .then(r => r.json()).catch(() => null);
+    const dest = r?.response?.flightroute?.destination;
+    if (dest) document.getElementById('flightRoute').textContent =
+      `→ ${dest.municipality || dest.iata_code}`;
+  }
+})();
+</script>
+</body>
+</html>

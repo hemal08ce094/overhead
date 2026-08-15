@@ -167,7 +167,8 @@ struct ADSBClient: DataSource {
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
-        let (data, _) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        try Self.checkStatus(response)
         let decoded = try JSONDecoder().decode(ADSBResponse.self, from: data)
         return decoded.records.compactMap(Aircraft.init(adsb:))
     }
@@ -181,9 +182,62 @@ struct ADSBClient: DataSource {
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 6
-        let (data, _) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        try Self.checkStatus(response)
         let decoded = try JSONDecoder().decode(ADSBResponse.self, from: data)
         return decoded.records.compactMap(Aircraft.init(adsb:))
+    }
+
+    /// A JSON error body (e.g. airplanes.live's 403 "contact us" gate) still
+    /// decodes — `ac`/`aircraft` are both optional — and would read as an
+    /// empty, healthy sky. Gate on the status code so a blocked feed throws
+    /// and the caller can fall back instead of silently clearing the overlay.
+    private static func checkStatus(_ response: URLResponse) throws {
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            throw URLError((http.statusCode == 401 || http.statusCode == 403)
+                           ? .userAuthenticationRequired : .badServerResponse)
+        }
+    }
+}
+
+/// Chains two providers: try `primary`, serve `fallback` on any error.
+/// airplanes.live gated its open API behind manual approval (every request
+/// 403s until the app is whitelisted), and adsb.lol mirrors the same readsb
+/// v2 schema — so the sky stays alive either way. A failed primary is
+/// benched for a while: polling runs at ~1 Hz, and paying a doomed request
+/// every second would only add traffic and latency.
+actor FallbackSource: DataSource {
+    private let primary: any DataSource
+    private let fallback: any DataSource
+    /// When the benched primary next gets a chance to redeem itself.
+    private var retryPrimaryAt: Date = .distantPast
+    private let benchInterval: TimeInterval = 10 * 60
+
+    init(primary: any DataSource, fallback: any DataSource) {
+        self.primary = primary
+        self.fallback = fallback
+    }
+
+    /// The free chain used when no FR24 token is set.
+    static func freeFeeds() -> FallbackSource {
+        FallbackSource(primary: ADSBClient(),
+                       fallback: ADSBClient(baseURL: "https://api.adsb.lol/v2"))
+    }
+
+    func aircraft(lat: Double, lon: Double, radiusNm: Int) async throws -> [Aircraft] {
+        try await route { try await $0.aircraft(lat: lat, lon: lon, radiusNm: radiusNm) }
+    }
+
+    func search(field: AircraftSearchField, value: String) async throws -> [Aircraft] {
+        try await route { try await $0.search(field: field, value: value) }
+    }
+
+    private func route(_ fetch: (any DataSource) async throws -> [Aircraft]) async throws -> [Aircraft] {
+        if Date() >= retryPrimaryAt {
+            do { return try await fetch(primary) }
+            catch { retryPrimaryAt = Date().addingTimeInterval(benchInterval) }
+        }
+        return try await fetch(fallback)
     }
 }
 
@@ -418,6 +472,7 @@ enum SkyDefaults {
     static let showStars         = "showStars"          // Bool
     static let showMilkyWay      = "showMilkyWay"       // Bool
     static let showISS           = "showISS"            // Bool
+    static let showSatellites    = "showSatellites"     // Bool (visual-group fleet)
     static let showAircraft      = "showAircraft"       // Bool
     static let showGroundAircraft = "showGroundAircraft" // Bool
     static let nakedEyeOnly       = "nakedEyeOnly"       // Bool
@@ -598,6 +653,7 @@ final class ARSkyViewController: UIViewController {
         applyBackground()      // black background over the live session in dark mode
         startPolling()
         loadOrRefreshISSTLE()
+        loadSatelliteCatalog()
         applyNightVision()
         scheduleISSPassAlertsIfStale()
         scheduleSkyDigestIfStale()
@@ -1436,8 +1492,8 @@ final class ARSkyViewController: UIViewController {
     /// otherwise the free non-commercial airplanes.live feed.
     func configureDataSource() {
         // FR24 temporarily disabled (its settings entry is hidden): always use
-        // the free feed, even when a token is still stored from before.
-        dataSource = ADSBClient()
+        // the free feeds, even when a token is still stored from before.
+        dataSource = FallbackSource.freeFeeds()
         pollInterval = .seconds(1)
     }
 
@@ -2557,6 +2613,21 @@ final class ARSkyViewController: UIViewController {
     /// then refresh from the network only when it's missing or stale. A TLE
     /// drifts ~1–2 km/day and is unreliable past ~10 days, so a daily refresh
     /// keeps passes accurate without hammering Celestrak.
+    /// Bring up the naked-eye satellite fleet: cached elements first (the
+    /// catalog actor handles disk + staleness), handed to the scene when
+    /// ready. Runs once per session.
+    private var satelliteCatalogLoaded = false
+    private func loadSatelliteCatalog() {
+        guard !satelliteCatalogLoaded else { return }
+        satelliteCatalogLoaded = true
+        Task { [weak self] in
+            let entries = await SatelliteCatalog.shared.entries()
+            guard let self, !entries.isEmpty else { return }
+            self.sky?.satellites = entries
+            if let here = self.observerLocation { self.updateSky(observer: here, forceStars: false) }
+        }
+    }
+
     private func loadOrRefreshISSTLE() {
         if sky?.issSatellite == nil,
            let lines = UserDefaults.standard.stringArray(forKey: SkyDefaults.issTLELines),
