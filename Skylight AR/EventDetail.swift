@@ -491,18 +491,26 @@ enum EventNarrator {
     /// A few sentences from Apple's on-device model; nil when unavailable.
     static func describe(_ event: SkyEvent) async -> String? {
         #if canImport(FoundationModels)
-        guard case .available = SystemLanguageModel.default.availability else { return nil }
-        let session = LanguageModelSession(instructions: """
-            You are the voice of a calm, premium sky-watching app. Write vivid, \
-            factual astronomy prose for curious people. Plain sentences only — \
-            no markdown, no lists, no exclamation marks.
-            """)
-        let prompt = """
-            In three short sentences, describe this sky event for someone who \
-            will watch it: \(event.title) on \(event.date.formatted(date: .long, time: .shortened)). \
-            Context: \(event.subtitle). Explain what causes it and the best way to experience it.
-            """
-        return try? await session.respond(to: prompt).content
+        // Foundation Models ships in the iOS 26 SDK (so it imports), but the
+        // types are iOS 26+ only — the runtime check gates back-deployment to
+        // iOS 18. Below 26 the narration is simply absent; callers treat nil as
+        // "unavailable" and fall back to the event's own copy.
+        if #available(iOS 26.0, *) {
+            guard case .available = SystemLanguageModel.default.availability else { return nil }
+            let session = LanguageModelSession(instructions: """
+                You are the voice of a calm, premium sky-watching app. Write vivid, \
+                factual astronomy prose for curious people. Plain sentences only — \
+                no markdown, no lists, no exclamation marks.
+                """)
+            let prompt = """
+                In three short sentences, describe this sky event for someone who \
+                will watch it: \(event.title) on \(event.date.formatted(date: .long, time: .shortened)). \
+                Context: \(event.subtitle). Explain what causes it and the best way to experience it.
+                """
+            return try? await session.respond(to: prompt).content
+        } else {
+            return nil
+        }
         #else
         return nil
         #endif

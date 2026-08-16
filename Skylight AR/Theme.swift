@@ -158,7 +158,7 @@ struct GlassCard<Content: View>: View {
     var body: some View {
         content
             .padding(20)
-            .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            .glassEffectCompat(.regular, in: .rect(cornerRadius: 24))
             .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
     }
 }
@@ -174,7 +174,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .contentShape(Capsule())
             // Plain (non-interactive) glass: `.interactive()` runs its own touch
             // handling and swallows the tap before the Button receives it.
-            .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.35)), in: .capsule)
+            .glassEffectCompat(.regular.tint(Theme.accentSoft.opacity(0.35)), in: .capsule)
             .shadow(color: Theme.accent.opacity(0.25), radius: 16, y: 6)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(Theme.Motion.snappy, value: configuration.isPressed)

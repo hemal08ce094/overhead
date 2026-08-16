@@ -170,7 +170,7 @@ struct HeaderGlassLens: View {
     var body: some View {
         Color.clear
             .frame(width: size, height: size)
-            .glassEffect(.clear, in: .circle)
+            .glassEffectCompat(.clear, in: .circle)
             // Faint top-lit volume so it reads as a body without going opaque.
             .overlay(
                 Circle().fill(RadialGradient(
@@ -224,7 +224,7 @@ struct HeaderTitleBanner: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
-        .glassEffect(.clear, in: .rect(cornerRadius: 22))
+        .glassEffectCompat(.clear, in: .rect(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.14), lineWidth: 1))
         .shadow(color: .black.opacity(0.28), radius: 12, y: 6)
     }
@@ -255,7 +255,7 @@ private struct PinnedTitleBar: View {
         .padding(.top, windowTopInset())
         .background {
             Rectangle().fill(.clear)
-                .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.5)), in: .rect)
+                .glassEffectCompat(.regular.tint(Theme.nightBottom.opacity(0.5)), in: .rect)
         }
         .overlay(alignment: .bottom) {
             Rectangle().fill(.white.opacity(0.08)).frame(height: 0.7)

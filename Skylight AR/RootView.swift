@@ -42,8 +42,9 @@ struct RootView: View {
                     if showAR {
                         ARSkyScreen()
                             // The way back to the scope, floating over the AR
-                            // chrome — mirror of the gold door on the home page.
-                            .overlay(alignment: .topLeading) {
+                            // chrome. Bottom-right — clear of the chrome-cluster
+                            // orb (top-left) and the status pill (bottom-left).
+                            .overlay(alignment: .bottomTrailing) {
                                 Button {
                                     withAnimation(.easeInOut(duration: 0.35)) { showAR = false }
                                 } label: {
@@ -55,8 +56,8 @@ struct RootView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(Text("Back to Sky Scan"))
-                                .padding(.leading, 16)
-                                .padding(.top, 4)
+                                .padding(.trailing, 16)
+                                .padding(.bottom, 24)
                             }
                             .transition(.opacity)
                     } else {

@@ -785,7 +785,7 @@ struct MedalsOverviewView: View {
                             .font(Theme.display(14, .semibold))
                             .foregroundStyle(Theme.accent)
                             .padding(.horizontal, 16).padding(.vertical, 9)
-                            .glassEffect(.regular, in: .capsule)
+                            .glassEffectCompat(.regular, in: .capsule)
                     }
                     .padding(.top, 2)
                 }
@@ -958,7 +958,7 @@ struct MedalDetailView: View {
                         }
                     }
                     .padding(.horizontal, 22).padding(.vertical, 12)
-                    .glassEffect(.regular, in: .capsule)
+                    .glassEffectCompat(.regular, in: .capsule)
                 } else {
                     VStack(spacing: 8) {
                         ProgressView(value: Double(progress), total: Double(medal.target))

@@ -147,7 +147,7 @@ struct ARSkyScreen: View {
                 .presentationDetents([.medium, .large])
                 .presentationBackground {
                     Color.clear
-                        .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
+                        .glassEffectCompat(.regular.tint(Theme.nightBottom.opacity(0.45)),
                                      in: .rect(cornerRadius: 38))
                         .allowsHitTesting(false)
                 }
@@ -164,7 +164,7 @@ struct ARSkyScreen: View {
                 .presentationDetents([.large])
                 .presentationBackground {
                     Color.clear
-                        .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
+                        .glassEffectCompat(.regular.tint(Theme.nightBottom.opacity(0.45)),
                                      in: .rect(cornerRadius: 38))
                         .allowsHitTesting(false)
                 }
@@ -242,7 +242,7 @@ struct ARSkyScreen: View {
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 7)
-            .glassEffect(.regular.tint(Theme.gold.opacity(0.12)), in: .capsule)
+            .glassEffectCompat(.regular.tint(Theme.gold.opacity(0.12)), in: .capsule)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(engine.feedOffline
                 ? "No connection. Showing only \(searched). Show all planes."
@@ -260,7 +260,7 @@ struct ARSkyScreen: View {
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 9)
-            .glassEffect(.regular, in: .capsule)
+            .glassEffectCompat(.regular, in: .capsule)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(engine.feedOffline
                 ? "No connection. Showing sky only."
@@ -284,7 +284,7 @@ struct ARSkyScreen: View {
             }
             .foregroundStyle(Theme.nightBottom)
             .padding(.horizontal, 12).padding(.vertical, 9)
-            .glassEffect(.regular.tint(Theme.accent.opacity(0.85)), in: .capsule)
+            .glassEffectCompat(.regular.tint(Theme.accent.opacity(0.85)), in: .capsule)
         }
         .accessibilityLabel("Sky time shifted \(timeOffsetText). Return to now.")
     }
@@ -317,7 +317,7 @@ struct ARSkyScreen: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
-        .glassEffect(.regular.tint(Theme.gold.opacity(0.18)),
+        .glassEffectCompat(.regular.tint(Theme.gold.opacity(0.18)),
                      in: .rect(cornerRadius: 20))
     }
 
@@ -353,7 +353,7 @@ struct ARSkyScreen: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
             .contentShape(Rectangle())
-            .glassEffect(.regular.tint(Theme.gold.opacity(0.16)), in: .rect(cornerRadius: 20))
+            .glassEffectCompat(.regular.tint(Theme.gold.opacity(0.16)), in: .rect(cornerRadius: 20))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Medal earned: \(medal.name). Opens your medals.")
@@ -369,7 +369,7 @@ struct ARSkyScreen: View {
                     .foregroundStyle(Theme.gold)
                     .frame(width: 68, height: 68)
                     .contentShape(Circle())
-                    .glassEffect(.regular.tint(Theme.gold.opacity(0.25)),
+                    .glassEffectCompat(.regular.tint(Theme.gold.opacity(0.25)),
                                  in: .circle)
             }
             .accessibilityLabel("Capture the crossing")
@@ -427,7 +427,7 @@ struct ARSkyScreen: View {
             .accessibilityLabel("Dismiss permission hint")
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
-        .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.18)), in: .capsule)
+        .glassEffectCompat(.regular.tint(Theme.accentSoft.opacity(0.18)), in: .capsule)
     }
 
     /// Never-asked permissions get the system prompt right here; denied ones
@@ -484,7 +484,7 @@ struct ARSkyScreen: View {
             .accessibilityLabel("Dismiss compass hint")
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
-        .glassEffect(.regular.tint(.orange.opacity(0.15)), in: .capsule)
+        .glassEffectCompat(.regular.tint(.orange.opacity(0.15)), in: .capsule)
     }
 
     /// Offered after returning from the background: tracking may have shifted,
@@ -517,7 +517,7 @@ struct ARSkyScreen: View {
             .accessibilityLabel("Dismiss re-align")
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
-        .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.18)), in: .capsule)
+        .glassEffectCompat(.regular.tint(Theme.accentSoft.opacity(0.18)), in: .capsule)
     }
 
     /// Guided heading calibration: 360° sweep, then a precise lock.
@@ -533,7 +533,7 @@ struct ARSkyScreen: View {
                 }
                 .padding(22)
                 .frame(maxWidth: .infinity)
-                .glassEffect(.regular, in: .rect(cornerRadius: 30))
+                .glassEffectCompat(.regular, in: .rect(cornerRadius: 30))
                 .padding(.horizontal, 18)
                 .padding(.bottom, 30)
             }
@@ -638,7 +638,7 @@ struct ARSkyScreen: View {
     /// visibly live inside the one button. Order matches the old chrome:
     /// profile nearest its old corner, calibration out by the pills.
     private var chromeCluster: some View {
-        GlassEffectContainer(spacing: 22) {
+        GlassEffectContainerCompat(spacing: 22) {
             ZStack(alignment: .topLeading) {
                 // Only exist while open: a hidden-but-present drop still draws
                 // its glass on the container's shared layer and ghosts through
@@ -665,7 +665,7 @@ struct ARSkyScreen: View {
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .glassEffect(.regular.interactive(), in: .circle)
+                .glassEffectCompat(.regular.interactive(), in: .circle)
                 .overlay(alignment: .topTrailing) {
                     // The bell's imminent-event dot surfaces on the closed orb
                     // so the calendar still announces itself from inside.
@@ -712,7 +712,7 @@ struct ARSkyScreen: View {
                 .foregroundStyle(engine.cameraPassthrough ? Theme.accent : Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .glassEffect(.regular, in: .circle)
+                .glassEffectCompat(.regular, in: .circle)
                 .contentTransition(.symbolEffect(.replace))
         }
         .sensoryFeedback(.impact(weight: .light), trigger: engine.cameraPassthrough)
@@ -757,7 +757,7 @@ struct ARSkyScreen: View {
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .glassEffect(.regular, in: .circle)
+                .glassEffectCompat(.regular, in: .circle)
         }
         .accessibilityLabel("Find a flight")
     }
@@ -775,7 +775,7 @@ struct ARSkyScreen: View {
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .glassEffect(.regular, in: .circle)
+                .glassEffectCompat(.regular, in: .circle)
                 .overlay(alignment: .topTrailing) {
                     if let soon = imminentEvent {
                         Circle().fill(soon.kind.tint)
@@ -799,7 +799,7 @@ struct ARSkyScreen: View {
                 .foregroundStyle(alignTint)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .glassEffect(.regular, in: .circle)
+                .glassEffectCompat(.regular, in: .circle)
                 .overlay(alignment: .topTrailing) {
                     if !engine.autoAlignEnabled {            // a manual lock is held
                         Circle().fill(Theme.accent)
@@ -843,7 +843,7 @@ struct ARSkyScreen: View {
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
-                .glassEffect(.regular, in: .circle)
+                .glassEffectCompat(.regular, in: .circle)
         }
         .accessibilityLabel("Profile")
     }
@@ -882,7 +882,7 @@ struct ARSkyScreen: View {
             .accessibilityLabel("Stop tracking")
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
-        .glassEffect(.regular.tint(Theme.accentSoft.opacity(0.25)), in: .capsule)
+        .glassEffectCompat(.regular.tint(Theme.accentSoft.opacity(0.25)), in: .capsule)
     }
 
     /// Shown while pinch-zoomed; tap to snap back to 1×.
@@ -893,7 +893,7 @@ struct ARSkyScreen: View {
                 .foregroundStyle(Theme.textPrimary)
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .contentShape(Capsule())
-                .glassEffect(.regular, in: .capsule)
+                .glassEffectCompat(.regular, in: .capsule)
         }
         .accessibilityLabel("Zoomed to \(String(format: "%.1f", engine.zoomFactor)) times. Reset zoom.")
     }
@@ -994,7 +994,7 @@ struct FlightSearchView: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 13)
-        .glassEffect(.regular, in: .capsule)
+        .glassEffectCompat(.regular, in: .capsule)
     }
 
     private func section(_ title: String, _ results: [SearchResult]) -> some View {
@@ -1104,7 +1104,7 @@ struct FlightSearchView: View {
                             .foregroundStyle(Theme.textPrimary)
                             .padding(.horizontal, 14).padding(.vertical, 8)
                             .contentShape(Capsule())
-                            .glassEffect(.regular, in: .capsule)
+                            .glassEffectCompat(.regular, in: .capsule)
                     }
                 }
             }
@@ -1217,7 +1217,7 @@ struct AircraftDetailSheet: View {
         .presentationBackgroundInteraction(.enabled(upThrough: Self.mini))
         .presentationBackground {
             Color.clear
-                .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
+                .glassEffectCompat(.regular.tint(Theme.nightBottom.opacity(0.45)),
                              in: .rect(cornerRadius: 38))
                 .allowsHitTesting(false)
         }
@@ -1556,7 +1556,7 @@ struct AirportDetailSheet: View {
         .presentationDetents([.medium, .large])
         .presentationBackground {
             Color.clear
-                .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
+                .glassEffectCompat(.regular.tint(Theme.nightBottom.opacity(0.45)),
                              in: .rect(cornerRadius: 38))
                 .allowsHitTesting(false)
         }
@@ -1849,7 +1849,7 @@ struct ProfileIdentityCard: View {
             }
             // Clear glass, not frosted: the airliner and solar system fly
             // directly behind this card, and their light should bend through.
-            .glassEffect(.clear, in: .rect(cornerRadius: 22))
+            .glassEffectCompat(.clear, in: .rect(cornerRadius: 22))
             .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.14), lineWidth: 1))
             .shadow(color: .black.opacity(0.28), radius: 12, y: 6)
         }
@@ -2702,7 +2702,7 @@ struct SkySettingsView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .contentShape(Capsule())
-            .glassEffect(active ? .regular.tint(Theme.accentSoft.opacity(0.45)) : .regular,
+            .glassEffectCompat(active ? .regular.tint(Theme.accentSoft.opacity(0.45)) : .regular,
                          in: .capsule)
         }
         .animation(Theme.Motion.standard, value: active)
@@ -3322,7 +3322,7 @@ private struct CircleControl: View {
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 48, height: 48)
                 .contentShape(Circle())
-                .glassEffect(.regular, in: .circle)
+                .glassEffectCompat(.regular, in: .circle)
         }
     }
 }

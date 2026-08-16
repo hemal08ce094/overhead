@@ -510,7 +510,7 @@ private struct PermissionBadge: View {
                     colors: [Theme.accent.opacity(0.28), .clear],
                     center: .center, startRadius: 2, endRadius: 44))
             }
-            .glassEffect(.clear, in: .circle)
+            .glassEffectCompat(.clear, in: .circle)
             .overlay(Circle().strokeBorder(.white.opacity(0.16), lineWidth: 1))
             .shadow(color: Theme.accent.opacity(0.35), radius: 22)
             .accessibilityHidden(true)
@@ -586,7 +586,7 @@ struct MoonMark: View {
                 .blur(radius: 1)
                 .mask(Circle())
         }
-        .glassEffect(.clear.interactive(), in: .circle)
+        .glassEffectCompat(.clear.interactive(), in: .circle)
         .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1))
         .shadow(color: Theme.moonlight.opacity(0.45), radius: 30)
     }

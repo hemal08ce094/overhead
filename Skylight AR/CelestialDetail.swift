@@ -148,7 +148,7 @@ struct BodyDetailSheet: View {
         .presentationDetents([.medium, .large])
         .presentationBackground {
             Color.clear
-                .glassEffect(.regular.tint(Theme.nightBottom.opacity(0.45)),
+                .glassEffectCompat(.regular.tint(Theme.nightBottom.opacity(0.45)),
                              in: .rect(cornerRadius: 38))
                 .allowsHitTesting(false)
         }
