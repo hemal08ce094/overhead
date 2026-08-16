@@ -292,6 +292,14 @@ final class SkyEngine {
     var zoomFactor: Double = 1
     /// Compass heading accuracy in degrees; < 0 means unknown.
     var headingAccuracyDeg: Double = -1
+    /// Accuracy lab: latest predicted-vs-camera-observed sun/moon offset,
+    /// and the DEBUG HUD switch (`-accuracyHUD YES` launch argument).
+    var accuracyReading: AccuracyReading?
+    var showAccuracyHUD: Bool = false
+    /// When the sun or moon is in frame, use the camera's own view of it to
+    /// continuously calibrate heading — arcminute truth vs the compass's
+    /// degrees. The single biggest alignment win the hardware offers.
+    var celestialAutoCal: Bool = true
     /// True once the compass has stayed poor long enough to deserve a nudge.
     var compassHintNeeded: Bool = false
     var compassHintDismissed: Bool = false

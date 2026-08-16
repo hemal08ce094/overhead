@@ -127,6 +127,16 @@ struct ARSkyScreen: View {
             if engine.calibrationStep != .idle {
                 calibrationOverlay
             }
+
+            #if DEBUG
+            if engine.showAccuracyHUD {
+                VStack {
+                    Spacer()
+                    AccuracyHUDView(engine: engine).padding(.bottom, 96)
+                }
+                .allowsHitTesting(false)
+            }
+            #endif
         }
         // Let the sky arrive first; the permission tip follows a beat later.
         .task {
@@ -210,6 +220,9 @@ struct ARSkyScreen: View {
             case .viewsky: showProfile = true   // ProfileView auto-pushes View & sky
             case .paywall: showPaywallShot = true
             default: break
+            }
+            if UserDefaults.standard.bool(forKey: "accuracyHUD") {
+                engine.showAccuracyHUD = true
             }
         }
         #endif

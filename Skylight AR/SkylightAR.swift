@@ -583,6 +583,17 @@ final class ARSkyViewController: UIViewController {
     /// marker glides continuously between 1 Hz fixes instead of stepping.
     private var anchors: [String: Anchor] = [:]
     private var displayLink: CADisplayLink?
+    private var lastDetectAt = Date.distantPast
+    /// Smoothed slow-network surcharge on top of the per-source latency
+    /// constants, folded into every anchor timestamp.
+    private var rttExcessSec = 0.0
+    /// While a camera-verified celestial fix is fresh, the compass loop only
+    /// watches; and the bias it learns from that fix outlives the sighting.
+    private var celestialTrimUntil = Date.distantPast
+    private var compassBiasDeg = 0.0
+    /// When the camera keeps seeing the body above/below the drawn disc —
+    /// a gravity-tilt symptom yaw trim can't cure.
+    private var elevationDriftSince: Date?
     private var selectedHex: String?
     private var pollTask: Task<Void, Never>?
     private var airportNodes: [String: AirportNode] = [:]
@@ -631,6 +642,10 @@ final class ARSkyViewController: UIViewController {
         var track: Double?; var gsKts: Double?
         var vsFpm: Double?            // vertical rate, ft/min (+ up), for altitude dead-reckoning
         var observedAt: Date
+        /// Estimated turn rate, °/s (+ = right), from successive fixes. A
+        /// straight extrapolation of a turning plane overshoots the arc —
+        /// the visible "label off the plane" case on close approach traffic.
+        var trackRateDegS: Double = 0
     }
 
     // MARK: Lifecycle
@@ -1518,13 +1533,21 @@ final class ARSkyViewController: UIViewController {
         updateSky(observer: here, forceStars: false)
         updateAirports(observer: here)
         do {
+            let requestedAt = Date()
             let traffic = try await dataSource.aircraft(
                 lat: here.coordinate.latitude,
                 lon: here.coordinate.longitude,
                 radiusNm: searchRadiusNm)
+            // The per-source latency constants assume a healthy network
+            // (~0.35 s half-RTT). On a slow link the fixes are older than
+            // that by the time they land — measure the excess and fold it
+            // into the anchor timestamps, smoothed against jitter.
+            let rtt = Date().timeIntervalSince(requestedAt)
+            rttExcessSec = 0.7 * rttExcessSec + 0.3 * max(0, rtt / 2 - 0.35)
             feedFailureStreak = 0
             engine?.feedOffline = false
             update(with: traffic, observer: here)
+            updateLocationAccuracyPolicy()
         } catch {
             // Transient errors are expected at 1 Hz; surface only a streak.
             feedFailureStreak += 1
@@ -1539,6 +1562,22 @@ final class ARSkyViewController: UIViewController {
 
     private func effectiveDate() -> Date {
         Date().addingTimeInterval((engine?.skyTimeOffsetMin ?? 0) * 60)
+    }
+
+    /// Observer-position error matters in inverse proportion to range: ±100 m
+    /// is nothing against a jet 40 nm out and ~3° against one at 2 nm. Ask
+    /// CoreLocation for its best only when it pays — close traffic or an
+    /// armed transit countdown — and drop back to the battery-friendly tier
+    /// the rest of the time.
+    private func updateLocationAccuracyPolicy() {
+        let nearestM = lastFix.values
+            .filter { !$0.aircraft.onGround }
+            .map(\.range).min() ?? .greatestFiniteMagnitude
+        let wantBest = engine?.transitPrediction != nil || nearestM < 3 * 1852
+        let desired = wantBest ? kCLLocationAccuracyBest : kCLLocationAccuracyHundredMeters
+        if locationManager.desiredAccuracy != desired {
+            locationManager.desiredAccuracy = desired
+        }
     }
 
     private func updateSky(observer: CLLocation, forceStars: Bool) {
@@ -1585,10 +1624,24 @@ final class ARSkyViewController: UIViewController {
             // plus pipeline lag); the display link projects it forward from here
             // every frame so the glyph rides where the plane *is*, not where it
             // was — continuous motion instead of a 1 Hz step.
-            let anchor = Anchor(lat: ac.lat, lon: ac.lon, altM: ac.altitudeMeters,
+            var anchor = Anchor(lat: ac.lat, lon: ac.lon, altM: ac.altitudeMeters,
                                 track: ac.track, gsKts: ac.groundSpeedKts,
                                 vsFpm: ac.verticalRateFpm,
-                                observedAt: now.addingTimeInterval(-((ac.positionAgeSec ?? 0) + dataSource.feedLatencySec)))
+                                observedAt: now.addingTimeInterval(-((ac.positionAgeSec ?? 0) + dataSource.feedLatencySec + rttExcessSec)))
+            // Turn rate from the track delta between successive fixes, blended
+            // and clamped (a standard-rate turn is 3°/s) — same-fix repeats
+            // (seen_pos growing, position frozen) just carry the old estimate.
+            if let prev = anchors[ac.hex], let t0 = prev.track, let t1 = ac.track {
+                let fixDt = anchor.observedAt.timeIntervalSince(prev.observedAt)
+                if fixDt > 0.5, fixDt < 15 {
+                    var dTrack = t1 - t0
+                    if dTrack > 180 { dTrack -= 360 } else if dTrack < -180 { dTrack += 360 }
+                    anchor.trackRateDegS = prev.trackRateDegS * 0.5
+                        + max(-3, min(3, dTrack / fixDt)) * 0.5
+                } else {
+                    anchor.trackRateDegS = prev.trackRateDegS
+                }
+            }
             let (az, el, range) = geometry(of: anchor, at: now, observer: observer)
 
             // Cull only what's well below the horizon. We allow a wide negative
@@ -1739,10 +1792,22 @@ final class ARSkyViewController: UIViewController {
         var lat = anchor.lat, lon = anchor.lon, altM = anchor.altM
         let dt = min(max(date.timeIntervalSince(anchor.observedAt), 0), maxExtrapolationSec)
         if let track = anchor.track, let gs = anchor.gsKts, gs > 40 {
-            let meters = gs * 0.514444 * dt
+            let v = gs * 0.514444
             let tr = track * .pi / 180
-            lat += (meters * cos(tr) / 6_371_000) * 180 / .pi
-            lon += (meters * sin(tr) / (6_371_000 * cos(anchor.lat * .pi / 180))) * 180 / .pi
+            let omega = anchor.trackRateDegS * .pi / 180
+            let north: Double, east: Double
+            if abs(omega) > 0.0015 {
+                // A measured turn: ride the arc, not the tangent. Closed form
+                // for constant speed + turn rate (radius v/ω).
+                let r = v / omega
+                north = r * (sin(tr + omega * dt) - sin(tr))
+                east = r * (cos(tr) - cos(tr + omega * dt))
+            } else {
+                north = v * dt * cos(tr)
+                east = v * dt * sin(tr)
+            }
+            lat += (north / 6_371_000) * 180 / .pi
+            lon += (east / (6_371_000 * cos(anchor.lat * .pi / 180))) * 180 / .pi
         }
         // Climb/descent: carry the plane's altitude forward too, so traffic on
         // approach or departure sits at the height it's actually at now, not its
@@ -1792,6 +1857,14 @@ final class ARSkyViewController: UIViewController {
             lastSkyStepAt = Date()
             updateSky(observer: observer, forceStars: false)
         }
+        // Accuracy lab + celestial auto-cal: the camera is ground truth —
+        // compare the drawn sun/moon against the sensor's own view of it
+        // twice a second, and let the verified offset trim the heading.
+        if engine?.showAccuracyHUD == true || engine?.celestialAutoCal == true,
+           Date().timeIntervalSince(lastDetectAt) >= 0.5 {
+            lastDetectAt = Date()
+            updateAccuracyReading()
+        }
         // The binaural listener follows the camera a few times a second, so
         // "point the phone at the sound" holds while the user turns — not
         // just once per poll.
@@ -1838,9 +1911,23 @@ final class ARSkyViewController: UIViewController {
             lastFix[hex]?.az = az
             lastFix[hex]?.el = el
             lastFix[hex]?.range = range
+
+            // Honesty fade: past 15 s without a fresh fix the glyph is pure
+            // extrapolation — let it visibly soften toward the 30 s drop
+            // instead of holding full confidence. Written only on change so
+            // the arrival fade-in and focus dimming keep their own opacity.
+            let age = now.timeIntervalSince(anchor.observedAt)
+            let staleTarget: Float = age <= 15 ? 1 : Float(1 - 0.5 * min(1, (age - 15) / 15))
+            if abs((staleDim[hex] ?? 1) - staleTarget) > 0.04 {
+                staleDim[hex] = staleTarget
+                let dimmed = engine?.focusedCallsign != nil
+                    && lastFix[hex]?.aircraft.callsign != engine?.focusedCallsign
+                node.opacity = CGFloat(staleTarget) * (dimmed ? 0.22 : 1.0)
+            }
         }
         if engine?.hearFeelSky == true, orientTick % 4 == 0 { updateProximityHaptic() }
     }
+    private var staleDim: [String: Float] = [:]
     private var orientTick = 0
     private var lastStepAt: TimeInterval = 0
     private var lastSkyStepAt = Date.distantPast
@@ -1856,6 +1943,7 @@ final class ARSkyViewController: UIViewController {
         trails[hex] = nil
         lastFix[hex] = nil
         anchors[hex] = nil
+        staleDim[hex] = nil
         if hex == selectedHex { deselect() }
     }
 
@@ -1950,21 +2038,113 @@ final class ARSkyViewController: UIViewController {
         skyAudio.update(sources: sources, forward: forward, up: up)
     }
 
+    // MARK: Accuracy lab (predicted vs camera-observed sky)
+
+    /// One end-to-end error number for the whole pipeline: project a drawn
+    /// disc into the camera frame, find the real disc near it, and read the
+    /// az/el offset between them. Sun first (bright in any frame it's in),
+    /// then the moon.
+    private func updateAccuracyReading() {
+        guard let engine, let frame = sceneView.session.currentFrame,
+              let pov = sceneView.pointOfView?.presentation else { return }
+        let viewport = sceneView.bounds.size
+        guard viewport.width > 0, viewport.height > 0 else { return }
+        let camPos = pov.worldPosition
+        let front = pov.simdWorldFront
+
+        for (body, world) in [(AccuracyReading.Body.sun, sky?.sunWorldPosition),
+                              (.moon, sky?.moonWorldPosition)] {
+            guard let world else { continue }
+            let toBody = simd_normalize(simd_float3(world.x - camPos.x,
+                                                    world.y - camPos.y,
+                                                    world.z - camPos.z))
+            // Must be genuinely in front — projectPoint mirrors what's behind.
+            guard simd_dot(toBody, front) > 0.2 else { continue }
+            let projected = sceneView.projectPoint(world)
+            let predicted = CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y))
+            guard predicted.x > -40, predicted.x < viewport.width + 40,
+                  predicted.y > -40, predicted.y < viewport.height + 40 else { continue }
+            let orientation = sceneView.window?.windowScene?.interfaceOrientation ?? .portrait
+            guard let hit = CelestialDetector.detect(in: frame, near: predicted,
+                                                     viewport: viewport,
+                                                     orientation: orientation,
+                                                     body: body) else { continue }
+
+            func skyAngles(of point: CGPoint) -> (az: Double, el: Double) {
+                let near = sceneView.unprojectPoint(SCNVector3(point.x, point.y, 0))
+                let far = sceneView.unprojectPoint(SCNVector3(point.x, point.y, 1))
+                let v = simd_normalize(simd_float3(far.x - near.x, far.y - near.y, far.z - near.z))
+                return (atan2(Double(v.x), -Double(v.z)) * 180 / .pi,
+                        asin(Double(max(-1, min(1, v.y)))) * 180 / .pi)
+            }
+            let p = skyAngles(of: predicted), o = skyAngles(of: hit.viewPoint)
+            var dAz = o.az - p.az
+            if dAz > 180 { dAz -= 360 } else if dAz < -180 { dAz += 360 }
+            let reading = AccuracyReading(body: body, deltaAzDeg: dAz,
+                                          deltaElDeg: o.el - p.el,
+                                          confidence: hit.confidence, date: Date())
+            engine.accuracyReading = reading
+            applyCelestialTrim(reading)
+            return
+        }
+        // Nothing convincing this tick — age the old reading out rather than
+        // flickering between marginal frames.
+        if let r = engine.accuracyReading, Date().timeIntervalSince(r.date) > 10 {
+            engine.accuracyReading = nil
+        }
+    }
+
+    /// Phase 2 of the accuracy work: a camera-verified disc outranks the
+    /// magnetometer. Trim the world yaw toward the observed body, and teach
+    /// the compass loop its bias so alignment holds after the body leaves
+    /// frame — the compass keeps supplying stability, the ephemeris supplies
+    /// truth.
+    private func applyCelestialTrim(_ r: AccuracyReading) {
+        // A persistent vertical miss is a different disease: yaw can't fix
+        // it — it's ARKit's gravity estimate drifting (featureless night sky
+        // is its worst case). Route that to the existing realign nudge.
+        if abs(r.deltaElDeg) > 1.5, r.confidence >= 0.5 {
+            if elevationDriftSince == nil { elevationDriftSince = Date() }
+            if Date().timeIntervalSince(elevationDriftSince ?? Date()) > 8,
+               engine?.realignDismissed == false {
+                engine?.realignSuggested = true
+            }
+        } else {
+            elevationDriftSince = nil
+        }
+        guard engine?.celestialAutoCal == true,
+              engine?.autoAlignEnabled ?? true,               // manual lock holds
+              engine?.calibrationStep == .idle,
+              engine?.mirrorX != true,                        // mirrored sky is *meant* to disagree
+              r.confidence >= 0.5,
+              abs(r.deltaAzDeg) <= 8 else { return }          // beyond 8°: not our disc
+        // Damped toward the observation — detector centroids carry a little
+        // noise; two or three sightings converge below 0.2°.
+        let gain = 0.35 + 0.35 * r.confidence
+        worldNode.eulerAngles.y -= Float(r.deltaAzDeg * .pi / 180 * gain)
+        celestialTrimUntil = Date().addingTimeInterval(20)
+        driftSince = nil
+        // The sky is now at least this well aligned — don't let the first-lock
+        // snap or a stale drift gate fight the verified frame.
+        if appliedNorthAccuracy > 2 { appliedNorthAccuracy = 2 }
+        if let cons = northConsensus() {
+            var bias = cons.mean - Double(worldNode.eulerAngles.y) * 180 / .pi
+            bias = bias.truncatingRemainder(dividingBy: 360)
+            if bias > 180 { bias -= 360 } else if bias < -180 { bias += 360 }
+            compassBiasDeg = max(-25, min(25, bias))
+        }
+    }
+
     // MARK: Transit alerts (plane × moon/sun)
 
     private var transitHapticFired = false
 
     private func updateTransitPrediction(traffic: [Aircraft], observer: CLLocation) {
         guard let engine else { return }
-        // Keep an active prediction until it plays out (+grace), then rescan.
-        if let current = engine.transitPrediction {
-            if current.date.timeIntervalSinceNow > -4 {
-                if current.date.timeIntervalSinceNow < 5, !transitHapticFired {
-                    transitHapticFired = true
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
-                return
-            }
+        // A crossing that has played out (+grace) is scored and cleared.
+        if let current = engine.transitPrediction,
+           current.date.timeIntervalSinceNow <= -4 {
+            TransitOutcomeLog.shared.resolve(current, .playedOut)
             engine.transitPrediction = nil
             transitHapticFired = false
             syncTransitAlarm()
@@ -1976,12 +2156,53 @@ final class ARSkyViewController: UIViewController {
         let date = Date()
         let lat = observer.coordinate.latitude
         let lon = observer.coordinate.longitude
-        let moon = Celestial.moon(date: date, lat: lat, lon: lon)
-        let sun = Celestial.sun(date: date, lat: lat, lon: lon)
-        engine.transitPrediction = TransitPredictor.predict(
+        // Bodies move ~0.25°/min across the az/el frame (diurnal rotation) —
+        // most of a moon-width over the horizon — so the predictor gets each
+        // body's start/end sky path, not a frozen fix. Observer altitude uses
+        // the same ellipsoidal datum as the rendered sky, so a predicted
+        // crossing and the drawn one agree.
+        let horizon = 180.0
+        let end = date.addingTimeInterval(horizon)
+        let moonNow = Celestial.moon(date: date, lat: lat, lon: lon)
+        let moonEnd = Celestial.moon(date: end, lat: lat, lon: lon)
+        let sunNow = Celestial.sun(date: date, lat: lat, lon: lon)
+        let sunEnd = Celestial.sun(date: end, lat: lat, lon: lon)
+        let fresh = TransitPredictor.predict(
             aircraft: traffic,
-            observerLat: lat, observerLon: lon, observerAltM: observer.altitude,
-            moon: (moon.az, moon.el), sun: (sun.az, sun.el))
+            observerLat: lat, observerLon: lon,
+            observerAltM: observerAltMeters(observer),
+            moon: BodyTrack(startAz: moonNow.az, startEl: moonNow.el,
+                            endAz: moonEnd.az, endEl: moonEnd.el, horizon: horizon),
+            sun: BodyTrack(startAz: sunNow.az, startEl: sunNow.el,
+                           endAz: sunEnd.az, endEl: sunEnd.el, horizon: horizon),
+            horizon: horizon)
+
+        if let current = engine.transitPrediction {
+            // Re-validate the held prediction against the newest fixes.
+            if let fresh, fresh.callsign == current.callsign, fresh.body == current.body,
+               abs(fresh.date.timeIntervalSince(current.date)) < 45 {
+                // Same crossing, sharpened — the countdown stays honest.
+                engine.transitPrediction = fresh
+                TransitOutcomeLog.shared.note(fresh)
+            } else if current.date.timeIntervalSinceNow > 20 {
+                // The plane maneuvered out of the crossing while still well
+                // away — withdrawing beats counting down to nothing. Inside
+                // 20 s we hold: a feed hiccup must not yank the shutter at
+                // the last moment.
+                TransitOutcomeLog.shared.resolve(current, .dissolved)
+                engine.transitPrediction = nil
+                transitHapticFired = false
+            }
+        } else if let fresh {
+            engine.transitPrediction = fresh
+            TransitOutcomeLog.shared.note(fresh)
+        }
+
+        if let p = engine.transitPrediction,
+           p.date.timeIntervalSinceNow < 5, !transitHapticFired {
+            transitHapticFired = true
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
         // Mirror the prediction into the pocket alarm (cheap no-op per tick
         // unless the transit identity or the alarm settings changed).
         syncTransitAlarm()
@@ -2742,6 +2963,15 @@ extension ARSkyViewController: CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         if let loc = locations.last {
+            // Urban-canyon fixes (hundreds of meters out) visibly misplace
+            // close traffic — ±100 m is ~3° of azimuth on a plane 2 nm away.
+            // Keep the last good fix unless this one is decent, ours has gone
+            // stale, or we have nothing at all.
+            if let held = observerLocation,
+               loc.horizontalAccuracy > 150, held.horizontalAccuracy <= 150,
+               loc.timestamp.timeIntervalSince(held.timestamp) < 30 {
+                return
+            }
             observerLocation = loc
             // Siri's "what's flying over me" answers from the last known spot.
             UserDefaults.standard.set(loc.coordinate.latitude, forKey: SkyDefaults.lastLat)
@@ -2812,8 +3042,14 @@ extension ARSkyViewController: CLLocationManagerDelegate {
                              weight: 1.0 / max(heading.headingAccuracy, 5), t: now))
         northSamples.removeAll { now.timeIntervalSince($0.t) > 4.0 }
         if northSamples.count > 24 { northSamples.removeFirst(northSamples.count - 24) }
+        // While a camera-verified celestial fix is fresh, the magnetometer
+        // only watches — its window keeps rolling so the fallback consensus
+        // is warm the moment the body leaves frame.
+        guard now >= celestialTrimUntil else { driftSince = nil; return }
         guard let cons = northConsensus() else { return }
-        let desired = cons.mean * .pi / 180
+        // Steer toward consensus minus the bias the celestial fixes taught
+        // us — the compass supplies stability, not absolute truth.
+        let desired = (cons.mean - compassBiasDeg) * .pi / 180
         let agree = cons.r                       // 1 = window agrees tightly, 0 = scattered
 
         var error = (desired - Double(worldNode.eulerAngles.y))

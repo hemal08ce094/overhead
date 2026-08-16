@@ -327,6 +327,12 @@ final class SkyScene {
     private weak var engine: SkyEngine?
     private let radius: Double
 
+    /// World-space centers of the drawn discs, nil while hidden. The accuracy
+    /// lab compares these against the camera image — they already carry the
+    /// full pipeline: ephemeris, north alignment, heading trim, refraction.
+    var sunWorldPosition: SCNVector3? { sunNode.isHidden ? nil : sunNode.worldPosition }
+    var moonWorldPosition: SCNVector3? { moonNode.isHidden ? nil : moonNode.worldPosition }
+
     private let sunNode = SCNNode()
     private let moonNode = SCNNode()
     private let starsRoot = SCNNode()

@@ -28,6 +28,26 @@ struct TransitPrediction: Equatable {
     let separationDeg: Double  // predicted minimum separation
 }
 
+/// A body's sky path over the prediction horizon: az/el at the start and end,
+/// linearly interpolated between. The body is NOT fixed in the az/el frame —
+/// diurnal rotation sweeps it ~0.25°/min, most of a moon-width across a
+/// 3-minute horizon (its drift against the *stars* is the negligible part).
+/// Over minutes that sweep is linear to well under the disc radius.
+struct BodyTrack {
+    let startAz: Double, startEl: Double
+    let endAz: Double, endEl: Double
+    let horizon: Double
+
+    func at(_ t: Double) -> (az: Double, el: Double) {
+        let f = horizon > 0 ? min(max(t / horizon, 0), 1) : 0
+        var dAz = endAz - startAz
+        if dAz > 180 { dAz -= 360 } else if dAz < -180 { dAz += 360 }
+        var az = startAz + dAz * f
+        if az < 0 { az += 360 } else if az >= 360 { az -= 360 }
+        return (az, startEl + (endEl - startEl) * f)
+    }
+}
+
 enum TransitPredictor {
 
     /// Angular separation between two sky positions, degrees.
@@ -40,33 +60,40 @@ enum TransitPredictor {
 
     /// Earliest predicted near-transit of any aircraft across the moon or sun
     /// within the next `horizon` seconds. Dead-reckons each track at its
-    /// current ground speed; bodies are treated as fixed over the horizon
-    /// (the moon moves ~0.03° in 3 minutes — far below the disc radius).
+    /// current ground speed against the body's own moving sky path.
+    /// Refraction is applied to neither side: at transit the plane and the
+    /// body sit at the same elevation, so it lifts both nearly equally and
+    /// cancels in the separation.
     nonisolated static func predict(aircraft: [Aircraft],
                         observerLat: Double, observerLon: Double, observerAltM: Double,
-                        moon: (az: Double, el: Double)?,
-                        sun: (az: Double, el: Double)?,
+                        moon: BodyTrack?,
+                        sun: BodyTrack?,
                         horizon: Double = 180,
                         thresholdDeg: Double = 0.45) -> TransitPrediction? {
-        var targets: [(TransitPrediction.Body, (az: Double, el: Double))] = []
-        if let moon, moon.el > 5 { targets.append((.moon, moon)) }
-        if let sun, sun.el > 5 { targets.append((.sun, sun)) }
+        var targets: [(TransitPrediction.Body, BodyTrack)] = []
+        if let moon, moon.startEl > 5 { targets.append((.moon, moon)) }
+        if let sun, sun.startEl > 5 { targets.append((.sun, sun)) }
         guard !targets.isEmpty else { return nil }
 
         let earthR = 6_371_000.0
         var best: TransitPrediction?
 
         for ac in aircraft {
+            // 25 kt floor: below that a track is mostly noise (hovering
+            // helicopters), above it slow GA and helicopters in cruise get
+            // transit predictions too — they cross the disc slowly, which
+            // makes them the *easiest* shots to catch.
             guard let callsign = ac.callsign,
                   let track = ac.track,
-                  let gs = ac.groundSpeedKts, gs > 60,
+                  let gs = ac.groundSpeedKts, gs > 25,
                   !ac.onGround else { continue }
             let speedMps = gs * 0.514444
             let trackRad = track * .pi / 180
             let cosLat = cos(ac.lat * .pi / 180)
 
-            // Separation from `fix` at dead-reckoned time t; ∞ below 8° elevation.
-            func sep(at t: Double, from fix: (az: Double, el: Double)) -> Double {
+            // Separation from the body at dead-reckoned time t — both the
+            // plane and the body evaluated at t; ∞ below 8° elevation.
+            func sep(at t: Double, from body: BodyTrack) -> Double {
                 let d = speedMps * t
                 let lat = ac.lat + (d * cos(trackRad) / earthR) * 180 / .pi
                 let lon = ac.lon + (d * sin(trackRad) / (earthR * cosLat)) * 180 / .pi
@@ -75,6 +102,7 @@ enum TransitPredictor {
                                             targetLat: lat, targetLon: lon,
                                             targetAltM: ac.altitudeMeters)
                 guard pos.elevation > 8 else { return .infinity }
+                let fix = body.at(t)
                 return separation(az1: pos.azimuth, el1: pos.elevation,
                                   az2: fix.az, el2: fix.el)
             }
@@ -84,27 +112,30 @@ enum TransitPredictor {
             // threshold. Instead of testing samples directly, find each local
             // minimum of separation on the coarse grid and refine it finely.
             let coarseStep = 2.0, coarseGateDeg = 10.0, fineStep = 0.05
-            for (body, fix) in targets {
+            for (body, track) in targets {
                 var sPrev2 = Double.infinity   // sep at t - 2·step
                 var sPrev = Double.infinity    // sep at t - step
                 var t = 0.0
                 while t <= horizon + coarseStep {   // one step past, so a minimum at the horizon is seen
-                    let s = sep(at: min(t, horizon), from: fix)
+                    let s = sep(at: min(t, horizon), from: track)
                     if sPrev <= sPrev2, sPrev <= s, sPrev < coarseGateDeg {
                         var bestT = t - coarseStep, bestSep = sPrev
                         var ft = max(0, t - 2 * coarseStep)
                         let fEnd = min(horizon, t)
                         while ft <= fEnd {
-                            let fs = sep(at: ft, from: fix)
+                            let fs = sep(at: ft, from: track)
                             if fs < bestSep { bestSep = fs; bestT = ft }
                             ft += fineStep
                         }
                         if bestSep < thresholdDeg {
                             let when = Date().addingTimeInterval(bestT)
                             if best == nil || when < best!.date {
+                                // Look-here direction = the body at crossing
+                                // time, not where it hangs now.
+                                let at = track.at(bestT)
                                 best = TransitPrediction(callsign: callsign, body: body,
                                                          date: when,
-                                                         azimuth: fix.az, elevation: fix.el,
+                                                         azimuth: at.az, elevation: at.el,
                                                          separationDeg: bestSep)
                             }
                         }
